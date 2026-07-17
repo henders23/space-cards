@@ -1,0 +1,124 @@
+/* ============================================================
+   HOLLOW FLEET — global styles
+   Design tokens & motion transcribed from the design handoff.
+   ============================================================ */
+
+html, body { margin: 0; height: 100%; background: #04070f; overflow: hidden; }
+#app { height: 100%; }
+*, *::before, *::after { box-sizing: border-box; }
+
+a { color: #eaf2ff; text-decoration: underline; }
+a:hover { color: #ffffff; }
+
+/* Reusable deep-space starfield + nebula wash (used by the root frame
+   and the title screen). Transcribed verbatim from the design. */
+.hf-starfield {
+  background:
+    radial-gradient(circle 1px at 11% 19%, #ffffff66 99%, transparent),
+    radial-gradient(circle 1px at 27% 63%, #ffffff40 99%, transparent),
+    radial-gradient(circle 1.5px at 42% 12%, #ffffff55 99%, transparent),
+    radial-gradient(circle 1px at 58% 41%, #ffffff38 99%, transparent),
+    radial-gradient(circle 1px at 71% 77%, #ffffff50 99%, transparent),
+    radial-gradient(circle 1.5px at 84% 27%, #ffffff48 99%, transparent),
+    radial-gradient(circle 1px at 93% 58%, #ffffff3a 99%, transparent),
+    radial-gradient(circle 1px at 17% 87%, #ffffff33 99%, transparent),
+    radial-gradient(circle 1px at 49% 91%, #ffffff40 99%, transparent),
+    radial-gradient(circle 1px at 66% 8%, #ffffff4a 99%, transparent),
+    radial-gradient(circle 1px at 8% 33%, #9fd8ff55 99%, transparent),
+    radial-gradient(circle 1.5px at 33% 42%, #ffffff50 99%, transparent),
+    radial-gradient(circle 1px at 38% 78%, #9fd8ff44 99%, transparent),
+    radial-gradient(circle 1px at 54% 22%, #ffd9a04d 99%, transparent),
+    radial-gradient(circle 1.5px at 63% 58%, #ffffff45 99%, transparent),
+    radial-gradient(circle 1px at 76% 44%, #9fd8ff4a 99%, transparent),
+    radial-gradient(circle 1px at 88% 86%, #ffffff3d 99%, transparent),
+    radial-gradient(circle 1.5px at 97% 12%, #ffd9a044 99%, transparent),
+    radial-gradient(circle 1px at 4% 68%, #ffffff38 99%, transparent),
+    radial-gradient(circle 1px at 46% 55%, #ffffff30 99%, transparent),
+    radial-gradient(900px 520px at 74% -6%, #10294daa 0%, transparent 62%),
+    radial-gradient(820px 500px at 2% 108%, #23164daa 0%, transparent 58%),
+    radial-gradient(560px 400px at 92% 76%, #0c303d88 0%, transparent 60%),
+    #04070f;
+}
+
+.hf-root {
+  position: fixed; inset: 0; overflow: hidden;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  color: #d6e2f5;
+}
+
+/* ---- motion (respect reduced-motion) ---- */
+@keyframes shakeA {10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}}
+@keyframes shakeB {10%,90%{transform:translateX(2px)}20%,80%{transform:translateX(-3px)}30%,50%,70%{transform:translateX(5px)}40%,60%{transform:translateX(-5px)}}
+@keyframes floatup {0%{opacity:0;transform:translateY(0) scale(.8)}15%{opacity:1}100%{opacity:0;transform:translateY(-48px) scale(1.15)}}
+@keyframes beamfade {0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+@keyframes ringpulse {0%,100%{transform:rotate(45deg) scale(1);opacity:.9}50%{transform:rotate(45deg) scale(1.5);opacity:.12}}
+@keyframes engineglow {0%,100%{opacity:.9}50%{opacity:.4}}
+@keyframes cardplay {0%{transform:translate(-50%,40%) scale(.7);opacity:0}18%{opacity:1;transform:translate(-50%,-50%) scale(1)}72%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{transform:translate(-50%,-95%) scale(1.05);opacity:0}}
+@keyframes titlein {0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes driftin {0%{opacity:0;transform:translateY(24px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ---- hover behaviours (the prototype's style-hover) ---- */
+.hf-hand-card { transition: transform .12s, box-shadow .12s, border-color .12s; }
+.hf-hand-card.playable:hover {
+  transform: translateY(-16px);
+  box-shadow: 0 18px 36px #000c;
+  border-color: #4fd8ff;
+  z-index: 5;
+}
+.hf-reward-card { transition: transform .12s, border-color .12s; cursor: pointer; }
+.hf-reward-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 30px #000c;
+  border-color: #4fd8ff;
+}
+.hf-btn { transition: filter .12s, transform .06s; }
+.hf-btn:not(:disabled):hover { filter: brightness(1.08); }
+.hf-btn:not(:disabled):active { transform: translateY(2px); box-shadow: 0 2px 0 #14506b, 0 4px 10px #0008 !important; }
+.hf-ghost-btn { transition: border-color .12s, color .12s; }
+.hf-ghost-btn:hover { border-color: #4fd8ff; color: #eaf2ff; }
+.hf-buy { transition: border-color .12s, color .12s; }
+.hf-buy.affordable:hover { border-color: #4fd8ff; color: #ffffff; }
+.hf-node.reachable { transition: transform .12s; }
+.hf-node.reachable:hover { transform: translate(-50%, -50%) scale(1.08); }
+
+/* ---- title screen ---- */
+.hf-title-scroll { position: fixed; inset: 0; overflow-y: auto; }
+.hf-title-wrap {
+  min-height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 22px 40px;
+  font-family: 'Space Grotesk', system-ui, sans-serif; color: #d6e2f5;
+}
+.hf-title-card { width: 100%; max-width: 860px; animation: titlein .6s ease-out both; }
+.hf-kicker { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .34em; color: #5f7396; text-align: center; }
+.hf-title-h1 {
+  font-weight: 700; letter-spacing: .16em; font-size: clamp(40px, 8vw, 72px);
+  color: #ffffff; text-align: center; margin: 10px 0 0;
+  text-shadow: 0 0 34px #4fd8ff44, 0 0 8px #4fd8ff33;
+}
+.hf-title-sub { text-align: center; font-size: clamp(15px, 2.4vw, 18px); color: #8fa3c4; margin-top: 12px; letter-spacing: .02em; }
+.hf-lore {
+  max-width: 640px; margin: 26px auto 0; font-size: 15.5px; line-height: 1.62; color: #a7b8d4; text-align: center;
+}
+.hf-lore b { color: #eaf2ff; font-weight: 600; }
+.hf-primer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 30px auto 0; max-width: 760px; }
+.hf-primer-cell { border: 1px solid #1b2a45; border-radius: 6px; background: #070b14cc; padding: 14px 15px; }
+.hf-primer-cell h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
+.hf-primer-cell p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #8fa3c4; }
+.hf-diffrow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 32px 0 0; }
+.hf-diff {
+  cursor: pointer; border: 1px solid #2c4066; border-radius: 5px; background: #0a101c;
+  padding: 12px 20px; min-width: 148px; text-align: left; transition: border-color .12s, background .12s;
+}
+.hf-diff:hover { border-color: #4fd8ff; }
+.hf-diff.sel { border-color: #4fd8ff; background: #101d31; box-shadow: 0 0 18px #4fd8ff33; }
+.hf-diff .dn { font-weight: 600; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: #eaf2ff; }
+.hf-diff .dd { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #7d92b5; margin-top: 4px; letter-spacing: .04em; }
+.hf-launch-row { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 34px; }
+.hf-toggle { display: inline-flex; align-items: center; gap: 9px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #7d92b5; letter-spacing: .08em; cursor: pointer; user-select: none; }
+.hf-toggle input { accent-color: #4fd8ff; width: 15px; height: 15px; cursor: pointer; }
+.hf-footer { margin-top: 30px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #3f5375; letter-spacing: .14em; text-align: center; }
+
+.hf-overlay-panel { animation: driftin .35s ease-out both; }
