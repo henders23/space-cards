@@ -1,8 +1,8 @@
-# Hollow Fleet
+# Blackstar Verge
 
 A single-player **roguelike deck-builder of card-driven ship combat** — FTL meets
-Slay the Spire. You command the corvette **ISV Hollow Verdict** across the branching
-sector chart of the Hollow Verge, fighting card-based ship battles, docking at
+Slay the Spire. You command the corvette **ISV Palewake** across the branching
+sector chart of the Blackstar Verge, fighting card-based ship battles, docking at
 stations to refit your deck and ship, and running the gauntlet to the dreadnought
 **HMS Iron Verdict** at the jump gate.
 
@@ -39,7 +39,7 @@ title screen and in the top bar (the on/off choice is remembered).
    gutting the enemy hull — or boarding and taking the ship.
    - **Manual gunnery**: playing a weapon card raises a **crosshair** — aim with the
      mouse and click where on the enemy hull to fire. Your bolt streaks from the
-     Hollow Verdict to the point you chose and detonates on impact. Right-click or
+     Palewake to the point you chose and detonates on impact. Right-click or
      press **Esc** to cancel the shot. Non-weapon cards resolve instantly as before.
    - Player and enemy weapons use distinct projectiles, muzzle flashes, and sounds.
      An "enemy sighted" hail opens every encounter, and your crew calls out over the
