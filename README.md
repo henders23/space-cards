@@ -33,6 +33,13 @@ blocked, the UI falls back to system fonts.)
    hits before they reach hull; your **weapons / reactor / engines** subsystems can
    each be crippled. Read the enemy's telegraphed intent and answer it. Win by
    gutting the enemy hull — or boarding and taking the ship.
+   - **Manual gunnery**: playing a weapon card raises a **crosshair** — aim with the
+     mouse and click where on the enemy hull to fire. Your bolt streaks from the
+     Hollow Verdict to the point you chose and detonates on impact. Right-click or
+     press **Esc** to cancel the shot. Non-weapon cards resolve instantly as before.
+   - Player and enemy weapons use distinct projectiles, muzzle flashes, and sounds.
+     An "enemy sighted" hail opens every encounter, and your crew calls out over the
+     comms whenever one of your three subsystems takes damage.
 4. **Refit** — after a win, salvage a card from the wreck; at stations, buy cards,
    install permanent upgrades, patch hull, hire crew, and scrap dead weight from
    your deck.
@@ -48,8 +55,16 @@ blocked, the UI falls back to system fonts.)
 | `styles.css` | Global reset, starfield, keyframes, hover/title styles |
 | `assets/cards/` | Card art (one PNG per card key) |
 | `assets/ships/` | Player and enemy ship sprites |
+| `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
+| `assets/audio/` | Weapon, "enemy sighted", "reporting damage" and destruction SFX |
 | `vendor/` | Preact + htm UMD builds (vendored, no CDN at runtime) |
 | `Game layout and features planning.zip` | Original design handoff (reference) |
+
+Deploying on Vercel: this is a plain static site with `index.html` at the repo
+root, so Vercel serves it as-is with no build configuration.
+
+FX and audio are drawn from the "Premium Space Projectiles & Explosions Pack" and
+an accompanying sounds pack (both licensed for use with no attribution required).
 
 ## Implementation notes
 
