@@ -28,6 +28,8 @@
     this.fx = []; this._fxid = 0; this.aimPos = null; this.aimOrigin = null;
     this.view = { zoom: 1, panX: 0, panY: 0 };  // battle camera (mouse zoom/pan)
     this.hoverCard = null;                        // card shown in the dwell panel
+    var pref = "on"; try { pref = localStorage.getItem("hf_music") || "on"; } catch (e) {}
+    this.music = { on: pref !== "off" };          // looping start/background track
     this.state = this.freshRun();
   }
   Game.prototype = Object.create(Component.prototype);
@@ -169,6 +171,17 @@
     this.aimOrigin = null;   // player muzzle in client coords while aiming
     if (!this.view) this.view = { zoom:1, panX:0, panY:0 };
     preloadAudio();
+    // Start/background music — created once, looped. Browsers block autoplay
+    // until the first user gesture, so also arm a one-shot gesture starter.
+    try {
+      this._music = new Audio("assets/audio/echoes_of_the_void.mp3");
+      this._music.loop = true; this._music.volume = 0.4; this._music.preload = "auto";
+    } catch (e) { this._music = null; }
+    this._startMusic = function () { if (self.music.on && self._music) { var p=self._music.play(); if (p&&p.catch) p.catch(function(){}); } };
+    this._onGesture = function () { self._startMusic(); window.removeEventListener("pointerdown", self._onGesture); window.removeEventListener("keydown", self._onGesture); };
+    this._startMusic();  // try immediately (works if the browser allows it)
+    window.addEventListener("pointerdown", this._onGesture);
+    window.addEventListener("keydown", this._onGesture);
     this._onR = function () { self.forceUpdate(); };
     this._onKey = function (e) {
       if (e.key === "Escape") { var B=self.state.battle; if (B && B.aiming) { self.cancelAim(); } if (self.hoverCard) { self.hoverLeave(); } }
@@ -183,6 +196,25 @@
     window.removeEventListener("resize", this._onR);
     window.removeEventListener("keydown", this._onKey);
     window.removeEventListener("mouseup", this._onUp);
+    window.removeEventListener("pointerdown", this._onGesture);
+    window.removeEventListener("keydown", this._onGesture);
+    if (this._music) { try { this._music.pause(); } catch (e) {} }
+  };
+  Game.prototype.toggleMusic = function () {
+    this.music.on = !this.music.on;
+    try { localStorage.setItem("hf_music", this.music.on ? "on" : "off"); } catch (e) {}
+    if (this._music) {
+      if (this.music.on) { var p=this._music.play(); if (p&&p.catch) p.catch(function(){}); }
+      else this._music.pause();
+    }
+    this.forceUpdate();
+  };
+  Game.prototype.renderMusicBtn = function () {
+    var self=this, on=this.music.on;
+    return html`<button onClick=${function(e){ if(e&&e.stopPropagation)e.stopPropagation(); self.toggleMusic(); }}
+      title=${on?"Music on — click to mute":"Music muted — click to play"}
+      style=${"display:inline-flex;align-items:center;gap:6px;font-family:"+MONO+";font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;background:#0d1424;border:1px solid "+(on?"#2c4066":"#22345a")+";border-radius:4px;padding:6px 11px;color:"+(on?"#8deaff":"#5f7396")+";white-space:nowrap"}>
+      <span style="font-size:13px;line-height:1">${on?"♪":"♪"}</span>${on?"Music":"Muted"}</button>`;
   };
 
   // ---- a fresh run (starts on the title screen) ---------------------------
@@ -753,6 +785,7 @@
         <div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396;letter-spacing:.14em"}>${v.screenTag}</div>
         <div style="flex:1"></div>
         <div style=${"font-family:"+MONO+";font-size:14px;color:#ffc266;letter-spacing:.08em"}>${v.hudRight}</div>
+        ${this.renderMusicBtn()}
       </div>
 
       ${v.isBattle ? this.renderBattle(v) : null}
@@ -823,10 +856,13 @@
               style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.16em;font-size:18px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:5px;padding:16px 44px;cursor:pointer;box-shadow:0 4px 0 #14506b,0 10px 26px #0009">
               Begin Sortie ▸
             </button>
-            <label class="hf-toggle">
-              <input type="checkbox" checked=${this.config.scanlines} onChange=${function(){ self.toggleScanlines(); }} />
-              CRT SCANLINES
-            </label>
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center">
+              <label class="hf-toggle">
+                <input type="checkbox" checked=${this.config.scanlines} onChange=${function(){ self.toggleScanlines(); }} />
+                CRT SCANLINES
+              </label>
+              ${this.renderMusicBtn()}
+            </div>
           </div>
 
           <div class="hf-footer">ISV HOLLOW VERDICT · CORVETTE · DECK COMMAND — GOOD HUNTING, CAPTAIN</div>

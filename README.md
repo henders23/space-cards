@@ -23,6 +23,10 @@ Everything the game needs is vendored locally, so it works fully offline. (The o
 optional network call is Google Fonts for Space Grotesk / IBM Plex Mono; if it's
 blocked, the UI falls back to system fonts.)
 
+A looping ambient theme ("Echoes of the Void") starts with the game — browsers
+hold it until your first click/keypress — and there's a **♪ MUSIC** toggle on the
+title screen and in the top bar (the on/off choice is remembered).
+
 ## How it plays
 
 1. **Title & briefing** — pick a difficulty (Standard / Hard / Brutal), read the
