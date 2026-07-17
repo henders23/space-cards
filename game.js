@@ -26,6 +26,9 @@
     Component.call(this, props);
     this.config = { difficulty: "standard", startingSalvage: 40, scanlines: false };
     this.fx = []; this._fxid = 0; this.aimPos = null; this.aimOrigin = null;
+    this.view = { zoom: 1, panX: 0, panY: 0 };  // battle camera (mouse zoom/pan)
+    this.hoverCard = null;                        // card shown in the dwell panel
+    this._decalId = 0; this._impact = null;
     this.state = this.freshRun();
   }
   Game.prototype = Object.create(Component.prototype);
@@ -156,6 +159,23 @@
     capital:{sheet:"assets/fx/explosion_capital.png", cols:8, rows:3, frames:20}
   };
 
+  // ---- persistent hull-damage decals ----------------------------------------
+  // Photoreal battle-damage sprites (transparent 512px). Grouped by the kind of
+  // weapon that caused them; a bigger hit picks a heavier sprite from the list.
+  var DMG = {
+    energy:   ["dmg01","dmg02","dmg03","dmg04","dmg05"],       // laser / plasma scorches
+    kinetic:  ["dmg08","dmg06","dmg11","dmg07"],               // ballistic dents & breaches
+    explosive:["dmg10","dmg09","dmg12","dmg14"],               // missile / torpedo craters
+    heavy:    ["dmg11","dmg13","dmg15","dmg14"]                // deep structural breaches
+  };
+  // weapon key -> damage family
+  var DMG_CAT = {
+    laser:"energy", flak:"energy", "plasma-lance":"energy", "execution-beam":"energy", "ion-needle":"energy",
+    broadside:"kinetic", railgun:"kinetic", "chain-cannon":"kinetic", "kinetic-ram":"heavy", "point-blank":"kinetic",
+    missile:"explosive", torpedo:"explosive", "mine-layer":"explosive", "emp-warhead":"explosive", graviton:"explosive"
+  };
+  function dmgImg(key){ return "assets/fx/damage/"+key+".png"; }
+
   Game.prototype.LIB = LIB;
 
   // ---- lifecycle ----------------------------------------------------------
@@ -165,17 +185,22 @@
     this._fxid = 0;
     this.aimPos = null;      // {x,y} client coords while aiming
     this.aimOrigin = null;   // player muzzle in client coords while aiming
+    if (!this.view) this.view = { zoom:1, panX:0, panY:0 };
     preloadAudio();
     this._onR = function () { self.forceUpdate(); };
     this._onKey = function (e) {
-      if (e.key === "Escape") { var B=self.state.battle; if (B && B.aiming) { self.cancelAim(); } }
+      if (e.key === "Escape") { var B=self.state.battle; if (B && B.aiming) { self.cancelAim(); } if (self.hoverCard) { self.hoverLeave(); } }
     };
+    // Global mouse-up ends any panning even if released outside the battle area.
+    this._onUp = function () { self._panning=false; };
     window.addEventListener("resize", this._onR);
     window.addEventListener("keydown", this._onKey);
+    window.addEventListener("mouseup", this._onUp);
   };
   Game.prototype.componentWillUnmount = function () {
     window.removeEventListener("resize", this._onR);
     window.removeEventListener("keydown", this._onKey);
+    window.removeEventListener("mouseup", this._onUp);
   };
 
   // ---- a fresh run (starts on the title screen) ---------------------------
@@ -234,7 +259,7 @@
     if (!pierce && t.shield>0) { abs=Math.min(t.shield,amt); t.shield-=abs; toHull=amt-abs; }
     if (side!=="e" && toHull>0 && B.armour>0) { arm=Math.min(B.armour,toHull); B.armour-=arm; toHull-=arm; }
     t.hull = this.cl(t.hull-toHull,0,t.hullMax);
-    if (toHull>0) this.addFloat(side,"-"+toHull,"#ff8aa0");
+    if (toHull>0) { this.addFloat(side,"-"+toHull,"#ff8aa0"); this.spawnDecal(side, toHull, t.hull); }
     else if (arm>0) this.addFloat(side,"-"+arm+" ARM","#b7c5d9");
     else if (abs>0) this.addFloat(side,"-"+abs+" SH","#6fd8ff");
     if (side==="e") S.shakeE++; else S.shakeP++;
@@ -247,7 +272,7 @@
     S.battle = {
       node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false, aiming:null,
       armour:0, reflect:0, blind:0, overwatch:0, flank:0, sealCrew:false,
-      nextPower:0, nextPowerPenalty:0, mines:[], detailUid:null,
+      nextPower:0, nextPowerPenalty:0, mines:[], detailUid:null, eDecals:[], pDecals:[],
       enemy:{ name:d.name, role:d.role, hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
         shieldCap:d.shieldCap, shield:0, regen:d.regen, crew:d.crew, crewMax:d.crew,
         atkLo:Math.round(d.atkLo*m), atkHi:Math.round(d.atkHi*m), sab:d.sab, boardN:d.boardN,
@@ -257,6 +282,7 @@
     };
     S.player.shield=0; S.screen="battle"; S.overlay=null;
     this.fx = []; this.aimPos = null;   // clear any stale FX from a prior battle
+    this.view = { zoom:1, panX:0, panY:0 }; this.hideHover();   // reset camera & dwell panel
     this.chooseIntent();
     this.log("#5a6d8f", d.name+" closes to weapons range.", true);
     preloadAudio();
@@ -311,7 +337,8 @@
         if (B.brace) { d=Math.ceil(d/2); this.log("#9fdcff","Brace cuts the hit in half."); }
         // enemy weapon fire — a distinct (red) bolt + sound, impact on the player ship
         this.enemyFire();
-        var r=this.dealDamage("p",d,false);
+        this.setImpact("p", this.shipCenter("p"), "energy");   // decal lands on the player hull
+        var r=this.dealDamage("p",d,false); this.clearImpact();
         this.log("#ff8aa0","Fire rakes your ship — "+(r.abs?r.abs+" to shields, ":"")+(r.arm?r.arm+" to armour, ":"")+r.toHull+" to hull.");
         if (it.sab) { var nm=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm,it.sab); this.log("#ff8aa0","Their gunners smash your "+nm.toUpperCase()+" (-"+it.sab+")."); }
         if (B.reflect) { var ref=B.reflect; B.reflect=0; this.dealDamage("e",ref,true); this.log("#9fdcff","Reflective screen returns "+ref+" damage."); }
@@ -322,7 +349,7 @@
       if (B.sealCrew) { B.sealCrew=false; this.log("#9fdcff","Sealed bulkheads stop the boarding assault."); }
       else { p.crew=this.cl(p.crew-it.value,0,p.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm2,10); S.shakeP++; this.log("#ff8aa0","Boarders storm your decks — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
     }
-    else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
+    else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); this.pruneDecals("e"); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
     if (B.mines.length) {
       var mineTotal=B.mines.reduce(function(sum,n){return sum+n;},0); B.mines=[];
       this.dealDamage("e",mineTotal,false); this.log("#9fdcff","Planted mines detonate for "+mineTotal+" damage.");
@@ -345,6 +372,7 @@
   // ---- playing cards ------------------------------------------------------
   Game.prototype.playCard = function (uid) {
     var S=this.state, B=S.battle; if (!B||B.busy||B.over) return;
+    this.hideHover();
     var i=-1; for (var j=0;j<B.hand.length;j++){ if (B.hand[j].uid===uid){ i=j; break; } }
     if (i<0) return;
     var c=B.hand[i];
@@ -385,7 +413,7 @@
     if (c.repEngine) { p.subs.engines=this.cl(p.subs.engines+c.repEngine,0,100); this.log("#9fdcff","ENGINES restored +"+c.repEngine+"."); }
     if (c.repReactor) { p.subs.reactor=this.cl(p.subs.reactor+c.repReactor,0,100); this.log("#9fdcff","REACTOR restored +"+c.repReactor+"."); }
     if (c.reboot) { var rb=this.worstSub(p.subs); p.subs[rb]=Math.max(p.subs[rb],c.reboot); this.log("#9fdcff",rb.toUpperCase()+" rebooted to "+p.subs[rb]+"."); }
-    if (c.heal) { p.hull=this.cl(p.hull+c.heal,0,p.hullMax); this.log("#9fdcff","Hull sealed +"+c.heal+"."); }
+    if (c.heal) { p.hull=this.cl(p.hull+c.heal,0,p.hullMax); this.pruneDecals("p"); this.log("#9fdcff","Hull sealed +"+c.heal+"."); }
     if (c.gainP) { p.power+=c.gainP; this.log("#9fdcff",c.name+" — +"+c.gainP+" power."); }
     if (c.selfSub) { this.hurtPlayerSub("reactor",c.selfSub); this.log("#b3c4de","Reactor strained (-"+c.selfSub+")."); }
     if (c.hurtBest) { var best=this.bestSub(p.subs); this.hurtPlayerSub(best,c.hurtBest); this.log("#b3c4de",best.toUpperCase()+" cannibalised (-"+c.hurtBest+")."); }
@@ -447,15 +475,16 @@
         setTimeout(function(){
           self.fireProjectile(origin, tgt, "player", function(){
             self.spawnImpactFor(c, tgt, "e");
-            if (!landed) { landed=true; self.resolvePlayerWeapon(c); }
+            if (!landed) { landed=true; self.resolvePlayerWeapon(c, target); }
           });
         }, k*120);
       })(k);
     }
   };
-  Game.prototype.resolvePlayerWeapon = function (c) {
+  Game.prototype.resolvePlayerWeapon = function (c, target) {
     var B=this.state.battle; if (!B) return;
-    this.resolveCard(c); this.forceUpdate();
+    this.setImpact("e", target, this.decalCat(c));  // hull gouges land where you aimed
+    this.resolveCard(c); this.clearImpact(); this.forceUpdate();
     if (!this.checkEnd()) { if (B) B.busy=false; this.forceUpdate(); }
   };
   Game.prototype.enemyFire = function () {
@@ -549,6 +578,78 @@
     if (this._lastReport && n-this._lastReport<1400) return;
     this._lastReport=n; sfx(rndOf(["reporting_damage","reporting_damage_1"]), .9);
   };
+
+  // ---- persistent hull-damage decals --------------------------------------
+  // Context set just before a burst of hull damage so decals land where the
+  // shot hit and match the weapon that fired.
+  Game.prototype.setImpact = function (side, clientPt, cat) { this._impact = { side:side, pt:clientPt||null, cat:cat||null }; };
+  Game.prototype.clearImpact = function () { this._impact = null; };
+  Game.prototype.decalCat = function (c) { return (c && DMG_CAT[c.key]) || "kinetic"; };
+  Game.prototype.spawnDecal = function (side, dmg, hullAfter) {
+    var B=this.state.battle; if (!B) return;
+    var list = side==="e" ? B.eDecals : B.pDecals;
+    if (!list) return;
+    var nx=0.34+Math.random()*0.32, ny=0.30+Math.random()*0.40;
+    var ip=this._impact;
+    if (ip && ip.side===side && ip.pt) {
+      var r=this.shipRect(side);
+      if (r && r.width>0) {
+        nx=this.cl((ip.pt.x-r.left)/r.width + (Math.random()-0.5)*0.08, 0.12, 0.88);
+        ny=this.cl((ip.pt.y-r.top)/r.height + (Math.random()-0.5)*0.08, 0.15, 0.85);
+      }
+    }
+    var cat=(ip && ip.cat) ? ip.cat : "kinetic";
+    if (dmg>=16 && cat!=="energy") cat="heavy";
+    var fam=DMG[cat]||DMG.kinetic;
+    var idx=this.cl(Math.floor(dmg/5), 0, fam.length-1);      // bigger hit -> heavier sprite
+    var size=this.cl(30+dmg*2.7, 40, 120);                    // px in the unscaled ship box
+    list.push({ id:++this._decalId, nx:nx, ny:ny, img:dmgImg(fam[idx]), size:size, rot:this.ri(0,359), hullAfter:hullAfter });
+    if (list.length>14) list.shift();
+  };
+  // When a ship's hull is repaired above the level a gouge was made at, it heals over.
+  Game.prototype.pruneDecals = function (side) {
+    var B=this.state.battle; if (!B) return;
+    var hull = side==="e" ? B.enemy.hull : this.state.player.hull;
+    var key = side==="e" ? "eDecals" : "pDecals";
+    if (!B[key]) return;
+    B[key] = B[key].filter(function(d){ return hull <= d.hullAfter; });
+  };
+
+  // ---- battle camera: mouse-wheel zoom, middle-drag pan -------------------
+  Game.prototype.onWheel = function (e) {
+    if (this.state.screen!=="battle") return;
+    if (e.preventDefault) e.preventDefault();
+    var z=this.view.zoom * (e.deltaY<0 ? 1.12 : 0.893);
+    this.view.zoom=this.cl(z, 0.55, 3.6);
+    this.forceUpdate();
+  };
+  Game.prototype.onViewDown = function (e) {
+    if (e.button===1) {   // middle button held = pan
+      if (e.preventDefault) e.preventDefault();
+      this._panning=true; this._panSX=e.clientX; this._panSY=e.clientY;
+      this._panX0=this.view.panX; this._panY0=this.view.panY;
+    }
+  };
+  Game.prototype.onViewMove = function (e) {
+    if (!this._panning) return;
+    this.view.panX=this._panX0+(e.clientX-this._panSX);
+    this.view.panY=this._panY0+(e.clientY-this._panSY);
+    var self=this; if (this._panRaf) return;
+    this._panRaf=requestAnimationFrame(function(){ self._panRaf=0; self.forceUpdate(); });
+  };
+  Game.prototype.resetView = function () { this.view={ zoom:1, panX:0, panY:0 }; this.forceUpdate(); };
+
+  // ---- dwell-to-inspect: hover a card ~2s to dock its detail on the right --
+  Game.prototype.hoverEnter = function (card) {
+    var self=this; this.clearHoverTimer();
+    this._hoverT=setTimeout(function(){ self._hoverT=0; self.hoverCard=card; self.forceUpdate(); }, 2000);
+  };
+  Game.prototype.hoverLeave = function () {
+    this.clearHoverTimer();
+    if (this.hoverCard){ this.hoverCard=null; this.forceUpdate(); }
+  };
+  Game.prototype.clearHoverTimer = function () { if (this._hoverT){ clearTimeout(this._hoverT); this._hoverT=0; } };
+  Game.prototype.hideHover = function () { this.clearHoverTimer(); this.hoverCard=null; };
 
   // ---- win / loss ---------------------------------------------------------
   Game.prototype.checkEnd = function () {
@@ -794,10 +895,15 @@
   Game.prototype.renderBattle = function (v) {
     var self=this;
     return html`
-    <div style="position:absolute;inset:58px 0 0 0">
-      <!-- central combat column -->
+    <div style=${"position:absolute;inset:58px 0 0 0;touch-action:none;cursor:"+(this._panning?"grabbing":"auto")}
+      onWheel=${function(e){ self.onWheel(e); }}
+      onMouseDown=${function(e){ self.onViewDown(e); }}
+      onMouseMove=${function(e){ self.onViewMove(e); }}
+      onDblClick=${function(){ self.resetView(); }}>
+      <div style=${"position:absolute;left:50%;bottom:198px;transform:translateX(-50%);z-index:11;pointer-events:none;font-family:"+MONO+";font-size:11px;letter-spacing:.14em;color:#8fa3c4;background:#070b14d0;border:1px solid #1b2a45;border-radius:4px;padding:5px 12px;animation:hintfade 7s ease-out forwards"}>SCROLL: ZOOM · MIDDLE-DRAG: PAN · DBL-CLICK: RESET</div>
+      <!-- central combat column (mouse-wheel zoom · middle-drag pan) -->
       <div style="position:absolute;left:50%;top:0;bottom:190px;width:760px;margin-left:-380px">
-      <div style=${"position:absolute;left:0;top:50%;width:760px;display:flex;flex-direction:column;gap:44px;transform:translateY(-50%) "+v.combatScale+";transform-origin:center center"}>
+      <div style=${"position:absolute;left:0;top:50%;width:760px;display:flex;flex-direction:column;gap:44px;transform:"+v.combatTransform+";transform-origin:center center;will-change:transform"}>
 
         <div style="position:absolute;inset:0;pointer-events:none;z-index:3">
           ${v.beams.map(function(b){
@@ -810,10 +916,11 @@
           <div style="display:flex;justify-content:space-between;gap:16px;margin:0 30px 14px">
             ${v.eSubs.map(function(s){ return self.renderSub(s); })}
           </div>
-          <div style="position:relative;height:200px;margin:0 30px;display:flex;justify-content:center">
+          <div style="position:relative;height:300px;margin:0 30px;display:flex;justify-content:center">
             <div style="position:relative;height:100%;aspect-ratio:2.685">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #ff7d95;border-radius:50%;opacity:"+v.eBub+";transition:opacity .4s;box-shadow:0 0 30px #ff547033, inset 0 0 30px #ff547018"}></div>
               <img src="assets/ships/enemy.png" alt="Hostile ship" ref=${function(el){ self.enemyImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              ${self.renderDecals(v.eDecals)}
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;margin:14px 30px 0">
@@ -830,10 +937,11 @@
             <div style="flex:1;height:13px;border:1px solid #2c4066;border-radius:3px;background:#000000;overflow:hidden"><div style=${"height:100%;width:"+v.pShPct+"%;background:linear-gradient(90deg,#1e8fc4,#7ce7ff);transition:width .3s"}></div></div>
             <span style=${"font-family:"+MONO+";font-size:15px;color:#eaf2ff"}>${v.pShTxt}</span>
           </div>
-          <div style="position:relative;height:200px;margin:0 30px;display:flex;justify-content:center">
+          <div style="position:relative;height:300px;margin:0 30px;display:flex;justify-content:center">
             <div style="position:relative;height:100%;aspect-ratio:2.434">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #6fe0ff;border-radius:50%;opacity:"+v.pBub+";transition:opacity .4s;box-shadow:0 0 30px #4fd8ff33, inset 0 0 30px #4fd8ff18"}></div>
               <img src="assets/ships/player.png" alt="ISV Hollow Verdict" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              ${self.renderDecals(v.pDecals)}
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;gap:16px;margin:14px 30px 0">
@@ -915,6 +1023,7 @@
             ${v.hand.map(function(c){
               return html`
               <div key=${c.uid} class=${"hf-hand-card"+(c.playable?" playable":"")} onClick=${c.click}
+                onMouseEnter=${function(){ self.hoverEnter(c); }} onMouseLeave=${function(){ self.hoverLeave(); }}
                 style=${"width:176px;min-height:224px;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden;user-select:none;flex:0 0 176px;margin:0 "+v.cardMh+";opacity:"+c.op+";cursor:"+c.cur+";position:relative"}>
                 ${self.cardFace(c)}
               </div>`;
@@ -927,7 +1036,22 @@
         </div>
       </div>
 
+      ${this.hoverCard ? this.renderHoverPanel(this.hoverCard) : null}
       ${v.aiming ? this.renderAimOverlay(v) : null}
+    </div>`;
+  };
+
+  // ---- dwell panel: full card details docked on the right -----------------
+  Game.prototype.renderHoverPanel = function (c) {
+    return html`
+    <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;z-index:12;border:1px solid #334b70;border-radius:10px;background:linear-gradient(180deg,#111a2be8,#070b14f2);box-shadow:0 20px 60px #000c;backdrop-filter:blur(3px);overflow:hidden;pointer-events:none;animation:driftin .18s ease-out both">
+      <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:100%;height:auto;display:block;border-bottom:1px solid #1b2a45" />
+      <div style="padding:13px 16px 16px">
+        <div style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.2em;color:#7d92b5;text-transform:uppercase"}>${c.type+" · COST "+c.cost}</div>
+        <div style="font-weight:600;font-size:20px;color:#fff;margin:5px 0 3px">${c.name}</div>
+        <div style=${"font-family:"+MONO+";font-size:12px;color:#ffc266;letter-spacing:.1em;margin-bottom:11px"}>${c.summary||""}</div>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:#b8c7dd">${c.text}</p>
+      </div>
     </div>`;
   };
 
@@ -1024,6 +1148,16 @@
       <div style="height:6px;background:#000000;border-radius:2px;margin-top:6px;overflow:hidden"><div style=${"height:100%;width:"+s.val+"%;background:"+s.bar+";transition:width .3s"}></div></div>
       <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:5px"}>${s.fx}</div>
     </div>`;
+  };
+
+  // Persistent hull-damage sprites, anchored in the ship's local box so they
+  // scale, pan and shake with the ship image.
+  Game.prototype.renderDecals = function (list) {
+    if (!list || !list.length) return null;
+    return list.map(function(d){
+      return html`<img key=${d.id} src=${d.img} alt=""
+        style=${"position:absolute;left:"+(d.nx*100).toFixed(2)+"%;top:"+(d.ny*100).toFixed(2)+"%;width:"+d.size+"px;height:"+d.size+"px;transform:translate(-50%,-50%) rotate("+d.rot+"deg);pointer-events:none;object-fit:contain;z-index:2;opacity:.96;filter:drop-shadow(0 2px 3px #000c) saturate(.85)"} />`;
+    });
   };
 
   // ------------------------------- MAP -------------------------------------
@@ -1280,9 +1414,14 @@
     var vw=window.innerWidth||1280, vh=window.innerHeight||800;
     if (B) {
       var e=B.enemy;
-      var sc=Math.min(1,(vh-274)/700,(vw-24)/760);
+      // Bigger ships by default; user zoom (wheel) and pan (middle-drag) on top.
+      var baseFit=this.cl(Math.min((vw-24)/760,(vh-165)/615),0.6,1.45);
+      var zoom=baseFit*this.view.zoom;
+      v.combatTransform="translate("+Math.round(this.view.panX)+"px, calc(-50% + "+Math.round(this.view.panY)+"px)) scale("+zoom.toFixed(3)+")";
+      var sc=zoom;
       v.combatScale="scale("+sc.toFixed(3)+")";
-      var pw=Math.floor(vw/2-380*sc-40);
+      var pw=Math.floor(vw/2-380*baseFit-40);
+      v.eDecals=B.eDecals; v.pDecals=B.pDecals;
       v.panelW=Math.max(0,Math.min(300,pw))+"px";
       v.sideBlock=pw>=150?"block":"none"; v.sideFlex=pw>=150?"flex":"none";
       var n=Math.max(1,B.hand.length); var mid=Math.max(200,vw-470); var mh=Math.min(5,(mid-n*176)/(2*n)); v.cardMh=Math.max(mh,-55).toFixed(1)+"px";
@@ -1321,6 +1460,7 @@
     } else {
       v.aiming=null;
       v.pSubs=[]; v.eSubs=[]; v.hand=[]; v.pips=[]; v.logs=[]; v.floats=[]; v.beams=[]; v.inShow=false; v.plShow=false; v.handEmpty=false;
+      v.eDecals=[]; v.pDecals=[]; v.combatTransform="translateY(-50%)";
     }
 
     if (S.base) {
