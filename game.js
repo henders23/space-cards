@@ -25,6 +25,7 @@
   function Game(props) {
     Component.call(this, props);
     this.config = { difficulty: "standard", startingSalvage: 40, scanlines: false };
+    this.fx = []; this._fxid = 0; this.aimPos = null; this.aimOrigin = null;
     this.state = this.freshRun();
   }
   Game.prototype = Object.create(Component.prototype);
@@ -87,16 +88,58 @@
 
   var _uid = 0, _fid = 0;
 
+  // ---- audio ----------------------------------------------------------------
+  // Short SFX from the sounds pack. new/cloned Audio per call so shots overlap.
+  var AUDIO_KEYS = ["enemy_sighted_m","enemy_sighted_f","reporting_damage","reporting_damage_1",
+    "laser_beam","laser_cannon","blaster","small_explosion","medium_explosion","torpedo_explosion",
+    "enemy_destroyed","ship_destroyed"];
+  var AUDIO = {};
+  function preloadAudio(){
+    if (AUDIO._done) return; AUDIO._done = true;
+    AUDIO_KEYS.forEach(function(n){ try{ var a=new Audio("assets/audio/"+n+".mp3"); a.preload="auto"; AUDIO[n]=a; }catch(e){} });
+  }
+  function sfx(name, vol){
+    try{
+      var base=AUDIO[name];
+      var a=base ? base.cloneNode(true) : new Audio("assets/audio/"+name+".mp3");
+      a.volume=(vol==null?1:vol); var pr=a.play(); if(pr&&pr.catch) pr.catch(function(){});
+    }catch(e){}
+  }
+  function rndOf(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+  // ---- FX sprite config (from the projectiles / explosions pack) ------------
+  var FX = {
+    playerBolt:"assets/fx/player_bolt.png", enemyBolt:"assets/fx/enemy_bolt.png",
+    muzzlePlayer:"assets/fx/muzzle_player.png", muzzleEnemy:"assets/fx/muzzle_enemy.png",
+    impactEnemy:"assets/fx/impact_enemy.png", impactPlayer:"assets/fx/impact_player.png",
+    shieldHitEnemy:"assets/fx/shield_hit_enemy.png", shieldHitPlayer:"assets/fx/shield_hit_player.png"
+  };
+  var EXPL = {
+    orange:{sheet:"assets/fx/explosion_orange.png", cols:8, rows:2, frames:16},
+    red:   {sheet:"assets/fx/explosion_red.png",    cols:8, rows:2, frames:16},
+    capital:{sheet:"assets/fx/explosion_capital.png", cols:8, rows:3, frames:20}
+  };
+
   Game.prototype.LIB = LIB;
 
   // ---- lifecycle ----------------------------------------------------------
   Game.prototype.componentDidMount = function () {
     var self = this;
+    this.fx = [];            // transient projectile / flash / explosion sprites
+    this._fxid = 0;
+    this.aimPos = null;      // {x,y} client coords while aiming
+    this.aimOrigin = null;   // player muzzle in client coords while aiming
+    preloadAudio();
     this._onR = function () { self.forceUpdate(); };
+    this._onKey = function (e) {
+      if (e.key === "Escape") { var B=self.state.battle; if (B && B.aiming) { self.cancelAim(); } }
+    };
     window.addEventListener("resize", this._onR);
+    window.addEventListener("keydown", this._onKey);
   };
   Game.prototype.componentWillUnmount = function () {
     window.removeEventListener("resize", this._onR);
+    window.removeEventListener("keydown", this._onKey);
   };
 
   // ---- a fresh run (starts on the title screen) ---------------------------
@@ -153,7 +196,6 @@
     var abs=0, toHull=amt;
     if (!pierce && t.shield>0) { abs=Math.min(t.shield,amt); t.shield-=abs; toHull=amt-abs; }
     t.hull = this.cl(t.hull-toHull,0,t.hullMax);
-    this.addBeam();
     if (toHull>0) this.addFloat(side,"-"+toHull,"#ff8aa0");
     else if (abs>0) this.addFloat(side,"-"+abs+" SH","#6fd8ff");
     if (side==="e") S.shakeE++; else S.shakeP++;
@@ -164,7 +206,7 @@
   Game.prototype.startBattle = function (node) {
     var S=this.state, d=ENEMIES[node.enemy], m=this.diffMult()*(node.type==="elite"?1.3:1);
     S.battle = {
-      node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false,
+      node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false, aiming:null,
       enemy:{ name:d.name, role:d.role, hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
         shieldCap:d.shieldCap, shield:0, regen:d.regen, crew:d.crew, crewMax:d.crew,
         atkLo:Math.round(d.atkLo*m), atkHi:Math.round(d.atkHi*m), sab:d.sab, boardN:d.boardN,
@@ -173,8 +215,11 @@
       draw:this.sh(S.deckKeys.map(this.mk.bind(this))), hand:[], disc:[], logs:[], floats:[], beams:[], played:null
     };
     S.player.shield=0; S.screen="battle"; S.overlay=null;
+    this.fx = []; this.aimPos = null;   // clear any stale FX from a prior battle
     this.chooseIntent();
     this.log("#5a6d8f", d.name+" closes to weapons range.", true);
+    preloadAudio();
+    sfx(rndOf(["enemy_sighted_m","enemy_sighted_f"]), .95);   // "enemy sighted" hail
     this.startPlayerTurn(); this.forceUpdate();
   };
   Game.prototype.drawCards = function (n) {
@@ -192,7 +237,7 @@
     while (B.hand.length<5 && (B.draw.length||B.disc.length)) this.drawCards(1);
   };
   Game.prototype.endTurn = function () {
-    var B=this.state.battle; if (!B||B.busy||B.over) return;
+    var B=this.state.battle; if (!B||B.busy||B.over||B.aiming) return;
     B.busy=true; B.disc.push.apply(B.disc,B.hand); B.hand=[]; this.forceUpdate();
     var self=this; setTimeout(function(){ self.enemyPhase(); },500);
   };
@@ -207,12 +252,14 @@
       else {
         var d=Math.round(it.value*this.wm(e.subs));
         if (B.brace) { d=Math.ceil(d/2); this.log("#9fdcff","Brace cuts the hit in half."); }
+        // enemy weapon fire — a distinct (red) bolt + sound, impact on the player ship
+        this.enemyFire();
         var r=this.dealDamage("p",d,false);
         this.log("#ff8aa0","Fire rakes your ship — "+(r.abs?r.abs+" to shields, ":"")+r.toHull+" to hull.");
-        if (it.sab) { var nm=this.pk(["weapons","reactor","engines"]); p.subs[nm]=this.cl(p.subs[nm]-it.sab,0,100); this.log("#ff8aa0","Their gunners smash your "+nm.toUpperCase()+" (-"+it.sab+")."); }
+        if (it.sab) { var nm=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm,it.sab); this.log("#ff8aa0","Their gunners smash your "+nm.toUpperCase()+" (-"+it.sab+")."); }
       }
     } else if (it.type==="shield") { e.shield=this.cl(e.shield+it.value,0,e.shieldCap); this.log("#ff8aa0",e.name+" reinforces its shields (+"+it.value+")."); }
-    else if (it.type==="board") { p.crew=this.cl(p.crew-it.value,0,p.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); p.subs[nm2]=this.cl(p.subs[nm2]-10,0,100); S.shakeP++; this.log("#ff8aa0","Boarders storm your decks — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
+    else if (it.type==="board") { p.crew=this.cl(p.crew-it.value,0,p.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm2,10); S.shakeP++; this.log("#ff8aa0","Boarders storm your decks — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
     else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
     this.forceUpdate();
     if (this.checkEnd()) return;
@@ -237,6 +284,8 @@
     var c=B.hand[i];
     if (c.cost>S.player.power) return;
     if (c.needCrew && S.player.crew<c.needCrew) { this.log("#b3c4de","Not enough crew to man "+c.name+"."); this.forceUpdate(); return; }
+    // Weapons are aimed by hand: enter targeting mode instead of resolving now.
+    if (c.type==="weapon") { this.beginAim(c); return; }
     S.player.power-=c.cost; B.hand.splice(i,1); B.disc.push(c);
     B.played=c; var u=c.uid; var self=this;
     setTimeout(function(){ var b=self.state.battle; if (b&&b.played&&b.played.uid===u){ b.played=null; self.forceUpdate(); } },950);
@@ -260,7 +309,7 @@
     if (c.repSub) { var w=this.worstSub(p.subs); p.subs[w]=this.cl(p.subs[w]+c.repSub,0,100); this.log("#9fdcff","Damage control restores "+w.toUpperCase()+" (+"+c.repSub+")."); }
     if (c.heal) { p.hull=this.cl(p.hull+c.heal,0,p.hullMax); this.log("#9fdcff","Hull sealed +"+c.heal+"."); }
     if (c.gainP) { p.power+=c.gainP; this.log("#9fdcff",c.name+" — +"+c.gainP+" power."); }
-    if (c.selfSub) { p.subs.reactor=this.cl(p.subs.reactor-c.selfSub,0,100); this.log("#b3c4de","Reactor strained (-"+c.selfSub+")."); }
+    if (c.selfSub) { this.hurtPlayerSub("reactor",c.selfSub); this.log("#b3c4de","Reactor strained (-"+c.selfSub+")."); }
     if (c.draw) { this.drawCards(c.draw); this.log("#9fdcff","Drew "+c.draw+"."); }
     if (c.lock) { B.lock+=c.lock; this.log("#9fdcff","Target lock — next weapon +"+c.lock+"."); }
     if (c.evade) { B.evade=true; this.log("#9fdcff","Evasive burn armed."); }
@@ -271,17 +320,156 @@
     }
   };
 
+  // ---- manual weapon aiming ----------------------------------------------
+  Game.prototype.beginAim = function (c) {
+    var B=this.state.battle; if (!B||B.busy||B.over) return;
+    B.aiming=c; this.aimPos=null; this.forceUpdate();
+  };
+  Game.prototype.cancelAim = function () {
+    var B=this.state.battle; if (!B) return; B.aiming=null; this.aimPos=null; this.forceUpdate();
+  };
+  Game.prototype.onAimMove = function (x,y) {
+    this.aimPos={ x:x, y:y };
+    var self=this; if (this._aimRaf) return;
+    this._aimRaf=requestAnimationFrame(function(){ self._aimRaf=0; self.forceUpdate(); });
+  };
+  Game.prototype.confirmAim = function (x,y) {
+    var B=this.state.battle; if (!B||!B.aiming) return; var c=B.aiming; B.aiming=null;
+    this.firePlayerWeapon(c, { x:x, y:y });
+  };
+  Game.prototype.firePlayerWeapon = function (c, target) {
+    var S=this.state, B=S.battle, p=S.player; if (!B) return;
+    if (c.cost>p.power) { this.forceUpdate(); return; }
+    var i=-1; for (var j=0;j<B.hand.length;j++){ if (B.hand[j].uid===c.uid){ i=j; break; } }
+    if (i<0) { this.forceUpdate(); return; }
+    p.power-=c.cost; B.hand.splice(i,1); B.disc.push(c);
+    B.busy=true; this.aimPos=null; this.forceUpdate();
+    var origin=this.shipMuzzle("p"); var self=this;
+    this.spawnFlash(origin, FX.muzzlePlayer, 96);
+    sfx(this.playerFireSound(c), .85);
+    var hits=c.hits||1, landed=false;
+    for (var k=0;k<hits;k++){
+      (function(k){
+        var tgt={ x:target.x+self.jit(k), y:target.y+self.jit(k+5) };
+        setTimeout(function(){
+          self.fireProjectile(origin, tgt, "player", function(){
+            self.spawnImpactFor(c, tgt, "e");
+            if (!landed) { landed=true; self.resolvePlayerWeapon(c); }
+          });
+        }, k*120);
+      })(k);
+    }
+  };
+  Game.prototype.resolvePlayerWeapon = function (c) {
+    var B=this.state.battle; if (!B) return;
+    this.resolveCard(c); this.forceUpdate();
+    if (!this.checkEnd()) { if (B) B.busy=false; this.forceUpdate(); }
+  };
+  Game.prototype.enemyFire = function () {
+    var self=this, origin=this.shipMuzzle("e"), tgt=this.shipCenter("p");
+    this.spawnFlash(origin, FX.muzzleEnemy, 96);
+    sfx("laser_cannon", .8);
+    this.fireProjectile(origin, tgt, "enemy", function(){
+      // damage was applied synchronously; a surviving screen reads as a shield flash
+      if (self.state.player.shield>0) { self.spawnFlash(tgt, FX.shieldHitPlayer, 150); sfx("small_explosion", .5); }
+      else { self.spawnExplosion(tgt, "red", 140); self.spawnFlash(tgt, FX.impactPlayer, 120); sfx("small_explosion", .7); }
+    });
+  };
+
+  // ---- ship geometry (client coords, transform-independent) ---------------
+  Game.prototype.shipRect = function (side) {
+    var el = side==="e" ? this.enemyImgEl : this.playerImgEl;
+    return (el && el.getBoundingClientRect) ? el.getBoundingClientRect() : null;
+  };
+  Game.prototype.shipMuzzle = function (side) {
+    var r=this.shipRect(side); if (!r) return this.fallbackPt(side);
+    if (side==="e") return { x:r.left+r.width*0.5, y:r.top+r.height*0.72 }; // enemy fires downward
+    return { x:r.left+r.width*0.5, y:r.top+r.height*0.28 };                 // player fires upward
+  };
+  Game.prototype.shipCenter = function (side) {
+    var r=this.shipRect(side); if (!r) return this.fallbackPt(side);
+    return { x:r.left+r.width*0.5, y:r.top+r.height*0.5 };
+  };
+  Game.prototype.fallbackPt = function (side) {
+    var w=window.innerWidth||1280, h=window.innerHeight||800;
+    return { x:w*0.5, y: side==="e"? h*0.30 : h*0.66 };
+  };
+  Game.prototype.jit = function (k) { return k===0 ? 0 : this.ri(-26,26); };
+
+  // ---- transient FX (projectiles / flashes / spritesheet explosions) ------
+  Game.prototype.addFx = function (item) {
+    item.id = ++this._fxid; this.fx.push(item); this.forceUpdate();
+    if (item.kind==="flash") { var self=this; setTimeout(function(){ self.removeFx(item.id); }, item.dur||300); }
+    return item.id;
+  };
+  Game.prototype.removeFx = function (id) {
+    if (!this.fx) return; var n=this.fx.length;
+    this.fx=this.fx.filter(function(f){ return f.id!==id; });
+    if (this.fx.length!==n) this.forceUpdate();
+  };
+  Game.prototype.fireProjectile = function (from,to,kind,onImpact) {
+    var dx=to.x-from.x, dy=to.y-from.y, dist=Math.sqrt(dx*dx+dy*dy);
+    var dur=Math.max(190, Math.min(560, dist*0.85));
+    this.addFx({ kind:"proj", img: kind==="player"?FX.playerBolt:FX.enemyBolt,
+      x0:from.x, y0:from.y, x1:to.x, y1:to.y, h: kind==="player"?54:62, dur:dur, onImpact:onImpact });
+  };
+  Game.prototype.spawnFlash = function (pt, img, size) {
+    this.addFx({ kind:"flash", img:img, x:pt.x, y:pt.y, size:size||90, dur:300 });
+  };
+  Game.prototype.spawnImpactFor = function (c, pt, side) {
+    // If the target's deflector screen is still up and the shot isn't piercing,
+    // it reads as a shield flash; otherwise it's a hull explosion.
+    var B=this.state.battle;
+    var tgt = side==="e" ? (B&&B.enemy) : this.state.player;
+    var onShield = tgt && tgt.shield>0 && !c.pierce;
+    if (onShield) {
+      this.spawnFlash(pt, side==="e"?FX.shieldHitEnemy:FX.shieldHitPlayer, 150);
+      sfx("small_explosion", .5);
+    } else {
+      this.spawnExplosion(pt, side==="e"?"orange":"red", 150);
+      this.spawnFlash(pt, side==="e"?FX.impactEnemy:FX.impactPlayer, 130);
+      sfx(this.impactSound(c), .75);
+    }
+  };
+  Game.prototype.spawnExplosion = function (pt, which, size) {
+    var cfg=EXPL[which]||EXPL.orange;
+    this.addFx({ kind:"explosion", cfg:cfg, x:pt.x, y:pt.y, size:size||150, frameMs:30 });
+  };
+  Game.prototype.playerFireSound = function (c) {
+    if (c.key==="railgun") return "laser_cannon";
+    if (c.key==="missile"||c.key==="torpedo"||c.key==="broadside") return "blaster";
+    return "laser_beam";
+  };
+  Game.prototype.impactSound = function (c) {
+    if (c.key==="missile"||c.key==="torpedo") return "torpedo_explosion";
+    if (c.key==="railgun") return "medium_explosion";
+    return "small_explosion";
+  };
+  Game.prototype.hurtPlayerSub = function (nm, amt) {
+    var p=this.state.player, before=p.subs[nm];
+    p.subs[nm]=this.cl(p.subs[nm]-amt,0,100);
+    if (p.subs[nm]<before) this.reportDamage();
+    return p.subs[nm];
+  };
+  Game.prototype.reportDamage = function () {
+    var n=(window.performance&&performance.now)?performance.now():(+new Date());
+    if (this._lastReport && n-this._lastReport<1400) return;
+    this._lastReport=n; sfx(rndOf(["reporting_damage","reporting_damage_1"]), .9);
+  };
+
   // ---- win / loss ---------------------------------------------------------
   Game.prototype.checkEnd = function () {
     var S=this.state, B=S.battle; if (!B) return true; if (B.over) return true;
     var p=S.player, e=B.enemy; var self=this;
     if (e.hull<=0 || e.crew<=0) {
       B.over=true;
+      if (e.hull<=0) { this.spawnExplosion(this.shipCenter("e"), "capital", 300); sfx("enemy_destroyed", 1); }
       var how = e.hull<=0 ? e.name+" breaks apart under your guns." : "Your boarders seize the bridge — "+e.name+" struck and captured.";
       this.forceUpdate(); setTimeout(function(){ self.victory(how); },700); return true;
     }
     if (p.hull<=0 || p.crew<=0) {
       B.over=true;
+      if (p.hull<=0) { this.spawnExplosion(this.shipCenter("p"), "red", 300); sfx("ship_destroyed", 1); }
       var why = p.hull<=0 ? "Hull integrity gone. ISV Hollow Verdict is lost with all hands." : "Boarders overrun your decks. Your ship is taken.";
       this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"SHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },700); return true;
     }
@@ -416,6 +604,8 @@
 
       ${this.config.scanlines ? html`<div style="position:absolute;inset:0;pointer-events:none;z-index:60;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000022 2px 3px);opacity:.5"></div>` : null}
 
+      ${this.renderFx()}
+
       ${v.brShow ? this.renderBriefing() : null}
       ${v.rwShow ? this.renderReward(v) : null}
       ${v.evShow ? this.renderAnomaly() : null}
@@ -510,7 +700,7 @@
           <div style="position:relative;height:200px;margin:0 30px;display:flex;justify-content:center">
             <div style="position:relative;height:100%;aspect-ratio:2.685">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #ff7d95;border-radius:50%;opacity:"+v.eBub+";transition:opacity .4s;box-shadow:0 0 30px #ff547033, inset 0 0 30px #ff547018"}></div>
-              <img src="assets/ships/enemy.png" alt="Hostile ship" style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              <img src="assets/ships/enemy.png" alt="Hostile ship" ref=${function(el){ self.enemyImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:16px;margin:14px 30px 0">
@@ -530,7 +720,7 @@
           <div style="position:relative;height:200px;margin:0 30px;display:flex;justify-content:center">
             <div style="position:relative;height:100%;aspect-ratio:2.434">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #6fe0ff;border-radius:50%;opacity:"+v.pBub+";transition:opacity .4s;box-shadow:0 0 30px #4fd8ff33, inset 0 0 30px #4fd8ff18"}></div>
-              <img src="assets/ships/player.png" alt="ISV Hollow Verdict" style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              <img src="assets/ships/player.png" alt="ISV Hollow Verdict" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;gap:16px;margin:14px 30px 0">
@@ -623,7 +813,95 @@
             style=${"font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:15px;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:13px 26px;cursor:"+v.endCur+";text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 0 #14506b,0 8px 18px #0008;opacity:"+v.endOp}>End Turn ▸</button>
         </div>
       </div>
+
+      ${v.aiming ? this.renderAimOverlay(v) : null}
     </div>`;
+  };
+
+  // ---- targeting overlay (crosshair + firing line) ------------------------
+  Game.prototype.renderAimOverlay = function (v) {
+    var self=this, pos=this.aimPos, org=this.shipMuzzle("p");
+    return html`
+    <div onMouseMove=${function(e){ self.onAimMove(e.clientX,e.clientY); }}
+         onMouseDown=${function(e){ if (e.button===2){ e.preventDefault(); self.cancelAim(); } }}
+         onClick=${function(e){ self.confirmAim(e.clientX,e.clientY); }}
+         onContextMenu=${function(e){ e.preventDefault(); self.cancelAim(); }}
+         style="position:absolute;left:0;right:0;top:0;bottom:190px;z-index:30;cursor:none">
+      ${pos ? html`
+        <svg style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:31">
+          <line x1=${org.x} y1=${org.y} x2=${pos.x} y2=${pos.y} style="stroke:#ff5470;stroke-width:1.3;stroke-dasharray:5 7;opacity:.55"></line>
+        </svg>
+        <div style=${"position:fixed;left:"+pos.x+"px;top:"+pos.y+"px;transform:translate(-50%,-50%);pointer-events:none;z-index:32"}>
+          ${self.crosshairSvg()}
+        </div>` : null}
+      <div style=${"position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:33;background:#070b14ee;border:1px solid #ff5470;border-radius:5px;padding:9px 16px;font-family:"+MONO+";font-size:12.5px;letter-spacing:.12em;color:#ff8aa0;white-space:nowrap;box-shadow:0 0 26px #ff547040"}>
+        ✜ SELECT IMPACT POINT — <span style="color:#eaf2ff">${v.aiming.name}</span> · CLICK THE ENEMY HULL · <span style="color:#7d92b5">ESC TO CANCEL</span>
+      </div>
+    </div>`;
+  };
+  Game.prototype.crosshairSvg = function () {
+    return html`<svg width="72" height="72" viewBox="0 0 72 72" style="display:block;filter:drop-shadow(0 0 5px #ff5470aa)">
+      <circle cx="36" cy="36" r="23" fill="none" stroke="#ff5470" stroke-width="1.6" opacity="0.9"></circle>
+      <circle cx="36" cy="36" r="31" fill="none" stroke="#ff5470" stroke-width="0.8" opacity="0.4"></circle>
+      <circle cx="36" cy="36" r="2.4" fill="#ff5470"></circle>
+      <line x1="36" y1="3" x2="36" y2="17" stroke="#ff5470" stroke-width="1.6"></line>
+      <line x1="36" y1="55" x2="36" y2="69" stroke="#ff5470" stroke-width="1.6"></line>
+      <line x1="3" y1="36" x2="17" y2="36" stroke="#ff5470" stroke-width="1.6"></line>
+      <line x1="55" y1="36" x2="69" y2="36" stroke="#ff5470" stroke-width="1.6"></line>
+    </svg>`;
+  };
+
+  // ---- transient FX layer (viewport-fixed, above the battle) --------------
+  Game.prototype.renderFx = function () {
+    var self=this, items=this.fx||[];
+    return html`<div style="position:fixed;inset:0;pointer-events:none;z-index:44;overflow:hidden">
+      ${items.map(function(it){ return self.renderFxItem(it); })}
+    </div>`;
+  };
+  Game.prototype.renderFxItem = function (it) {
+    var self=this;
+    if (it.kind==="proj") {
+      var glow = it.img===FX.playerBolt ? "#4fd8ffaa" : "#ff5470aa";
+      return html`<img key=${it.id} src=${it.img} alt="" ref=${function(el){ self.runProjectile(el,it); }}
+        style=${"position:fixed;left:0;top:0;height:"+it.h+"px;width:auto;will-change:transform;filter:drop-shadow(0 0 6px "+glow+")"} />`;
+    }
+    if (it.kind==="flash") {
+      return html`<img key=${it.id} src=${it.img} alt=""
+        style=${"position:fixed;left:"+it.x+"px;top:"+it.y+"px;width:"+it.size+"px;height:"+it.size+"px;transform:translate(-50%,-50%);animation:fxflash "+it.dur+"ms ease-out forwards"} />`;
+    }
+    if (it.kind==="explosion") {
+      return html`<div key=${it.id} ref=${function(el){ self.runExplosion(el,it); }}
+        style=${"position:fixed;left:"+it.x+"px;top:"+it.y+"px;width:"+it.size+"px;height:"+it.size+"px;transform:translate(-50%,-50%)"}></div>`;
+    }
+    return null;
+  };
+  Game.prototype.runProjectile = function (el, it) {
+    if (!el || it._go) return; it._go=true; var self=this;
+    var dx=it.x1-it.x0, dy=it.y1-it.y0, ang=Math.atan2(dy,dx)*180/Math.PI+90;
+    var a="translate("+it.x0+"px,"+it.y0+"px) translate(-50%,-50%) rotate("+ang+"deg)";
+    var b="translate("+it.x1+"px,"+it.y1+"px) translate(-50%,-50%) rotate("+ang+"deg)";
+    el.style.transform=a;
+    var done=function(){ self.removeFx(it.id); if (it.onImpact) it.onImpact(); };
+    try {
+      var anim=el.animate([{transform:a},{transform:b}], { duration:it.dur, easing:"cubic-bezier(.35,.02,.6,1)" });
+      var fired=false; anim.finished.then(function(){ if(!fired){ fired=true; done(); } }).catch(function(){});
+      setTimeout(function(){ if(!fired){ fired=true; done(); } }, it.dur+140);
+    } catch(e) { setTimeout(done, it.dur); }
+  };
+  Game.prototype.runExplosion = function (el, it) {
+    if (!el || it._go) return; it._go=true; var self=this, cfg=it.cfg;
+    el.style.backgroundImage="url("+cfg.sheet+")";
+    el.style.backgroundRepeat="no-repeat";
+    el.style.backgroundSize=(cfg.cols*it.size)+"px "+(cfg.rows*it.size)+"px";
+    var f=0;
+    function step(){
+      var col=f%cfg.cols, row=Math.floor(f/cfg.cols);
+      el.style.backgroundPosition=(-col*it.size)+"px "+(-row*it.size)+"px";
+      f++;
+      if (f<cfg.frames) it._t=setTimeout(step, it.frameMs);
+      else self.removeFx(it.id);
+    }
+    step();
   };
 
   Game.prototype.renderSub = function (s) {
@@ -912,8 +1190,9 @@
         else if (it.type==="board") { v.inBd="#ffc266"; v.inIco="☖"; v.inTxt="BOARDING — "+it.value+" CREW"; v.inSub="prepare to repel boarders"; }
         else { v.inBd="#7cf0c0"; v.inIco="✚"; v.inTxt="DAMAGE CONTROL"; v.inSub="patching hull and systems"; }
       }
+      v.aiming=B.aiming||null;
       v.hand=B.hand.map(function(c){
-        var ok=!B.busy&&!B.over&&c.cost<=P.power&&!(c.needCrew&&P.crew<c.needCrew);
+        var ok=!B.busy&&!B.over&&!B.aiming&&c.cost<=P.power&&!(c.needCrew&&P.crew<c.needCrew);
         return Object.assign({}, c, { playable:ok, op:ok?1:.4, cur:ok?"pointer":"default", click:ok?function(){ self.playCard(c.uid); }:undefined });
       });
       v.handEmpty=B.hand.length===0;
@@ -924,8 +1203,10 @@
       v.floats=B.floats; v.beams=B.beams;
       v.plShow=!!B.played; if (B.played) v.played=B.played;
       v.endClick=function(){ self.endTurn(); };
-      v.endOp=(B.busy||B.over)?.45:1; v.endCur=(B.busy||B.over)?"default":"pointer"; v.endDisabled=!!(B.busy||B.over);
+      var lock=B.busy||B.over||B.aiming;
+      v.endOp=lock?.45:1; v.endCur=lock?"default":"pointer"; v.endDisabled=!!lock;
     } else {
+      v.aiming=null;
       v.pSubs=[]; v.eSubs=[]; v.hand=[]; v.pips=[]; v.logs=[]; v.floats=[]; v.beams=[]; v.inShow=false; v.plShow=false; v.handEmpty=false;
     }
 

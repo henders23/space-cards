@@ -54,6 +54,8 @@ a:hover { color: #ffffff; }
 @keyframes ringpulse {0%,100%{transform:rotate(45deg) scale(1);opacity:.9}50%{transform:rotate(45deg) scale(1.5);opacity:.12}}
 @keyframes engineglow {0%,100%{opacity:.9}50%{opacity:.4}}
 @keyframes cardplay {0%{transform:translate(-50%,40%) scale(.7);opacity:0}18%{opacity:1;transform:translate(-50%,-50%) scale(1)}72%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{transform:translate(-50%,-95%) scale(1.05);opacity:0}}
+@keyframes fxflash {0%{opacity:0;transform:translate(-50%,-50%) scale(.35)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.25)}}
+@keyframes crosshairspin {0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 @keyframes titlein {0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes driftin {0%{opacity:0;transform:translateY(24px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
 
