@@ -40,9 +40,6 @@ blocked, the UI falls back to system fonts.)
    - Player and enemy weapons use distinct projectiles, muzzle flashes, and sounds.
      An "enemy sighted" hail opens every encounter, and your crew calls out over the
      comms whenever one of your three subsystems takes damage.
-   - **Battle scars**: hull hits leave persistent damage decals on the ship, right
-     where they landed — scorches for energy weapons, craters and breaches for
-     kinetic/explosive ones, sized to the hit. They fade as the hull is repaired.
    - **Camera**: scroll to zoom, hold the middle mouse button and drag to pan,
      double-click to reset. Ships are drawn large so you can read the damage.
    - **Inspect a card**: click its ⓘ for a modal, or just hover for ~2 seconds and
@@ -63,7 +60,6 @@ blocked, the UI falls back to system fonts.)
 | `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/` |
 | `assets/ships/` | Player and enemy ship sprites |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
-| `assets/fx/damage/` | Persistent hull-damage decals (energy / kinetic / explosive) |
 | `assets/audio/` | Weapon, "enemy sighted", "reporting damage" and destruction SFX |
 | `vendor/` | Preact + htm UMD builds (vendored, no CDN at runtime) |
 | `Game layout and features planning.zip` | Original design handoff (reference) |
