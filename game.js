@@ -53,9 +53,45 @@
     evasive:{key:"evasive",name:"Evasive Burn",cost:1,type:"tactic",text:"Dodge the enemy's next attack this round.",evade:true},
     scavenge:{key:"scavenge",name:"Scavenge",cost:0,type:"tactic",text:"Draw 2 cards.",draw:2}
   };
-  var PRICE = {railgun:26,torpedo:30,broadside:22,missile:20,capacitor:18,dcontrol:20,boarding:20,breach:26,lock:14,evasive:14,flak:12,angle:12,scavenge:14,reroute:14,brace:12,patch:10};
-  var SHOP = ["railgun","torpedo","broadside","missile","capacitor","dcontrol","boarding","breach","lock","evasive","flak","angle","scavenge","reroute"];
-  var REWARDS = ["railgun","missile","capacitor","dcontrol","boarding","breach","lock","evasive","flak","broadside","reroute","scavenge","brace","patch","angle"];
+  Object.assign(LIB, {
+    "plasma-lance":{key:"plasma-lance",name:"Plasma Lance",cost:2,type:"weapon",summary:"SHIELD MELT",text:"Strip 6 shields, then deal 8 damage.",stripShield:6,dmg:8},
+    "ion-needle":{key:"ion-needle",name:"Ion Needle",cost:1,type:"weapon",summary:"REACTOR -15",text:"Deal 4 damage and reduce enemy REACTOR by 15.",dmg:4,sab:15},
+    "chain-cannon":{key:"chain-cannon",name:"Chain Cannon",cost:2,type:"weapon",summary:"RAPID FIRE",text:"Deal 3 damage four times.",dmg:3,hits:4},
+    "kinetic-ram":{key:"kinetic-ram",name:"Kinetic Ram",cost:3,type:"weapon",summary:"HULL CRUSH",text:"Deal 18 damage. Lose 4 hull.",dmg:18,selfHull:4},
+    "mine-layer":{key:"mine-layer",name:"Mine Layer",cost:1,type:"weapon",summary:"DELAYED 12",text:"Plant a mine that deals 12 damage after the enemy acts.",mine:12},
+    "emp-warhead":{key:"emp-warhead",name:"EMP Warhead",cost:2,type:"weapon",summary:"SYSTEM SHOCK",text:"Deal 6 damage and reduce every enemy subsystem by 10.",dmg:6,sabAll:10},
+    "point-blank":{key:"point-blank",name:"Point-Blank Salvo",cost:2,type:"weapon",summary:"RISK 18",text:"Deal 18 damage. The enemy deals 5 damage back.",dmg:18,retaliate:5},
+    graviton:{key:"graviton",name:"Graviton Torpedo",cost:3,type:"weapon",summary:"ENGINE BREAK",text:"Deal 12 damage and reduce enemy ENGINES by 35.",dmg:12,sabEngine:35},
+    "execution-beam":{key:"execution-beam",name:"Execution Beam",cost:3,type:"weapon",summary:"FINISHER",text:"Deal 10 damage; double it if enemy hull is below half.",dmg:10,execute:true},
+    "emergency-bubble":{key:"emergency-bubble",name:"Emergency Bubble",cost:0,type:"shield",summary:"SHIELD +4",text:"Raise 4 shields.",shield:4},
+    "reflective-screen":{key:"reflective-screen",name:"Reflective Screen",cost:2,type:"shield",summary:"REFLECT 5",text:"Raise 8 shields and reflect 5 damage from the next hit.",shield:8,reflect:5},
+    "phase-screen":{key:"phase-screen",name:"Phase Screen",cost:2,type:"shield",summary:"PHASE DODGE",text:"Raise 6 shields and dodge the next attack this round.",shield:6,evade:true},
+    "layered-plating":{key:"layered-plating",name:"Layered Plating",cost:1,type:"shield",summary:"ARMOUR +6",text:"Gain 6 armour that blocks hull damage this battle.",armour:6},
+    "engine-screen":{key:"engine-screen",name:"Engine Screen",cost:1,type:"shield",summary:"SHIELD + SPEED",text:"Raise 6 shields and restore ENGINES by 10.",shield:6,repEngine:10},
+    "bulwark-field":{key:"bulwark-field",name:"Bulwark Field",cost:3,type:"shield",summary:"SHIELDS +20",text:"Raise 20 shields. Lose 1 power next turn.",shield:20,nextPowerPenalty:1},
+    "nanite-swarm":{key:"nanite-swarm",name:"Nanite Swarm",cost:2,type:"repair",summary:"REPAIR ALL",text:"Restore 12 integrity to every subsystem.",repAll:12},
+    "jury-rig":{key:"jury-rig",name:"Jury-Rig",cost:1,type:"repair",summary:"SYSTEM +25",text:"Restore 25 integrity to the worst subsystem.",repSub:25},
+    "seal-bulkheads":{key:"seal-bulkheads",name:"Seal Bulkheads",cost:1,type:"repair",summary:"STOP BREACH",text:"Mend 4 hull and prevent the next crew loss.",heal:4,sealCrew:true},
+    "reboot-protocol":{key:"reboot-protocol",name:"Reboot Protocol",cost:1,type:"repair",summary:"RESET SYSTEM",text:"Restore the worst disabled subsystem to 40 integrity.",reboot:40},
+    "coolant-flush":{key:"coolant-flush",name:"Coolant Flush",cost:0,type:"power",summary:"REACTOR SAFE",text:"Restore 8 REACTOR integrity and draw 1 card.",repReactor:8,draw:1},
+    "reactor-surge":{key:"reactor-surge",name:"Reactor Surge",cost:1,type:"power",summary:"POWER +3",text:"Gain 3 power now, then discard 1 card.",gainP:3,discard:1},
+    cannibalise:{key:"cannibalise",name:"Cannibalise Systems",cost:0,type:"power",summary:"POWER +2",text:"Damage your healthiest subsystem by 12 and gain 2 power.",gainP:2,hurtBest:12},
+    "aux-battery":{key:"aux-battery",name:"Auxiliary Battery",cost:1,type:"power",summary:"NEXT TURN +2",text:"Gain 2 additional power next turn.",nextPower:2},
+    "sensor-ghost":{key:"sensor-ghost",name:"Sensor Ghost",cost:1,type:"tactic",summary:"BLIND",text:"Reduce the enemy's next attack by 8.",blind:8},
+    "flanking-burn":{key:"flanking-burn",name:"Flanking Burn",cost:1,type:"tactic",summary:"DOUBLE NEXT",text:"Your next weapon splits into two strikes and gains 3 total damage.",flank:3},
+    "decoy-drone":{key:"decoy-drone",name:"Decoy Drone",cost:1,type:"tactic",summary:"NEGATE HIT",text:"Negate the enemy's next attack this round.",evade:true},
+    "combat-scan":{key:"combat-scan",name:"Combat Scan",cost:0,type:"tactic",summary:"DRAW WEAPON",text:"Draw a weapon card; it costs 1 less this turn.",drawType:"weapon",discount:1},
+    overwatch:{key:"overwatch",name:"Overwatch",cost:1,type:"tactic",summary:"COUNTERFIRE",text:"After the enemy attacks, deal 6 damage back.",overwatch:6},
+    "saboteur-team":{key:"saboteur-team",name:"Saboteur Team",cost:2,type:"boarding",summary:"SYSTEM -30",text:"Enemy crew -2 and its worst subsystem -30. Needs 2 crew.",eCrew:2,sabWorst:30,needCrew:2},
+    "marine-detachment":{key:"marine-detachment",name:"Marine Detachment",cost:2,type:"boarding",summary:"CREW -4",text:"Enemy crew -4, yours -1. Needs 3 crew.",eCrew:4,sCrew:1,needCrew:3},
+    "command-seizure":{key:"command-seizure",name:"Command Seizure",cost:3,type:"boarding",summary:"CAPTURE",text:"Capture if enemy crew is 3 or less; otherwise enemy crew -3. Needs 3 crew.",capture:3,eCrew:3,needCrew:3}
+  });
+  var SUMMARIES = {laser:"7 DAMAGE",flak:"ANTI-SHIELD",missile:"SHIELD PIERCE",railgun:"REACTOR HIT",broadside:"TRIPLE HIT",torpedo:"15 PIERCE",divert:"SHIELDS +9",angle:"SHIELD + DRAW",capacitor:"SHIELDS +14",brace:"HALVE HIT",dcontrol:"REPAIR + HULL",patch:"HULL +9",overcharge:"POWER +2",reroute:"POWER + DRAW",boarding:"CREW -3",breach:"CREW -5",lock:"NEXT HIT +7",evasive:"DODGE",scavenge:"DRAW 2"};
+  Object.keys(SUMMARIES).forEach(function(k){ LIB[k].summary=SUMMARIES[k]; });
+  var PRICE = {laser:10,flak:12,missile:20,railgun:26,broadside:22,torpedo:30,divert:10,angle:12,capacitor:18,brace:12,dcontrol:20,patch:10,overcharge:12,reroute:14,boarding:20,breach:26,lock:14,evasive:14,scavenge:14,
+    "plasma-lance":20,"ion-needle":14,"chain-cannon":20,"kinetic-ram":30,"mine-layer":16,"emp-warhead":24,"point-blank":22,graviton:28,"execution-beam":30,"emergency-bubble":10,"reflective-screen":20,"phase-screen":22,"layered-plating":16,"engine-screen":16,"bulwark-field":28,"nanite-swarm":24,"jury-rig":14,"seal-bulkheads":14,"reboot-protocol":18,"coolant-flush":12,"reactor-surge":16,cannibalise:12,"aux-battery":14,"sensor-ghost":14,"flanking-burn":16,"decoy-drone":14,"combat-scan":10,overwatch:16,"saboteur-team":22,"marine-detachment":22,"command-seizure":30};
+  var SHOP = Object.keys(LIB);
+  var REWARDS = Object.keys(LIB);
   var ENEMIES = [
     {name:"RSV Carrion Jackal",role:"CORSAIR RAIDER",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
     {name:"PCS Ledger's Edge",role:"ENFORCEMENT FRIGATE",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
@@ -151,7 +187,7 @@
       player: { hullMax:64, hull:64, crew:8, crewMax:8, powerBase:3, shieldCap:22, shield:0,
                 subs:{ weapons:100, reactor:100, engines:100 }, ups:{} },
       deckKeys: ["laser","laser","laser","laser","divert","divert","divert","patch","missile","overcharge"],
-      battle:null, base:null, end:null, reward:null, shakeP:0, shakeE:0
+      battle:null, base:null, end:null, reward:null, cardDetail:null, shakeP:0, shakeE:0
     };
   };
 
@@ -166,6 +202,7 @@
   Game.prototype.wm = function (subs) { return .5 + .5*subs.weapons/100; };
   Game.prototype.rp = function () { var p = this.state.player; return Math.max(1, Math.round(p.powerBase*(.4 + .6*p.subs.reactor/100))); };
   Game.prototype.worstSub = function (subs) { return Object.keys(subs).sort(function(a,b){return subs[a]-subs[b];})[0]; };
+  Game.prototype.bestSub = function (subs) { return Object.keys(subs).sort(function(a,b){return subs[b]-subs[a];})[0]; };
   Game.prototype.subFx = function (nm,v) {
     if (v>=85) return "nominal";
     if (nm==="weapons") return v<=25 ? "guns failing" : "aim degraded";
@@ -193,13 +230,15 @@
   // ---- damage resolution --------------------------------------------------
   Game.prototype.dealDamage = function (side,amt,pierce) {
     var S=this.state, B=S.battle, t = side==="e" ? B.enemy : S.player;
-    var abs=0, toHull=amt;
+    var abs=0, arm=0, toHull=amt;
     if (!pierce && t.shield>0) { abs=Math.min(t.shield,amt); t.shield-=abs; toHull=amt-abs; }
+    if (side!=="e" && toHull>0 && B.armour>0) { arm=Math.min(B.armour,toHull); B.armour-=arm; toHull-=arm; }
     t.hull = this.cl(t.hull-toHull,0,t.hullMax);
     if (toHull>0) this.addFloat(side,"-"+toHull,"#ff8aa0");
+    else if (arm>0) this.addFloat(side,"-"+arm+" ARM","#b7c5d9");
     else if (abs>0) this.addFloat(side,"-"+abs+" SH","#6fd8ff");
     if (side==="e") S.shakeE++; else S.shakeP++;
-    return { toHull:toHull, abs:abs };
+    return { toHull:toHull, abs:abs, arm:arm };
   };
 
   // ---- battle setup / turn structure -------------------------------------
@@ -207,6 +246,8 @@
     var S=this.state, d=ENEMIES[node.enemy], m=this.diffMult()*(node.type==="elite"?1.3:1);
     S.battle = {
       node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false, aiming:null,
+      armour:0, reflect:0, blind:0, overwatch:0, flank:0, sealCrew:false,
+      nextPower:0, nextPowerPenalty:0, mines:[], detailUid:null,
       enemy:{ name:d.name, role:d.role, hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
         shieldCap:d.shieldCap, shield:0, regen:d.regen, crew:d.crew, crewMax:d.crew,
         atkLo:Math.round(d.atkLo*m), atkHi:Math.round(d.atkHi*m), sab:d.sab, boardN:d.boardN,
@@ -229,15 +270,30 @@
       B.hand.push(B.draw.pop());
     }
   };
+  Game.prototype.drawType = function (type,discount) {
+    var B=this.state.battle, i=-1;
+    function find(a){ for(var j=a.length-1;j>=0;j--){ if(a[j].type===type) return j; } return -1; }
+    i=find(B.draw);
+    if (i<0 && B.disc.length) { B.draw=this.sh(B.draw.concat(B.disc)); B.disc=[]; i=find(B.draw); }
+    if (i<0) { this.log("#b3c4de","No "+type+" card available to draw."); return; }
+    var c=B.draw.splice(i,1)[0];
+    if (discount) { c.baseCost=c.cost; c.cost=Math.max(0,c.cost-discount); }
+    B.hand.push(c); this.log("#9fdcff","Drew "+c.name+(discount?" at -"+discount+" cost.":"."));
+  };
+  Game.prototype.restoreCardCost = function (c) {
+    if (c && c.baseCost!=null) { c.cost=c.baseCost; delete c.baseCost; }
+  };
   Game.prototype.startPlayerTurn = function () {
     var S=this.state, B=S.battle, p=S.player;
     var reg = Math.round(3*p.subs.engines/100);
     if (reg>0) p.shield=this.cl(p.shield+reg,0,p.shieldCap);
-    p.power=this.rp(); B.lock=0; B.brace=false; B.evade=false;
+    p.power=Math.max(0,this.rp()+(B.nextPower||0)-(B.nextPowerPenalty||0));
+    B.nextPower=0; B.nextPowerPenalty=0; B.lock=0; B.brace=false; B.evade=false;
     while (B.hand.length<5 && (B.draw.length||B.disc.length)) this.drawCards(1);
   };
   Game.prototype.endTurn = function () {
     var B=this.state.battle; if (!B||B.busy||B.over||B.aiming) return;
+    for (var i=0;i<B.hand.length;i++) this.restoreCardCost(B.hand[i]);
     B.busy=true; B.disc.push.apply(B.disc,B.hand); B.hand=[]; this.forceUpdate();
     var self=this; setTimeout(function(){ self.enemyPhase(); },500);
   };
@@ -251,16 +307,26 @@
       if (B.evade) { this.log("#9fdcff","Evasive burn — you slip the volley. No damage."); }
       else {
         var d=Math.round(it.value*this.wm(e.subs));
+        if (B.blind) { d=Math.max(0,d-B.blind); this.log("#9fdcff","Sensor ghost spoils their aim (-"+B.blind+" damage)."); B.blind=0; }
         if (B.brace) { d=Math.ceil(d/2); this.log("#9fdcff","Brace cuts the hit in half."); }
         // enemy weapon fire — a distinct (red) bolt + sound, impact on the player ship
         this.enemyFire();
         var r=this.dealDamage("p",d,false);
-        this.log("#ff8aa0","Fire rakes your ship — "+(r.abs?r.abs+" to shields, ":"")+r.toHull+" to hull.");
+        this.log("#ff8aa0","Fire rakes your ship — "+(r.abs?r.abs+" to shields, ":"")+(r.arm?r.arm+" to armour, ":"")+r.toHull+" to hull.");
         if (it.sab) { var nm=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm,it.sab); this.log("#ff8aa0","Their gunners smash your "+nm.toUpperCase()+" (-"+it.sab+")."); }
+        if (B.reflect) { var ref=B.reflect; B.reflect=0; this.dealDamage("e",ref,true); this.log("#9fdcff","Reflective screen returns "+ref+" damage."); }
+        if (B.overwatch) { var ow=B.overwatch; B.overwatch=0; this.dealDamage("e",ow,false); this.log("#9fdcff","Overwatch counterfires for "+ow+"."); }
       }
     } else if (it.type==="shield") { e.shield=this.cl(e.shield+it.value,0,e.shieldCap); this.log("#ff8aa0",e.name+" reinforces its shields (+"+it.value+")."); }
-    else if (it.type==="board") { p.crew=this.cl(p.crew-it.value,0,p.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm2,10); S.shakeP++; this.log("#ff8aa0","Boarders storm your decks — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
+    else if (it.type==="board") {
+      if (B.sealCrew) { B.sealCrew=false; this.log("#9fdcff","Sealed bulkheads stop the boarding assault."); }
+      else { p.crew=this.cl(p.crew-it.value,0,p.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm2,10); S.shakeP++; this.log("#ff8aa0","Boarders storm your decks — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
+    }
     else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
+    if (B.mines.length) {
+      var mineTotal=B.mines.reduce(function(sum,n){return sum+n;},0); B.mines=[];
+      this.dealDamage("e",mineTotal,false); this.log("#9fdcff","Planted mines detonate for "+mineTotal+" damage.");
+    }
     this.forceUpdate();
     if (this.checkEnd()) return;
     setTimeout(function(){ var b=self.state.battle; if(!b||b.over)return; self.chooseIntent(); b.turn++; b.busy=false; self.startPlayerTurn(); self.forceUpdate(); },600);
@@ -286,38 +352,64 @@
     if (c.needCrew && S.player.crew<c.needCrew) { this.log("#b3c4de","Not enough crew to man "+c.name+"."); this.forceUpdate(); return; }
     // Weapons are aimed by hand: enter targeting mode instead of resolving now.
     if (c.type==="weapon") { this.beginAim(c); return; }
-    S.player.power-=c.cost; B.hand.splice(i,1); B.disc.push(c);
+    S.player.power-=c.cost; B.hand.splice(i,1); this.restoreCardCost(c); B.disc.push(c);
     B.played=c; var u=c.uid; var self=this;
     setTimeout(function(){ var b=self.state.battle; if (b&&b.played&&b.played.uid===u){ b.played=null; self.forceUpdate(); } },950);
     this.resolveCard(c); this.forceUpdate(); this.checkEnd();
   };
   Game.prototype.resolveCard = function (c) {
     var S=this.state, B=S.battle, p=S.player, e=B.enemy;
+    if (c.stripShield) { var stripped=Math.min(e.shield,c.stripShield); e.shield-=stripped; this.log("#9fdcff",c.name+" strips "+stripped+" shields."); }
     if (c.dmg!=null) {
-      var hits=c.hits||1, tot=0, absTot=0;
+      var hits=c.hits||1, base=c.dmg, tot=0, absTot=0;
+      if (c.execute && e.hull<e.hullMax*.5) base*=2;
+      if (c._flank) { hits*=2; base=Math.max(1,Math.floor(base/2)); }
       for (var i=0;i<hits;i++){
-        var d=c.dmg+B.lock; B.lock=0;
+        var d=base+B.lock+(c._flank&&i===0?(c._flankBonus||0):0); B.lock=0;
         if (c.bonusNoShield && e.shield<=0) d+=c.bonusNoShield;
         d=Math.round(d*this.wm(p.subs));
         var r=this.dealDamage("e",d,!!c.pierce); tot+=r.toHull; absTot+=r.abs;
       }
       this.log("#9fdcff", c.name+" — "+(c.pierce?tot+" straight to hull.":(absTot?absTot+" to shields, "+tot+" to hull.":tot+" to hull.")));
-      if (c.sab) { e.subs.reactor=this.cl(e.subs.reactor-c.sab,0,100); this.log("#9fdcff","Slug guts their REACTOR (-"+c.sab+")."); }
+      if (c.sab) { e.subs.reactor=this.cl(e.subs.reactor-c.sab,0,100); this.log("#9fdcff","Their REACTOR loses "+c.sab+" integrity."); }
+      if (c.sabEngine) { e.subs.engines=this.cl(e.subs.engines-c.sabEngine,0,100); this.log("#9fdcff","Their ENGINES lose "+c.sabEngine+" integrity."); }
+      if (c.sabAll) { Object.keys(e.subs).forEach(function(k){e.subs[k]=Math.max(0,e.subs[k]-c.sabAll);}); this.log("#9fdcff","EMP shocks every enemy subsystem (-"+c.sabAll+")."); }
     }
+    if (c.mine) { B.mines.push(c.mine); this.log("#9fdcff","Mine armed — "+c.mine+" damage after the enemy acts."); }
+    if (c.selfHull) { p.hull=this.cl(p.hull-c.selfHull,0,p.hullMax); this.addFloat("p","-"+c.selfHull,"#ff8aa0"); S.shakeP++; this.log("#b3c4de","Ramming costs "+c.selfHull+" hull."); }
+    if (c.retaliate && e.hull>0) { this.dealDamage("p",c.retaliate,false); this.log("#ff8aa0","Point-blank return fire deals "+c.retaliate+"."); }
     if (c.shield) { p.shield=this.cl(p.shield+c.shield,0,p.shieldCap); this.log("#9fdcff",c.name+" — +"+c.shield+" shields."); }
     if (c.brace) B.brace=true;
     if (c.repSub) { var w=this.worstSub(p.subs); p.subs[w]=this.cl(p.subs[w]+c.repSub,0,100); this.log("#9fdcff","Damage control restores "+w.toUpperCase()+" (+"+c.repSub+")."); }
+    if (c.repAll) { Object.keys(p.subs).forEach(function(k){p.subs[k]=Math.min(100,p.subs[k]+c.repAll);}); this.log("#9fdcff","All subsystems restored +"+c.repAll+"."); }
+    if (c.repEngine) { p.subs.engines=this.cl(p.subs.engines+c.repEngine,0,100); this.log("#9fdcff","ENGINES restored +"+c.repEngine+"."); }
+    if (c.repReactor) { p.subs.reactor=this.cl(p.subs.reactor+c.repReactor,0,100); this.log("#9fdcff","REACTOR restored +"+c.repReactor+"."); }
+    if (c.reboot) { var rb=this.worstSub(p.subs); p.subs[rb]=Math.max(p.subs[rb],c.reboot); this.log("#9fdcff",rb.toUpperCase()+" rebooted to "+p.subs[rb]+"."); }
     if (c.heal) { p.hull=this.cl(p.hull+c.heal,0,p.hullMax); this.log("#9fdcff","Hull sealed +"+c.heal+"."); }
     if (c.gainP) { p.power+=c.gainP; this.log("#9fdcff",c.name+" — +"+c.gainP+" power."); }
     if (c.selfSub) { this.hurtPlayerSub("reactor",c.selfSub); this.log("#b3c4de","Reactor strained (-"+c.selfSub+")."); }
+    if (c.hurtBest) { var best=this.bestSub(p.subs); this.hurtPlayerSub(best,c.hurtBest); this.log("#b3c4de",best.toUpperCase()+" cannibalised (-"+c.hurtBest+")."); }
     if (c.draw) { this.drawCards(c.draw); this.log("#9fdcff","Drew "+c.draw+"."); }
+    if (c.drawType) this.drawType(c.drawType,c.discount||0);
+    if (c.discard) { for(var dc=0;dc<c.discard&&B.hand.length;dc++){ var di=this.ri(0,B.hand.length-1), gone=B.hand.splice(di,1)[0]; this.restoreCardCost(gone); B.disc.push(gone); this.log("#b3c4de","Discarded "+gone.name+"."); } }
     if (c.lock) { B.lock+=c.lock; this.log("#9fdcff","Target lock — next weapon +"+c.lock+"."); }
     if (c.evade) { B.evade=true; this.log("#9fdcff","Evasive burn armed."); }
+    if (c.armour) { B.armour+=c.armour; this.log("#9fdcff","Ablative armour +"+c.armour+"."); }
+    if (c.reflect) { B.reflect=c.reflect; this.log("#9fdcff","Reflective screen armed."); }
+    if (c.sealCrew) { B.sealCrew=true; this.log("#9fdcff","Bulkheads sealed against crew loss."); }
+    if (c.nextPower) { B.nextPower+=c.nextPower; this.log("#9fdcff","Next turn power +"+c.nextPower+"."); }
+    if (c.nextPowerPenalty) B.nextPowerPenalty+=c.nextPowerPenalty;
+    if (c.blind) { B.blind=Math.max(B.blind,c.blind); this.log("#9fdcff","Enemy targeting degraded by "+c.blind+"."); }
+    if (c.flank) { B.flank=c.flank; this.log("#9fdcff","Flanking solution ready for the next weapon."); }
+    if (c.overwatch) { B.overwatch=c.overwatch; this.log("#9fdcff","Overwatch armed for "+c.overwatch+" counter-damage."); }
     if (c.eCrew) {
-      e.crew=this.cl(e.crew-c.eCrew,0,e.crewMax); p.crew=this.cl(p.crew-(c.sCrew||0),0,p.crewMax);
+      if (c.capture && e.crew<=c.capture) e.crew=0; else e.crew=this.cl(e.crew-c.eCrew,0,e.crewMax);
+      p.crew=this.cl(p.crew-(c.sCrew||0),0,p.crewMax);
       if (c.sabRand) { var nm=this.pk(["weapons","reactor","engines"]); e.subs[nm]=this.cl(e.subs[nm]-c.sabRand,0,100); }
+      if (c.sabWorst) { var ew=this.worstSub(e.subs); e.subs[ew]=this.cl(e.subs[ew]-c.sabWorst,0,100); this.log("#c4d2ea",ew.toUpperCase()+" sabotaged (-"+c.sabWorst+")."); }
       this.log("#c4d2ea", c.name+" — enemy crew -"+c.eCrew+", yours -"+(c.sCrew||0)+".");
     }
+    delete c._flank; delete c._flankBonus;
   };
 
   // ---- manual weapon aiming ----------------------------------------------
@@ -342,12 +434,13 @@
     if (c.cost>p.power) { this.forceUpdate(); return; }
     var i=-1; for (var j=0;j<B.hand.length;j++){ if (B.hand[j].uid===c.uid){ i=j; break; } }
     if (i<0) { this.forceUpdate(); return; }
-    p.power-=c.cost; B.hand.splice(i,1); B.disc.push(c);
+    p.power-=c.cost; B.hand.splice(i,1); this.restoreCardCost(c); B.disc.push(c);
+    if (B.flank) { c._flank=true; c._flankBonus=B.flank; B.flank=0; }
     B.busy=true; this.aimPos=null; this.forceUpdate();
     var origin=this.shipMuzzle("p"); var self=this;
     this.spawnFlash(origin, FX.muzzlePlayer, 96);
     sfx(this.playerFireSound(c), .85);
-    var hits=c.hits||1, landed=false;
+    var hits=(c.hits||1)*(c._flank?2:1), landed=false;
     for (var k=0;k<hits;k++){
       (function(k){
         var tgt={ x:target.x+self.jit(k), y:target.y+self.jit(k+5) };
@@ -436,13 +529,13 @@
     this.addFx({ kind:"explosion", cfg:cfg, x:pt.x, y:pt.y, size:size||150, frameMs:30 });
   };
   Game.prototype.playerFireSound = function (c) {
-    if (c.key==="railgun") return "laser_cannon";
-    if (c.key==="missile"||c.key==="torpedo"||c.key==="broadside") return "blaster";
+    if (c.key==="railgun"||c.key==="execution-beam"||c.key==="plasma-lance") return "laser_cannon";
+    if (["missile","torpedo","broadside","chain-cannon","kinetic-ram","mine-layer","emp-warhead","point-blank","graviton"].indexOf(c.key)>=0) return "blaster";
     return "laser_beam";
   };
   Game.prototype.impactSound = function (c) {
-    if (c.key==="missile"||c.key==="torpedo") return "torpedo_explosion";
-    if (c.key==="railgun") return "medium_explosion";
+    if (["missile","torpedo","mine-layer","emp-warhead","graviton"].indexOf(c.key)>=0) return "torpedo_explosion";
+    if (["railgun","kinetic-ram","execution-beam","point-blank"].indexOf(c.key)>=0) return "medium_explosion";
     return "small_explosion";
   };
   Game.prototype.hurtPlayerSub = function (nm, amt) {
@@ -532,6 +625,8 @@
 
   // ---- overlays / meta ----------------------------------------------------
   Game.prototype.closeBrief = function () { this.state.overlay=null; this.forceUpdate(); };
+  Game.prototype.inspectCard = function (key) { this.state.cardDetail=LIB[key]||null; this.forceUpdate(); };
+  Game.prototype.closeCardDetail = function () { this.state.cardDetail=null; this.forceUpdate(); };
   Game.prototype.restart = function () { this.setState(this.freshRun()); };
 
   // ---- title screen -------------------------------------------------------
@@ -569,14 +664,31 @@
 
   // ============ card-face fragment (hand / shop / reward / played) ==========
   Game.prototype.cardFace = function (c) {
+    var self=this;
     return html`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid #1a2942">
-        <span style=${"width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-family:"+MONO+";font-size:14px;font-weight:600;color:#241503;background:#ffc266"}>${c.cost}</span>
-        <span style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#7488ab"}>${c.type}</span>
+      <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name+": "+c.summary} title=${c.text}
+        style="width:100%;height:auto;display:block;pointer-events:none" />
+      ${c.baseCost!=null ? html`<span style=${"position:absolute;left:8px;top:7px;z-index:4;width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:#08101d;border:2px solid #65e4ff;color:#fff;font-family:"+MONO+";font-weight:700;box-shadow:0 0 12px #4fd8ffaa"}>${c.cost}</span>` : null}
+      <button aria-label=${"View "+c.name+" details"} title="View full card details"
+        onClick=${function(e){ e.stopPropagation(); self.inspectCard(c.key); }}
+        style=${"position:absolute;right:5px;top:5px;z-index:3;width:24px;height:24px;border-radius:50%;border:1px solid #6b7f9f;background:#07101ddd;color:#dcecff;font-family:"+MONO+";font-size:13px;cursor:pointer;display:grid;place-items:center;padding:0"}>i</button>`;
+  };
+
+  Game.prototype.renderCardDetail = function (c) {
+    var self=this;
+    return html`<div onClick=${function(){self.closeCardDetail();}}
+      style="position:absolute;inset:0;z-index:90;background:#000000df;backdrop-filter:blur(5px);display:grid;place-items:center;padding:24px">
+      <div onClick=${function(e){e.stopPropagation();}} style="max-width:680px;width:100%;display:flex;gap:24px;align-items:center;border:1px solid #334b70;border-radius:12px;background:linear-gradient(180deg,#111a2b,#070b14);padding:22px;box-shadow:0 28px 90px #000">
+        <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:264px;height:336px;object-fit:contain;flex:0 0 auto" />
+        <div style="min-width:0;flex:1">
+          <div style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.2em;color:#7d92b5;text-transform:uppercase"}>${c.type+" · COST "+c.cost}</div>
+          <h2 style="font-size:30px;line-height:1.05;margin:10px 0;color:#fff">${c.name}</h2>
+          <div style=${"font-family:"+MONO+";font-size:14px;color:#ffc266;letter-spacing:.12em;margin-bottom:20px"}>${c.summary}</div>
+          <p style="font-size:18px;line-height:1.55;color:#b8c7dd;margin:0 0 24px">${c.text}</p>
+          <button class="hf-btn" onClick=${function(){self.closeCardDetail();}} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:13px;color:#03131c;background:#55d9ff;border:1px solid #8deaff;border-radius:4px;padding:10px 18px;cursor:pointer">CLOSE</button>
+        </div>
       </div>
-      ${this.cardImg(c.key)}
-      <div style="font-weight:600;font-size:16px;text-align:center;padding:7px 8px 0;line-height:1.05;color:#eaf2ff">${c.name}</div>
-      <div style="font-size:12.5px;color:#8fa3c4;text-align:center;padding:5px 10px 10px;line-height:1.35;flex:1">${c.text}</div>`;
+    </div>`;
   };
 
   // ============================ RENDER =====================================
@@ -610,6 +722,7 @@
       ${v.rwShow ? this.renderReward(v) : null}
       ${v.evShow ? this.renderAnomaly() : null}
       ${v.endShow ? this.renderEnd(v) : null}
+      ${S.cardDetail ? this.renderCardDetail(S.cardDetail) : null}
     </div>`;
   };
 
@@ -985,7 +1098,7 @@
               ${v.baStock.map(function(c,i){
                 return html`
                 <div key=${i} style="width:176px;display:flex;flex-direction:column;gap:8px">
-                  <div style="border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden;min-height:216px">
+                  <div style="position:relative;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden;min-height:216px">
                     ${self.cardFace(c)}
                   </div>
                   <button class=${"hf-buy"+(c.affordable?" affordable":"")} onClick=${c.click} style=${"font-family:"+MONO+";font-size:13px;color:#eaf2ff;background:#101828;border:1px solid #2c4066;border-radius:3px;padding:8px 0;cursor:"+c.cur+";opacity:"+c.op+";letter-spacing:.1em"}>BUY ${c.price} ◈</button>
@@ -1086,7 +1199,7 @@
             ${v.rwCards.map(function(c){
               return html`
               <div key=${c.uid} class="hf-reward-card" onClick=${c.click}
-                style="width:176px;min-height:216px;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden">
+                style="position:relative;width:176px;min-height:216px;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden">
                 ${self.cardFace(c)}
               </div>`;
             })}
