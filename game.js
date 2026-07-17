@@ -1,5 +1,5 @@
 /* ============================================================================
- * HOLLOW FLEET
+ * BLACKSTAR VERGE
  * A single-player roguelike deck-builder of card-driven ship combat.
  *
  * Recreated from the "design_handoff_hollow_fleet" spec. The prototype was
@@ -640,7 +640,7 @@
     if (p.hull<=0 || p.crew<=0) {
       B.over=true;
       if (p.hull<=0) { this.spawnExplosion(this.shipCenter("p"), "red", 300); sfx("ship_destroyed", 1); }
-      var why = p.hull<=0 ? "Hull integrity gone. ISV Hollow Verdict is lost with all hands." : "Boarders overrun your decks. Your ship is taken.";
+      var why = p.hull<=0 ? "Hull integrity gone. ISV Palewake is lost with all hands." : "Boarders overrun your decks. Your ship is taken.";
       this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"SHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },700); return true;
     }
     return false;
@@ -649,7 +649,7 @@
     var S=this.state, B=S.battle; if (!B) return; var node=B.node;
     if (node.type==="boss") {
       S.end={ kick:"CORRIDOR CLEARED", title:"THE GATE IS OPEN",
-        body:how+" The Hollow Verge is broken and the jump gate yawns ahead. You run it — hull scarred, crew thinned, but yours." };
+        body:how+" The Blackstar Verge is broken and the jump gate yawns ahead. You run it — hull scarred, crew thinned, but yours." };
       S.overlay="end"; this.forceUpdate(); return;
     }
     var salv = node.type==="elite" ? this.ri(36,46) : this.ri(20,30); S.salvage+=salv;
@@ -780,7 +780,7 @@
     <div class="hf-root hf-starfield">
       <!-- TOP BAR -->
       <div style="position:absolute;top:0;left:0;right:0;height:58px;display:flex;align-items:center;gap:18px;padding:0 22px;border-bottom:1px solid #1b2a45;background:linear-gradient(180deg,#0d1424,#070b14);z-index:20">
-        <div style="font-weight:700;letter-spacing:.2em;font-size:20px;color:#ffffff">HOLLOW FLEET</div>
+        <div style="font-weight:700;letter-spacing:.2em;font-size:20px;color:#ffffff">BLACKSTAR VERGE</div>
         <div style="width:1px;height:22px;background:#22345a"></div>
         <div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396;letter-spacing:.14em"}>${v.screenTag}</div>
         <div style="flex:1"></div>
@@ -805,67 +805,78 @@
   };
 
   // ---------------------------- TITLE SCREEN -------------------------------
+  Game.prototype.cycleDifficulty = function () {
+    var order=["standard","hard","brutal"];
+    var i=order.indexOf(this.config.difficulty);
+    this.config.difficulty = order[((i<0?0:i)+1)%order.length];
+    this.forceUpdate();
+  };
+  Game.prototype.showHowTo = function () { this.state.overlay="howto"; this.forceUpdate(); };
+  Game.prototype.closeHowTo = function () { this.state.overlay=null; this.forceUpdate(); };
+
   Game.prototype.renderTitle = function () {
     var self=this;
-    var diffKeys=["standard","hard","brutal"];
+    var diff = DIFFS[this.config.difficulty] || DIFFS.standard;
+    var musicOn = this.music.on;
     return html`
-    <div class="hf-starfield hf-title-scroll">
-      <div class="hf-title-wrap">
-        <div class="hf-title-card">
-          <div class="hf-kicker">ROGUELIKE · DECK-BUILDER · VOID COMBAT</div>
-          <h1 class="hf-title-h1">HOLLOW FLEET</h1>
-          <div class="hf-title-sub">One corvette. One jump gate. A whole Verge in the way.</div>
+    <div class="hf-starfield bv-title">
+      <img class="bv-ship" src="assets/ships/player.png" alt="ISV Palewake" />
+      <div class="bv-fade"></div>
+      <div class="bv-wrap">
+        <div class="bv-kicker">A ROGUELIKE DECK-BUILDER OF VOID COMBAT</div>
+        <h1 class="bv-h1">BLACKSTAR VERGE</h1>
+        <div class="bv-sub">The last corvette in the Verge. Fight your way home.</div>
+        <div class="bv-menu">
+          <button class="bv-primary" onClick=${function(){ self.beginRun(); }}>Begin Sortie ▸</button>
+          <button class="bv-ghost" onClick=${function(){ self.cycleDifficulty(); }}>
+            <span>Difficulty</span><span class="val">‹ ${diff.name.toUpperCase()} ›</span>
+          </button>
+          <button class="bv-ghost" onClick=${function(){ self.showHowTo(); }}>
+            <span>Briefing</span><span class="val dim">HOW IT PLAYS ▸</span>
+          </button>
+          <button class="bv-ghost" onClick=${function(){ self.toggleMusic(); }}
+            title=${musicOn?"Music on — click to mute":"Music muted — click to play"}>
+            <span>♪ Music</span><span class=${"val"+(musicOn?"":" dim")}>${musicOn?"ON":"OFF"}</span>
+          </button>
+        </div>
+      </div>
+      <div class="bv-footer">ISV PALEWAKE · CORVETTE · DECK COMMAND — GOOD HUNTING, CAPTAIN</div>
+      ${this.state.overlay==="howto" ? this.renderTitleHowTo() : null}
+    </div>`;
+  };
 
-          <p class="hf-lore">
-            The war is over — you just haven't been told. You command the corvette${" "}
-            <b>ISV Hollow Verdict</b>, cut off in the dead reach called the${" "}
-            <b>Hollow Verge</b>. Between you and the jump gate home lie pirate pickets,
-            enforcement blockades, and the dreadnought <b>HMS Iron Verdict</b> waiting at
-            the corridor's end. Chart a course, fight your way through card by card,
-            scavenge the wrecks, and refit at the stations still holding a light.
-            Every jump is one-way. There is no going back.
-          </p>
-
-          <div class="hf-primer">
-            <div class="hf-primer-cell">
-              <h3 style="color:#5fd8ff">① The Chart</h3>
-              <p>Jump between nodes on a branching sector map. Pick your fights, your stations, and your route to the flagship.</p>
-            </div>
-            <div class="hf-primer-cell">
-              <h3 style="color:#ff8aa0">② The Battle</h3>
-              <p>Spend reactor power to play cards. Shields soak hits before hull; weapons, reactor and engines can all be crippled.</p>
-            </div>
-            <div class="hf-primer-cell">
-              <h3 style="color:#7cf0c0">③ The Refit</h3>
-              <p>Dock to buy new cards, install upgrades, patch hull and hire crew. Then jump again — deadlier than before.</p>
-            </div>
+  Game.prototype.renderTitleHowTo = function () {
+    var self=this;
+    return html`
+    <div class="bv-modal" onClick=${function(){ self.closeHowTo(); }}>
+      <div class="bv-modal-panel hf-overlay-panel" onClick=${function(e){ e.stopPropagation(); }}>
+        <div class="bv-kicker" style="text-align:left">BRIEFING · HOW IT PLAYS</div>
+        <h2 class="bv-modal-h2">Command the ISV Palewake</h2>
+        <p class="hf-lore" style="text-align:left;max-width:none;margin:0">
+          The war is over — you just haven't been told. You command the corvette${" "}
+          <b>ISV Palewake</b>, cut off in the dead reach called the <b>Blackstar Verge</b>.
+          Between you and the jump gate home lie pirate pickets, enforcement blockades,
+          and the dreadnought <b>HMS Iron Verdict</b> waiting at the corridor's end. Chart
+          a course, fight your way through card by card, scavenge the wrecks, and refit
+          at the stations still holding a light. Every jump is one-way — there is no
+          going back.
+        </p>
+        <div class="hf-primer" style="margin-top:22px">
+          <div class="hf-primer-cell">
+            <h3 style="color:#5fd8ff">① The Chart</h3>
+            <p>Jump between nodes on a branching sector map. Pick your fights, your stations, and your route to the flagship.</p>
           </div>
-
-          <div class="hf-diffrow">
-            ${diffKeys.map(function(k){
-              var d=DIFFS[k];
-              return html`<div class=${"hf-diff"+(self.config.difficulty===k?" sel":"")} onClick=${function(){ self.setDifficulty(k); }}>
-                <div class="dn">${d.name}</div>
-                <div class="dd">${d.blurb}</div>
-              </div>`;
-            })}
+          <div class="hf-primer-cell">
+            <h3 style="color:#ff8aa0">② The Battle</h3>
+            <p>Spend reactor power to play cards. Shields soak hits before hull; weapons, reactor and engines can all be crippled.</p>
           </div>
-
-          <div class="hf-launch-row">
-            <button class="hf-btn" onClick=${function(){ self.beginRun(); }}
-              style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.16em;font-size:18px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:5px;padding:16px 44px;cursor:pointer;box-shadow:0 4px 0 #14506b,0 10px 26px #0009">
-              Begin Sortie ▸
-            </button>
-            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center">
-              <label class="hf-toggle">
-                <input type="checkbox" checked=${this.config.scanlines} onChange=${function(){ self.toggleScanlines(); }} />
-                CRT SCANLINES
-              </label>
-              ${this.renderMusicBtn()}
-            </div>
+          <div class="hf-primer-cell">
+            <h3 style="color:#7cf0c0">③ The Refit</h3>
+            <p>Dock to buy new cards, install upgrades, patch hull and hire crew. Then jump again — deadlier than before.</p>
           </div>
-
-          <div class="hf-footer">ISV HOLLOW VERDICT · CORVETTE · DECK COMMAND — GOOD HUNTING, CAPTAIN</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:24px">
+          <button class="bv-primary" style="padding:13px 32px" onClick=${function(){ self.closeHowTo(); }}>Got it ▸</button>
         </div>
       </div>
     </div>`;
@@ -919,7 +930,7 @@
           <div style="position:relative;height:300px;margin:0 30px;display:flex;justify-content:center">
             <div style="position:relative;height:100%;aspect-ratio:2.434">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #6fe0ff;border-radius:50%;opacity:"+v.pBub+";transition:opacity .4s;box-shadow:0 0 30px #4fd8ff33, inset 0 0 30px #4fd8ff18"}></div>
-              <img src="assets/ships/player.png" alt="ISV Hollow Verdict" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              <img src="assets/ships/player.png" alt="ISV Palewake" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;gap:16px;margin:14px 30px 0">
@@ -973,7 +984,7 @@
       <div style=${"position:absolute;left:16px;bottom:204px;width:"+v.panelW+";display:"+v.sideBlock+";border:1px solid #1b2a45;border-radius:5px;background:#070b14d9;padding:13px 15px;z-index:1"}>
         <div style="display:flex;align-items:baseline;gap:9px">
           <span style=${"font-family:"+MONO+";font-size:10px;color:#5fd8ff;border:1px solid #1e4d66;border-radius:3px;padding:2px 6px;letter-spacing:.1em"}>FRIENDLY</span>
-          <span style="font-weight:600;font-size:17px;color:#ffffff">ISV Hollow Verdict</span>
+          <span style="font-weight:600;font-size:17px;color:#ffffff">ISV Palewake</span>
         </div>
         <div style=${"font-family:"+MONO+";font-size:11px;color:#7d92b5;letter-spacing:.12em;margin:3px 0 10px"}>CORVETTE · DECK COMMAND</div>
         <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HULL</span><span style=${"font-family:"+MONO+";font-size:13px"}>${v.pHullTxt}</span></div>
@@ -1134,7 +1145,7 @@
     <div style="position:absolute;inset:58px 0 0 0">
       <div style="position:absolute;top:24px;left:0;right:0;text-align:center;z-index:2;pointer-events:none">
         <div style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.3em;color:#5f7396"}>GALACTIC SECTOR CHART</div>
-        <div style="font-weight:700;letter-spacing:.12em;font-size:36px;margin-top:3px;color:#ffffff">THE HOLLOW VERGE</div>
+        <div style="font-weight:700;letter-spacing:.12em;font-size:36px;margin-top:3px;color:#ffffff">THE BLACKSTAR VERGE</div>
         <div style="font-size:15px;color:#8fa3c4;margin-top:4px">Plot a course to the Iron Verdict. Jumps are one-way — choose your route.</div>
       </div>
       <div style="position:absolute;inset:110px 50px 120px 50px">
@@ -1167,7 +1178,7 @@
         <span><span style="color:#ff5470">⛧</span> FLAGSHIP</span>
       </div>
       <div style="position:absolute;right:18px;bottom:18px;width:300px;border:1px solid #1b2a45;border-radius:5px;background:#070b14cc;padding:12px 16px">
-        <div style="font-weight:600;font-size:15px;letter-spacing:.08em;margin-bottom:8px;color:#ffffff">ISV HOLLOW VERDICT</div>
+        <div style="font-weight:600;font-size:15px;letter-spacing:.08em;margin-bottom:8px;color:#ffffff">ISV PALEWAKE</div>
         <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HULL</span><span style=${"font-family:"+MONO+";font-size:13px"}>${v.stHullTxt}</span></div>
         <div style="height:11px;border:1px solid #2c4066;border-radius:2px;background:#000000;overflow:hidden;margin:4px 0 9px"><div style=${"height:100%;width:"+v.stHullPct+"%;background:"+v.stHullBg}></div></div>
         <div style=${"font-family:"+MONO+";font-size:12px;color:#8fa3c4;line-height:1.7"}>CREW ${v.stCrewTxt} · DECK ${v.stDeckTxt} CARDS<br/>SALVAGE ${v.stSalvTxt} ◈</div>
@@ -1270,11 +1281,11 @@
           <div style="height:8px;background-image:repeating-linear-gradient(45deg,#4fd8ff 0 10px,#0d1424 10px 20px)"></div>
           <div style="padding:16px 26px 17px">
             <div style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.26em;color:#5f7396"}>SORTIE BRIEFING</div>
-            <div style="font-weight:700;letter-spacing:.1em;font-size:30px;color:#ffffff">HOLLOW FLEET</div>
+            <div style="font-weight:700;letter-spacing:.1em;font-size:30px;color:#ffffff">BLACKSTAR VERGE</div>
           </div>
         </div>
         <div style="padding:22px 26px">
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">You command the corvette <b style="color:#eaf2ff">ISV Hollow Verdict</b>, alone in the Hollow Verge. Between you and the jump gate: pirate pickets, blockades, and the dreadnought <b style="color:#eaf2ff">Iron Verdict</b>. Plot your course on the sector chart — every jump is one-way.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">You command the corvette <b style="color:#eaf2ff">ISV Palewake</b>, alone in the Blackstar Verge. Between you and the jump gate: pirate pickets, blockades, and the dreadnought <b style="color:#eaf2ff">Iron Verdict</b>. Plot your course on the sector chart — every jump is one-way.</p>
           <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, cards draw from <b style="color:#eaf2ff">reactor power</b>. A single deflector screen wraps the whole ship — while it holds, hits bleed into it before touching hull. Beneath it, three subsystems keep you alive: <b style="color:#eaf2ff">WEAPONS</b> drive your damage, the <b style="color:#eaf2ff">REACTOR</b> feeds power, and <b style="color:#eaf2ff">ENGINES</b> regenerate the screen.</p>
           <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Dock at stations to repair, hire crew, refit your deck and upgrade the ship. Win by <b style="color:#eaf2ff">gutting hulls</b> — or board and take them.</p>
           <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">64</b></span><span>CREW <b style="color:#ffffff;font-weight:500">8</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">22</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span></div>
