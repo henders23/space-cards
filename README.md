@@ -53,7 +53,7 @@ blocked, the UI falls back to system fonts.)
 | `index.html` | Page shell; loads the vendored libs, styles, and game |
 | `game.js` | The whole game — rules engine + UI, one Preact component |
 | `styles.css` | Global reset, starfield, keyframes, hover/title styles |
-| `assets/cards/` | Card art (one PNG per card key) |
+| `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/` |
 | `assets/ships/` | Player and enemy ship sprites |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
 | `assets/audio/` | Weapon, "enemy sighted", "reporting damage" and destruction SFX |
@@ -71,9 +71,9 @@ an accompanying sounds pack (both licensed for use with no attribution required)
 - **Rendering**: [Preact](https://preactjs.com/) + [htm](https://github.com/developit/htm),
   both vendored as UMD globals — no JSX, no transpile. The game is a single class
   component whose imperative state mirrors the design spec's logic class.
-- **Authoritative rules**: all balance numbers — the card library, enemy stats, the
-  11-node / 16-edge sector graph, shop prices, and upgrade costs — are ported
-  verbatim from the design handoff.
+- **Expanded card library**: the original 19 cards are joined by 31 new cards,
+  for 50 total. Every card has distinct artwork, a compact hand summary, a full
+  detail view, shop/reward availability, and implemented combat behaviour.
 - **Added for this build**: the title/intro screen with story context and an
   in-game difficulty selector, ahead of the original tactical briefing overlay.
 - **Motion** respects `prefers-reduced-motion`.
