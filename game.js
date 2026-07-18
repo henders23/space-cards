@@ -100,15 +100,15 @@
   // for the zone rebalance so each region fields its own hulls. The final
   // difficulty of any encounter is stats x difficulty x elite/bounty x zone mult.
   var ENEMIES = [
-    {name:"RSV Carrion Jackal",role:"CORSAIR RAIDER",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
-    {name:"PCS Ledger's Edge",role:"ENFORCEMENT FRIGATE",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
-    {name:"HMS Iron Verdict",role:"DREADNOUGHT · FLAGSHIP",hull:82,shieldCap:22,regen:4,crew:10,atkLo:11,atkHi:15,sab:.28,boardN:3,boardCh:.2,shieldAmt:13,rep:.18},
-    {name:"PCV Rust Psalm",role:"CORSAIR CUTTER",hull:50,shieldCap:14,regen:3,crew:6,atkLo:6,atkHi:10,sab:.18,boardN:2,boardCh:.18,shieldAmt:9,rep:0},
-    {name:"HMS Tithe Collector",role:"PACT GUNSHIP",hull:56,shieldCap:14,regen:4,crew:6,atkLo:8,atkHi:11,sab:.22,boardN:2,boardCh:.15,shieldAmt:10,rep:.1},
-    {name:"RSV Red Augur",role:"SMUGGLER CORSAIR",hull:52,shieldCap:18,regen:5,crew:5,atkLo:9,atkHi:13,sab:.2,boardN:2,boardCh:.1,shieldAmt:12,rep:.12},
-    {name:"HMS Anvil Chorus",role:"IRONWALL HEAVY FRIGATE",hull:70,shieldCap:18,regen:4,crew:8,atkLo:10,atkHi:14,sab:.28,boardN:3,boardCh:.18,shieldAmt:12,rep:.15},
-    {name:"The Locust Prime",role:"STRIP-FLEET TENDER",hull:64,shieldCap:12,regen:3,crew:10,atkLo:7,atkHi:11,sab:.2,boardN:3,boardCh:.35,shieldAmt:9,rep:.2},
-    {name:"PCS Whisper Warden",role:"VEIL PICKET SHIP",hull:58,shieldCap:20,regen:6,crew:6,atkLo:8,atkHi:12,sab:.3,boardN:2,boardCh:.12,shieldAmt:13,rep:0}
+    {name:"RSV Carrion Jackal",img:"ship-09",role:"CORSAIR RAIDER",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
+    {name:"PCS Ledger's Edge",img:"ship-12",role:"ENFORCEMENT FRIGATE",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
+    {name:"HMS Iron Verdict",img:"ship-04",role:"DREADNOUGHT · FLAGSHIP",hull:82,shieldCap:22,regen:4,crew:10,atkLo:11,atkHi:15,sab:.28,boardN:3,boardCh:.2,shieldAmt:13,rep:.18},
+    {name:"PCV Rust Psalm",img:"ship-13",role:"CORSAIR CUTTER",hull:50,shieldCap:14,regen:3,crew:6,atkLo:6,atkHi:10,sab:.18,boardN:2,boardCh:.18,shieldAmt:9,rep:0},
+    {name:"HMS Tithe Collector",img:"ship-06",role:"PACT GUNSHIP",hull:56,shieldCap:14,regen:4,crew:6,atkLo:8,atkHi:11,sab:.22,boardN:2,boardCh:.15,shieldAmt:10,rep:.1},
+    {name:"RSV Red Augur",img:"ship-15",role:"SMUGGLER CORSAIR",hull:52,shieldCap:18,regen:5,crew:5,atkLo:9,atkHi:13,sab:.2,boardN:2,boardCh:.1,shieldAmt:12,rep:.12},
+    {name:"HMS Anvil Chorus",img:"ship-02",role:"IRONWALL HEAVY FRIGATE",hull:70,shieldCap:18,regen:4,crew:8,atkLo:10,atkHi:14,sab:.28,boardN:3,boardCh:.18,shieldAmt:12,rep:.15},
+    {name:"The Locust Prime",img:"ship-14",role:"STRIP-FLEET TENDER",hull:64,shieldCap:12,regen:3,crew:10,atkLo:7,atkHi:11,sab:.2,boardN:3,boardCh:.35,shieldAmt:9,rep:.2},
+    {name:"PCS Whisper Warden",img:"ship-03",role:"VEIL PICKET SHIP",hull:58,shieldCap:20,regen:6,crew:6,atkLo:8,atkHi:12,sab:.3,boardN:2,boardCh:.12,shieldAmt:13,rep:0}
   ];
   // ---- sector data: zone-based free-travel galactic map --------------------
   // From the "design_handoff_sector_map" bundle, scaled up 3x: 36 systems in
@@ -158,6 +158,13 @@
   };
   var TYPE_LABEL = { home:"HOME BASE", station:"STATION", shipyard:"SHIPYARD", repair:"REPAIR DEPOT",
     fight:"SKIRMISH", elite:"ELITE", bounty:"BOUNTY", anomaly:"ANOMALY", gate:"JUMP GATE", boss:"FLAGSHIP" };
+  // ---- ship sprite assets ---------------------------------------------------
+  // Chroma-keyed fleet pack: the player flies ship-08; each enemy class has
+  // its own hull (img on its ENEMIES entry). Every ship has a damaged twin
+  // (ship-XX-damaged.png) that swaps in once hull falls below half.
+  var PLAYER_SHIP = "ship-08";
+  function shipImg(base, damaged) { return "assets/ships/"+base+(damaged?"-damaged":"")+".png"; }
+
   var NODES = [
     // — PALEWAKE REACH — the home zone
     {id:"haven",x:7,y:76,type:"home",z:"reach",sz:52,label:"HAVEN ANCHORAGE",
@@ -346,7 +353,7 @@
     // one-shot gesture starter.
     this._scene = "ambient";
     try {
-      this._music = new Audio("assets/audio/echoes_of_the_void.mp3");
+      this._music = new Audio("assets/audio/drift_beyond_io.mp3");
       this._music.loop = true; this._music.volume = 0.4; this._music.preload = "auto";
     } catch (e) { this._music = null; }
     try {
@@ -484,7 +491,7 @@
       node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false, aiming:null,
       armour:0, reflect:0, blind:0, overwatch:0, flank:0, sealCrew:false,
       nextPower:0, nextPowerPenalty:0, mines:[], detailUid:null,
-      enemy:{ name:d.name, role:d.role, hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
+      enemy:{ name:d.name, role:d.role, img:d.img||"ship-09", hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
         shieldCap:d.shieldCap, shield:0, regen:d.regen, crew:d.crew, crewMax:d.crew,
         atkLo:Math.round(d.atkLo*m), atkHi:Math.round(d.atkHi*m), sab:d.sab, boardN:d.boardN,
         boardCh:d.boardCh, shieldAmt:d.shieldAmt, rep:d.rep,
@@ -816,7 +823,7 @@
   // ---- dwell-to-inspect: hover a card ~2s to dock its detail on the right --
   Game.prototype.hoverEnter = function (card) {
     var self=this; this.clearHoverTimer();
-    this._hoverT=setTimeout(function(){ self._hoverT=0; self.hoverCard=card; self.forceUpdate(); }, 2000);
+    this._hoverT=setTimeout(function(){ self._hoverT=0; self.hoverCard=card; self.forceUpdate(); }, 150);
   };
   Game.prototype.hoverLeave = function () {
     this.clearHoverTimer();
@@ -858,8 +865,8 @@
     S.reward={ how:how, salv:salv, cards:this.sh(REWARDS.slice()).slice(0,3).map(this.mk.bind(this)) };
     S.overlay="reward"; this.forceUpdate();
   };
-  Game.prototype.claimReward = function (key) { this.state.deckKeys.push(key); this.finishBattle(); };
-  Game.prototype.skipReward = function () { this.finishBattle(); };
+  Game.prototype.claimReward = function (key) { this.hideHover(); this.state.deckKeys.push(key); this.finishBattle(); };
+  Game.prototype.skipReward = function () { this.hideHover(); this.finishBattle(); };
   Game.prototype.finishBattle = function () {
     var S=this.state, p=S.player, node=S.battle.node;
     p.hull=this.cl(p.hull+Math.round(p.hullMax*.15),0,p.hullMax);
@@ -996,7 +1003,7 @@
     S.base={ node:n, stock:S.stationStock[n.id] };
     S.screen="base"; this.forceUpdate();
   };
-  Game.prototype.buyCard = function (i) { var S=this.state, o=S.base.stock[i]; if (!o||S.salvage<o.price) return; S.salvage-=o.price; S.deckKeys.push(o.key); S.base.stock.splice(i,1); this.forceUpdate(); };
+  Game.prototype.buyCard = function (i) { var S=this.state, o=S.base.stock[i]; if (!o||S.salvage<o.price) return; this.hideHover(); S.salvage-=o.price; S.deckKeys.push(o.key); S.base.stock.splice(i,1); this.forceUpdate(); };
   Game.prototype.buyUp = function (k) {
     var S=this.state, u=null, p=S.player;
     for (var i=0;i<YARD_REFITS.length;i++){ if (YARD_REFITS[i].k===k){ u=YARD_REFITS[i]; break; } }
@@ -1012,7 +1019,7 @@
     var S=this.state, n=S.yard&&S.yard.node; if (!n) return;
     var b=S.yardBought[n.id]||(S.yardBought[n.id]={});
     if (b[key]||S.salvage<price) return;
-    S.salvage-=price; S.deckKeys.push(key); b[key]=true; this.forceUpdate();
+    this.hideHover(); S.salvage-=price; S.deckKeys.push(key); b[key]=true; this.forceUpdate();
   };
   Game.prototype.undockYard = function () { var S=this.state; S.yard=null; S.screen="map"; this.forceUpdate(); };
   Game.prototype.repair = function () { var S=this.state, p=S.player; if (S.salvage<10||p.hull>=p.hullMax) return; S.salvage-=10; p.hull=this.cl(p.hull+15,0,p.hullMax); this.forceUpdate(); };
@@ -1125,6 +1132,7 @@
       ${S.overlay==="deckview" ? this.renderDeckView() : null}
       ${S.overlay==="shipview" ? this.renderShipView() : null}
       ${S.overlay==="codex" ? this.renderCodex() : null}
+      ${this.hoverCard ? this.renderHoverPanel(this.hoverCard) : null}
       ${S.cardDetail ? this.renderCardDetail(S.cardDetail) : null}
     </div>`;
   };
@@ -1145,7 +1153,7 @@
     var musicOn = this.music.on;
     return html`
     <div class="hf-starfield bv-title">
-      <img class="bv-ship" src="assets/ships/player.png" alt="ISV Palewake" />
+      <img class="bv-ship" src=${shipImg(PLAYER_SHIP,false)} alt="ISV Palewake" />
       <div class="bv-fade"></div>
       <div class="bv-wrap">
         <div class="bv-kicker">A ROGUELIKE DECK-BUILDER OF VOID COMBAT</div>
@@ -1233,9 +1241,9 @@
             ${v.eSubs.map(function(s){ return self.renderSub(s); })}
           </div>
           <div style="position:relative;height:300px;margin:0 30px;display:flex;justify-content:center">
-            <div style="position:relative;height:100%;aspect-ratio:2.685">
+            <div style="position:relative;height:100%;aspect-ratio:1.82">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #ff7d95;border-radius:50%;opacity:"+v.eBub+";transition:opacity .4s;box-shadow:0 0 30px #ff547033, inset 0 0 30px #ff547018"}></div>
-              <img src="assets/ships/enemy.png" alt="Hostile ship" ref=${function(el){ self.enemyImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              <img src=${v.eImg} alt="Hostile ship" ref=${function(el){ self.enemyImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
           </div>
           ${this.renderShieldArc(v.eShPct, v.eShTxt, "#7ce7ff")}
@@ -1249,9 +1257,9 @@
             ${v.pSubs.map(function(s){ return self.renderSub(s); })}
           </div>
           <div style="position:relative;height:300px;margin:14px 30px 0;display:flex;justify-content:center">
-            <div style="position:relative;height:100%;aspect-ratio:2.434">
+            <div style="position:relative;height:100%;aspect-ratio:1.82">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #6fe0ff;border-radius:50%;opacity:"+v.pBub+";transition:opacity .4s;box-shadow:0 0 30px #4fd8ff33, inset 0 0 30px #4fd8ff18"}></div>
-              <img src="assets/ships/player.png" alt="ISV Palewake" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
+              <img src=${v.pImg} alt="ISV Palewake" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
           </div>
         </div>
@@ -1344,7 +1352,6 @@
         </div>
       </div>
 
-      ${this.hoverCard ? this.renderHoverPanel(this.hoverCard) : null}
       ${v.aiming ? this.renderAimOverlay(v) : null}
     </div>`;
   };
@@ -1352,7 +1359,7 @@
   // ---- dwell panel: full card details docked on the right -----------------
   Game.prototype.renderHoverPanel = function (c) {
     return html`
-    <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;z-index:12;border:1px solid #334b70;border-radius:10px;background:linear-gradient(180deg,#111a2be8,#070b14f2);box-shadow:0 20px 60px #000c;backdrop-filter:blur(3px);overflow:hidden;pointer-events:none;animation:driftin .18s ease-out both">
+    <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;z-index:55;border:1px solid #334b70;border-radius:10px;background:linear-gradient(180deg,#111a2be8,#070b14f2);box-shadow:0 20px 60px #000c;backdrop-filter:blur(3px);overflow:hidden;pointer-events:none;animation:hoverfade .15s ease-out both">
       <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:100%;height:auto;display:block;border-bottom:1px solid #1b2a45" />
       <div style="padding:13px 16px 16px">
         <div style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.2em;color:#7d92b5;text-transform:uppercase"}>${c.type+" · COST "+c.cost}</div>
@@ -1531,7 +1538,7 @@
               </div>`;
             })}
           </div>
-          <img src="assets/ships/player.png" alt="ISV Palewake"
+          <img src=${m.shipSrc} alt="ISV Palewake"
             style=${"position:absolute;left:"+m.shipX+";top:"+m.shipY+";transform:translate(-145%,-75%);width:64px;z-index:4;pointer-events:none;transition:left 1.4s ease-in-out,top 1.4s ease-in-out;filter:drop-shadow(0 8px 16px #000000cc)"} />
         </div>
       </div>
@@ -1544,7 +1551,7 @@
         <div style="border:1px solid #1b2a45;border-radius:6px;background:#070b14d9;padding:14px 16px">
           <div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.24em;color:#5f7396"}>HOME BASE</div>
           <div style="font-weight:700;font-size:17px;letter-spacing:.06em;color:#ffffff;margin-top:4px">ISV PALEWAKE</div>
-          <img src="assets/ships/player.png" alt="ISV Palewake" style="width:100%;height:74px;object-fit:contain;margin:10px 0 6px;filter:drop-shadow(0 8px 16px #000000cc)" />
+          <img src=${m.shipSrc} alt="ISV Palewake" style="width:100%;height:74px;object-fit:contain;margin:10px 0 6px;filter:drop-shadow(0 8px 16px #000000cc)" />
           <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:10px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HULL</span><span style=${"font-family:"+MONO+";font-size:12px"}>${m.hullTxt}</span></div>
           <div style="height:9px;border:1px solid #2c4066;border-radius:2px;background:#000000;overflow:hidden;margin:4px 0 8px"><div style=${"height:100%;width:"+m.hullPct+"%;background:linear-gradient(180deg,#8df2c8,#2aa878)"}></div></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px">
@@ -1625,7 +1632,7 @@
             <div style="border:1px solid #1b2a45;border-radius:6px;background:#0a0f1ad9;padding:16px 18px">
               <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#ffffff;text-transform:uppercase">Dry Dock</div>
               <div style="font-size:13.5px;color:#8fa3c4;margin:3px 0 10px">The Palewake, in the cradle.</div>
-              <img src="assets/ships/player.png" alt="ISV Palewake in dry dock" style="width:100%;height:130px;object-fit:contain;filter:drop-shadow(0 12px 24px #000000cc)" />
+              <img src=${y.shipSrc} alt="ISV Palewake in dry dock" style="width:100%;height:130px;object-fit:contain;filter:drop-shadow(0 12px 24px #000000cc)" />
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
                 ${y.stats.map(function(s,i){
                   return html`<div key=${i} style="border:1px solid #1b2a45;border-radius:4px;background:#070b14;padding:8px 10px"><div style="font-size:10px;font-weight:600;letter-spacing:.18em;color:#7d92b5">${s.k}</div><div style=${"font-family:"+MONO+";font-size:14px;color:#eaf2ff;margin-top:2px"}>${s.v}</div></div>`;
@@ -1662,7 +1669,8 @@
             <div style="display:flex;flex-direction:column;gap:10px">
               ${y.stock.map(function(s){
                 return html`
-                <div key=${s.key} style="display:flex;align-items:center;gap:12px;border:1px solid #1b2a45;border-radius:5px;background:#070b14;overflow:hidden">
+                <div key=${s.key} onMouseEnter=${function(){ self.hoverEnter(LIB[s.key]); }} onMouseLeave=${function(){ self.hoverLeave(); }}
+                  style="display:flex;align-items:center;gap:12px;border:1px solid #1b2a45;border-radius:5px;background:#070b14;overflow:hidden">
                   <img src=${"assets/cards/"+s.key+".png"} alt=${s.name+" card art"} style="width:74px;height:56px;object-fit:cover;flex:none;border-right:1px solid #1a2942" />
                   <div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13.5px;color:#eaf2ff">${s.name}</div><div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.1em;color:#7d92b5;margin-top:2px"}>${s.sub}</div></div>
                   <button onClick=${s.click} style=${"font-family:"+MONO+";font-size:11.5px;letter-spacing:.06em;color:"+s.btnCol+";background:#0a101c;border:1px solid "+s.btnBd+";border-radius:4px;padding:8px 11px;cursor:"+s.cur+";margin-right:10px;white-space:nowrap;opacity:"+s.op}>${s.btn}</button>
@@ -1782,7 +1790,8 @@
               ${v.baStock.map(function(c,i){
                 return html`
                 <div key=${i} style="width:176px;display:flex;flex-direction:column;gap:8px">
-                  <div style="position:relative;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden;min-height:216px">
+                  <div onMouseEnter=${function(){ self.hoverEnter(c); }} onMouseLeave=${function(){ self.hoverLeave(); }}
+                    style="position:relative;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden;min-height:216px">
                     ${self.cardFace(c)}
                   </div>
                   <button class=${"hf-buy"+(c.affordable?" affordable":"")} onClick=${c.click} style=${"font-family:"+MONO+";font-size:13px;color:#eaf2ff;background:#101828;border:1px solid #2c4066;border-radius:3px;padding:8px 0;cursor:"+c.cur+";opacity:"+c.op+";letter-spacing:.1em"}>BUY ${c.price} ◈</button>
@@ -1867,6 +1876,7 @@
             ${v.rwCards.map(function(c){
               return html`
               <div key=${c.uid} class="hf-reward-card" onClick=${c.click}
+                onMouseEnter=${function(){ self.hoverEnter(c); }} onMouseLeave=${function(){ self.hoverLeave(); }}
                 style="position:relative;width:176px;min-height:216px;border:1px solid #22345a;border-radius:8px;background:#0c1220;box-shadow:0 6px 18px #000a;display:flex;flex-direction:column;overflow:hidden">
                 ${self.cardFace(c)}
               </div>`;
@@ -1936,6 +1946,7 @@
     m.hullTxt=Math.round(P.hull)+"/"+P.hullMax; m.hullPct=this.cl(P.hull/P.hullMax*100,0,100);
     m.crewTxt=P.crew+"/"+P.crewMax; m.deckTxt=S.deckKeys.length; m.salv=S.salvage;
     m.fuel=P.fuel; m.fuelMax=P.fuelMax;
+    m.shipSrc=shipImg(PLAYER_SHIP, P.hull<P.hullMax*.5);
 
     m.zones=ZONES.map(function(z){
       var sub = secured[z.k] ? "SECURED"
@@ -2064,6 +2075,7 @@
     var S=this.state, P=S.player, self=this, n=S.yard.node;
     var y={};
     y.zone=ZBYK[n.z].name;
+    y.shipSrc=shipImg(PLAYER_SHIP, P.hull<P.hullMax*.5);
     y.title=n.label.indexOf("YARD")>=0 ? n.label : n.label+" SHIPYARD";
     y.salv=S.salvage;
     y.gossip=n.gossip||"";
@@ -2143,6 +2155,7 @@
       v.sideBlock=pw>=150?"block":"none"; v.sideFlex=pw>=150?"flex":"none";
       var n=Math.max(1,B.hand.length); var mid=Math.max(200,vw-470); var mh=Math.min(5,(mid-n*176)/(2*n)); v.cardMh=Math.max(mh,-55).toFixed(1)+"px";
       v.pAnim=this.shipAnim(S.shakeP); v.eAnim=this.shipAnim(S.shakeE);
+      v.pImg=shipImg(PLAYER_SHIP, P.hull<P.hullMax*.5); v.eImg=shipImg(e.img, e.hull<e.hullMax*.5);
       v.pSubs=this.subsView(P); v.eSubs=this.subsView(e);
       v.pShTxt=Math.round(P.shield)+"/"+P.shieldCap; v.pShPct=this.cl(P.shield/P.shieldCap*100,0,100);
       v.eShTxt=Math.round(e.shield)+"/"+e.shieldCap; v.eShPct=this.cl(e.shield/e.shieldCap*100,0,100);

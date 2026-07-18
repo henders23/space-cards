@@ -24,7 +24,7 @@ Everything the game needs is vendored locally, so it works fully offline. (The o
 optional network call is Google Fonts for Space Grotesk / IBM Plex Mono; if it's
 blocked, the UI falls back to system fonts.)
 
-A looping ambient theme ("Echoes of the Void") starts with the game — browsers
+A looping ambient theme ("Drift Beyond Io") starts with the game — browsers
 hold it until your first click/keypress — and a driving combat track takes over
 whenever a battle begins, handing back to the ambient theme when the fight ends.
 There's a **♪ MUSIC** toggle on the title screen and in the top bar (the on/off
@@ -65,8 +65,8 @@ choice is remembered).
      comms whenever one of your three subsystems takes damage.
    - **Camera**: scroll to zoom, hold the middle mouse button and drag to pan,
      double-click to reset. Ships are drawn large so you can read the damage.
-   - **Inspect a card**: click its ⓘ for a modal, or just hover for ~2 seconds and
-     the full card details dock on the right of the screen.
+   - **Inspect a card**: hover any card — in hand, shops, or reward picks — and
+     its full details dock on the right of the screen; click ⓘ for a modal.
 4. **Refit** — after a win, salvage a card from the wreck; at stations, buy cards,
    install permanent upgrades, patch hull, hire crew, and scrap dead weight from
    your deck.
@@ -81,7 +81,7 @@ choice is remembered).
 | `game.js` | The whole game — rules engine + UI, one Preact component |
 | `styles.css` | Global reset, starfield, keyframes, hover/title styles |
 | `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/` |
-| `assets/ships/` | Player and enemy ship sprites |
+| `assets/ships/` | Chroma-keyed fleet pack: player ship + one hull per enemy class, each with a damaged twin that swaps in below half hull |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
 | `assets/audio/` | Ambient + combat music, weapon, "enemy sighted", "reporting damage" and destruction SFX |
 | `vendor/` | Preact + htm UMD builds (vendored, no CDN at runtime) |

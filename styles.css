@@ -61,6 +61,7 @@ a:hover { color: #ffffff; }
 @keyframes driftin {0%{opacity:0;transform:translateY(24px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
 
 @keyframes ringpulseO {0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.45);opacity:.12}}
+@keyframes hoverfade {0%{opacity:0}100%{opacity:1}}
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
 
