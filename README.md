@@ -42,8 +42,16 @@ choice is remembered).
    key items (won from anomalies and bounties) or by securing enough zones.
    Secure 4 zones to unseal the **Blackstar Gate**, break the Iron Verdict
    guarding it, and jump for the next sector. Dedicated **shipyards** (Forge
-   Tether, Hollow Yard) sell the permanent refits — including the new Extended
-   Fuel Racks and Salvage Rig — while stations keep the card armory.
+   Tether, Hollow Yard) sell the permanent refits — including Extended Fuel
+   Racks and the Salvage Rig — while stations keep the card armory.
+   - **Fuel**: every lane hop burns one fuel cell (a multi-hop SET COURSE costs
+     its full route). Docking at any friendly port — home, station, shipyard, or
+     repair depot — refills the racks free. Short on cells? You can still move by
+     **burning reserves** at 5 hull per missing cell, but never onto a jump the
+     hull can't survive. Extended Fuel Racks adds +2 cells.
+   - **Per-zone threat & pay**: each zone has its own enemy roster and a
+     difficulty multiplier that scales both enemy strength and salvage payouts —
+     the sealed reaches and the sector's far east hit harder and pay better.
 3. **Battle** — spend **reactor power** to play cards. A deflector screen soaks
    hits before they reach hull; your **weapons / reactor / engines** subsystems can
    each be crippled. Read the enemy's telegraphed intent and answer it. Win by

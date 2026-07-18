@@ -96,10 +96,19 @@
     "plasma-lance":20,"ion-needle":14,"chain-cannon":20,"kinetic-ram":30,"mine-layer":16,"emp-warhead":24,"point-blank":22,graviton:28,"execution-beam":30,"emergency-bubble":10,"reflective-screen":20,"phase-screen":22,"layered-plating":16,"engine-screen":16,"bulwark-field":28,"nanite-swarm":24,"jury-rig":14,"seal-bulkheads":14,"reboot-protocol":18,"coolant-flush":12,"reactor-surge":16,cannibalise:12,"aux-battery":14,"sensor-ghost":14,"flanking-burn":16,"decoy-drone":14,"combat-scan":10,overwatch:16,"saboteur-team":22,"marine-detachment":22,"command-seizure":30};
   var SHOP = Object.keys(LIB);
   var REWARDS = Object.keys(LIB);
+  // Per-zone enemy roster. Indices 0-2 are the original three; 3-8 were added
+  // for the zone rebalance so each region fields its own hulls. The final
+  // difficulty of any encounter is stats x difficulty x elite/bounty x zone mult.
   var ENEMIES = [
     {name:"RSV Carrion Jackal",role:"CORSAIR RAIDER",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
     {name:"PCS Ledger's Edge",role:"ENFORCEMENT FRIGATE",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
-    {name:"HMS Iron Verdict",role:"DREADNOUGHT · FLAGSHIP",hull:82,shieldCap:22,regen:4,crew:10,atkLo:11,atkHi:15,sab:.28,boardN:3,boardCh:.2,shieldAmt:13,rep:.18}
+    {name:"HMS Iron Verdict",role:"DREADNOUGHT · FLAGSHIP",hull:82,shieldCap:22,regen:4,crew:10,atkLo:11,atkHi:15,sab:.28,boardN:3,boardCh:.2,shieldAmt:13,rep:.18},
+    {name:"PCV Rust Psalm",role:"CORSAIR CUTTER",hull:50,shieldCap:14,regen:3,crew:6,atkLo:6,atkHi:10,sab:.18,boardN:2,boardCh:.18,shieldAmt:9,rep:0},
+    {name:"HMS Tithe Collector",role:"PACT GUNSHIP",hull:56,shieldCap:14,regen:4,crew:6,atkLo:8,atkHi:11,sab:.22,boardN:2,boardCh:.15,shieldAmt:10,rep:.1},
+    {name:"RSV Red Augur",role:"SMUGGLER CORSAIR",hull:52,shieldCap:18,regen:5,crew:5,atkLo:9,atkHi:13,sab:.2,boardN:2,boardCh:.1,shieldAmt:12,rep:.12},
+    {name:"HMS Anvil Chorus",role:"IRONWALL HEAVY FRIGATE",hull:70,shieldCap:18,regen:4,crew:8,atkLo:10,atkHi:14,sab:.28,boardN:3,boardCh:.18,shieldAmt:12,rep:.15},
+    {name:"The Locust Prime",role:"STRIP-FLEET TENDER",hull:64,shieldCap:12,regen:3,crew:10,atkLo:7,atkHi:11,sab:.2,boardN:3,boardCh:.35,shieldAmt:9,rep:.2},
+    {name:"PCS Whisper Warden",role:"VEIL PICKET SHIP",hull:58,shieldCap:20,regen:6,crew:6,atkLo:8,atkHi:12,sab:.3,boardN:2,boardCh:.12,shieldAmt:13,rep:0}
   ];
   // ---- sector data: zone-based free-travel galactic map --------------------
   // From the "design_handoff_sector_map" bundle, scaled up 3x: 36 systems in
@@ -109,20 +118,20 @@
   // in 4 zones unseals the Blackstar Gate — the road to the next sector.
   var WORLD = { w: 2400, h: 1400 };
   var ZONES = [
-    {k:"reach",    name:"PALEWAKE REACH",      c:"#4fd8ff", lx:2,  ly:55, wx:9,  wy:78, wash:"#10294d66"},
-    {k:"shoals",   name:"THE SHOALS",          c:"#ffc266", lx:19, ly:37, wx:27, wy:57, wash:"#4d360f38"},
-    {k:"ember",    name:"THE EMBER SHELF",     c:"#ffd9a0", lx:5,  ly:3,  wx:15, wy:18, wash:"#4d2a0f40"},
-    {k:"corsair",  name:"CORSAIR EXPANSE",     c:"#ff8aa0", lx:36, ly:3,  wx:45, wy:21, wash:"#4d101e4d",
+    {k:"reach", mult:1.0,    name:"PALEWAKE REACH",      c:"#4fd8ff", lx:2,  ly:55, wx:9,  wy:78, wash:"#10294d66"},
+    {k:"shoals", mult:1.0,   name:"THE SHOALS",          c:"#ffc266", lx:19, ly:37, wx:27, wy:57, wash:"#4d360f38"},
+    {k:"ember", mult:1.15,    name:"THE EMBER SHELF",     c:"#ffd9a0", lx:5,  ly:3,  wx:15, wy:18, wash:"#4d2a0f40"},
+    {k:"corsair", mult:1.3,  name:"CORSAIR EXPANSE",     c:"#ff8aa0", lx:36, ly:3,  wx:45, wy:21, wash:"#4d101e4d",
       req:{key:"corsair", txt:"CORSAIR EXPANSE KEY — RUMORED ABOARD THE DERELICT HULK"}},
-    {k:"hallowed", name:"HALLOWED DRIFT",      c:"#b48aff", lx:38, ly:41, wx:47, wy:57, wash:"#23164d50"},
-    {k:"smuggler", name:"SMUGGLER'S RUN",      c:"#ffc266", lx:30, ly:75, wx:41, wy:87, wash:"#4d3a0f33",
+    {k:"hallowed", mult:1.3, name:"HALLOWED DRIFT",      c:"#b48aff", lx:38, ly:41, wx:47, wy:57, wash:"#23164d50"},
+    {k:"smuggler", mult:1.3, name:"SMUGGLER'S RUN",      c:"#ffc266", lx:30, ly:75, wx:41, wy:87, wash:"#4d3a0f33",
       req:{key:"smuggler", txt:"SMUGGLER'S CIPHER — CARRIED BY THE RED AUGUR"}},
-    {k:"ironwall", name:"THE IRONWALL",        c:"#ff5470", lx:58, ly:9,  wx:65, wy:27, wash:"#4d101e40",
+    {k:"ironwall", mult:1.6, name:"THE IRONWALL",        c:"#ff5470", lx:58, ly:9,  wx:65, wy:27, wash:"#4d101e40",
       req:{zones:2, txt:"SECURE 2 ZONES"}},
-    {k:"marches",  name:"THE STARVED MARCHES", c:"#7cf0c0", lx:56, ly:49, wx:65, wy:71, wash:"#0f4d3a26"},
-    {k:"veil",     name:"AUGUR'S VEIL",        c:"#b48aff", lx:79, ly:3,  wx:87, wy:18, wash:"#23164d59",
+    {k:"marches", mult:1.45,  name:"THE STARVED MARCHES", c:"#7cf0c0", lx:56, ly:49, wx:65, wy:71, wash:"#0f4d3a26"},
+    {k:"veil", mult:1.6,     name:"AUGUR'S VEIL",        c:"#b48aff", lx:79, ly:3,  wx:87, wy:18, wash:"#23164d59",
       req:{key:"veil", txt:"VEIL CHART — HELD IN THE RELIQUARY"}},
-    {k:"gate",     name:"THE BLACKSTAR GATE",  c:"#b48aff", lx:79, ly:53, wx:88, wy:76, wash:"#23164d66",
+    {k:"gate", mult:1.75,     name:"THE BLACKSTAR GATE",  c:"#b48aff", lx:79, ly:53, wx:88, wy:76, wash:"#23164d66",
       req:{zones:4, txt:"SECURE 4 ZONES"}}
   ];
   var GATE_ZONES_REQ = 4;
@@ -169,26 +178,26 @@
     {id:"hulk",x:30,y:44,type:"anomaly",z:"shoals",key:"corsair",sz:44,label:"DERELICT HULK",
      desc:"A dead capital ship drifting at the zone's edge. Boarding parties report... movement.",
      evd:"A dead capital ship, spine cracked, holds open to vacuum. Your teams find the Pact's lane cipher still warm in the navigation core. They can also strip the wreck fast — or sweep it for survivors sealed in the aft frames."},
-    {id:"shoalconvoy",x:31,y:60,type:"fight",z:"shoals",enemy:0,sz:36,label:"SHOAL CONVOY",
+    {id:"shoalconvoy",x:31,y:60,type:"fight",z:"shoals",enemy:3,sz:36,label:"SHOAL CONVOY",
      desc:"A Pact tithe-convoy threads the shallows under light escort."},
     // — THE EMBER SHELF —
     {id:"emberpicket",x:10,y:28,type:"fight",z:"ember",enemy:0,sz:34,disc:"fight2",label:"EMBER PICKET",
      desc:"Corsair lookouts squat in the cinder-glow where the Shelf burns closest to the lanes."},
     {id:"cinder",x:8,y:12,type:"station",z:"ember",sz:40,label:"CINDER YARDS",
      desc:"A soot-black trade ring hanging over the Shelf's furnace clouds. Full armory."},
-    {id:"ashconvoy",x:18,y:20,type:"fight",z:"ember",enemy:1,sz:36,label:"ASH CONVOY RAID",
+    {id:"ashconvoy",x:18,y:20,type:"fight",z:"ember",enemy:4,sz:36,label:"ASH CONVOY RAID",
      desc:"An enforcement supply run crosses the Shelf under frigate escort."},
     {id:"furnace",x:24,y:10,type:"anomaly",z:"ember",sz:44,label:"FURNACE ANOMALY",
      desc:"Something is alive inside the Shelf's oldest smelter hulk. Sensors disagree on what.",
      evd:"The smelter hulk still burns after a century adrift. Deep in the slag your crew finds sealed cargo cells — and sealed crew berths."},
     // — CORSAIR EXPANSE — sealed: Corsair Expanse key
-    {id:"augur",x:38,y:24,type:"bounty",z:"corsair",enemy:1,key:"smuggler",sz:40,label:"BOUNTY: RED AUGUR",
+    {id:"augur",x:38,y:24,type:"bounty",z:"corsair",enemy:5,key:"smuggler",sz:40,label:"BOUNTY: RED AUGUR",
      desc:"The Pact's best smuggler captain. Her ship carries the cipher that opens Smuggler's Run."},
-    {id:"ambush",x:46,y:12,type:"elite",z:"corsair",enemy:1,sz:38,label:"CORSAIR AMBUSH",
+    {id:"ambush",x:46,y:12,type:"elite",z:"corsair",enemy:3,sz:38,label:"CORSAIR AMBUSH",
      desc:"A corsair pack anchors the Expanse's inner lane."},
-    {id:"tollgate",x:46,y:30,type:"fight",z:"corsair",enemy:1,sz:36,disc:"fight2",label:"PACT TOLLGATE",
+    {id:"tollgate",x:46,y:30,type:"fight",z:"corsair",enemy:4,sz:36,disc:"fight2",label:"PACT TOLLGATE",
      desc:"Every hull that crosses the Expanse pays the Pact here. You won't."},
-    {id:"anchorage",x:52,y:20,type:"elite",z:"corsair",enemy:1,sz:38,disc:"elite2",label:"PACT ANCHORAGE",
+    {id:"anchorage",x:52,y:20,type:"elite",z:"corsair",enemy:3,sz:38,disc:"elite2",label:"PACT ANCHORAGE",
      desc:"The corsairs' forward harbor — break it and the Expanse is yours."},
     // — HALLOWED DRIFT —
     {id:"chapel",x:42,y:50,type:"anomaly",z:"hallowed",sz:44,label:"CHAPEL HULK",
@@ -196,9 +205,9 @@
      evd:"The pilgrim ship drifts mid-hymn, reliquary lamps still lit. The hold is heavy with votive metal; the aft frames knock, slowly, from the inside."},
     {id:"hermitage",x:40,y:66,type:"repair",z:"hallowed",sz:34,label:"DRIFT HERMITAGE",
      desc:"Anchorite tenders patch hulls for any crew that keeps the silence."},
-    {id:"choir",x:48,y:58,type:"fight",z:"hallowed",enemy:1,sz:36,label:"SILENT CHOIR",
+    {id:"choir",x:48,y:58,type:"fight",z:"hallowed",enemy:3,sz:36,label:"SILENT CHOIR",
      desc:"Wreckers broadcasting a false distress-hymn to bait salvage crews."},
-    {id:"reliquary",x:54,y:48,type:"bounty",z:"hallowed",enemy:1,key:"veil",sz:40,label:"BOUNTY: RELIQUARY",
+    {id:"reliquary",x:54,y:48,type:"bounty",z:"hallowed",enemy:4,key:"veil",sz:40,label:"BOUNTY: RELIQUARY",
      desc:"An armored reliquary barge. Its vault holds the only chart through Augur's Veil."},
     // — SMUGGLER'S RUN — sealed: smuggler's cipher
     {id:"harbor",x:34,y:88,type:"station",z:"smuggler",sz:40,label:"QUIET HARBOR",
@@ -206,17 +215,17 @@
     {id:"cache",x:42,y:82,type:"anomaly",z:"smuggler",sz:44,label:"CONTRABAND CACHE",
      desc:"A cold-drifting cargo train, transponders cut. Somebody's rainy-day fortune.",
      evd:"A kilometre of cold-drifting cargo pods, transponders cut. Stencilled on every hatch: PROPERTY OF THE RED AUGUR."},
-    {id:"gauntlet",x:48,y:90,type:"fight",z:"smuggler",enemy:1,sz:36,disc:"fight2",label:"RUNNER'S GAUNTLET",
+    {id:"gauntlet",x:48,y:90,type:"fight",z:"smuggler",enemy:3,sz:36,disc:"fight2",label:"RUNNER'S GAUNTLET",
      desc:"The Run's last leg — flown dark, fast, and shot at."},
     // — THE IRONWALL — sealed: secure 2 zones
     {id:"watchline",x:60,y:34,type:"fight",z:"ironwall",enemy:1,sz:36,label:"WATCH LINE",
      desc:"Enforcement pickets strung wire-tight across the Ironwall's approach."},
-    {id:"bastion",x:64,y:20,type:"elite",z:"ironwall",enemy:1,sz:38,label:"IRONWALL BASTION",
+    {id:"bastion",x:64,y:20,type:"elite",z:"ironwall",enemy:6,sz:38,label:"IRONWALL BASTION",
      desc:"The wall's anchor fortress. Frigates rotate through in pairs."},
-    {id:"anvil",x:72,y:28,type:"elite",z:"ironwall",enemy:1,sz:38,disc:"elite2",label:"GUN PLATFORM ANVIL",
+    {id:"anvil",x:72,y:28,type:"elite",z:"ironwall",enemy:6,sz:38,disc:"elite2",label:"GUN PLATFORM ANVIL",
      desc:"A dreadnought-calibre gun bolted to an asteroid. It only has to hit you once."},
     // — THE STARVED MARCHES —
-    {id:"marchespicket",x:58,y:60,type:"fight",z:"marches",enemy:1,sz:36,label:"MARCHES PICKET",
+    {id:"marchespicket",x:58,y:60,type:"fight",z:"marches",enemy:4,sz:36,label:"MARCHES PICKET",
      desc:"Hungry ships guard hungrier lanes on the sector's long east road."},
     {id:"hollowyard",x:62,y:74,type:"shipyard",z:"marches",sz:52,label:"HOLLOW YARD",
      stock:["railgun","capacitor","scavenge"],
@@ -224,18 +233,18 @@
      desc:"A half-starved yard drinking power from a cracked reactor barge. The refits are honest; the prices aren't."},
     {id:"famine",x:70,y:62,type:"repair",z:"marches",sz:34,label:"FAMINE RELIEF STATION",
      desc:"A relief hulk that patches hulls in trade for escort work nobody logs."},
-    {id:"locust",x:72,y:84,type:"elite",z:"marches",enemy:1,sz:38,label:"LOCUST SWARM",
+    {id:"locust",x:72,y:84,type:"elite",z:"marches",enemy:7,sz:38,label:"LOCUST SWARM",
      desc:"A strip-fleet that eats convoys down to the frame. It has noticed the Palewake."},
     // — AUGUR'S VEIL — sealed: veil chart
-    {id:"veilambush",x:82,y:24,type:"elite",z:"veil",enemy:1,sz:38,label:"VEIL AMBUSH",
+    {id:"veilambush",x:82,y:24,type:"elite",z:"veil",enemy:8,sz:38,label:"VEIL AMBUSH",
      desc:"Corsairs hide inside the Veil's sensor shadow — wakes cold, guns warm."},
-    {id:"whisper",x:88,y:10,type:"bounty",z:"veil",enemy:1,sz:40,label:"BOUNTY: WHISPER RELAY",
+    {id:"whisper",x:88,y:10,type:"bounty",z:"veil",enemy:8,sz:40,label:"BOUNTY: WHISPER RELAY",
      desc:"The Pact's listening post. Its captain is worth more than the hardware."},
     {id:"veilheart",x:92,y:22,type:"anomaly",z:"veil",sz:44,label:"THE VEIL",
      desc:"The anomaly the zone is named for. Charts refuse to agree on where it is.",
      evd:"Inside the Veil the stars run like wet paint. Your instruments log salvage that isn't there yet — and a lifepod that is."},
     // — THE BLACKSTAR GATE — sealed: secure 4 zones
-    {id:"approach",x:82,y:64,type:"fight",z:"gate",enemy:1,sz:36,label:"GATE APPROACH",
+    {id:"approach",x:82,y:64,type:"fight",z:"gate",enemy:6,sz:36,label:"GATE APPROACH",
      desc:"The last freeway to the ring, held by the Verdict's escort screen."},
     {id:"gate",x:88,y:76,type:"gate",z:"gate",sz:44,label:"BLACKSTAR GATE",
      desc:"The only way out of this sector — and the Iron Verdict is anchored on it."},
@@ -277,7 +286,7 @@
     {k:"plating", name:"Reinforced Plating",  desc:"+14 max hull, applied immediately", price:40},
     {k:"emitters",name:"Shield Emitters",     desc:"+8 shield capacity",                price:35},
     {k:"reactor", name:"Reactor Coils",       desc:"+1 reactor power every turn",       price:50},
-    {k:"racks",   name:"Extended Fuel Racks", desc:"+2 fuel cell capacity — feeds the fuel system arriving with the sector rebalance", price:45, isNew:true},
+    {k:"racks",   name:"Extended Fuel Racks", desc:"+2 fuel cell capacity, filled on install", price:45, isNew:true},
     {k:"rig",     name:"Salvage Rig",         desc:"+15% salvage from every wreck",     price:55, isNew:true}
   ];
   var DIFFS = {
@@ -409,6 +418,7 @@
       current: "haven", sel: null, taken: { haven: true }, gliding: false,
       zoneKeys: {}, yardBought: {}, stationStock: {},
       player: { hullMax:64, hull:64, crew:8, crewMax:8, powerBase:3, shieldCap:22, shield:0,
+                fuel:5, fuelMax:5,
                 subs:{ weapons:100, reactor:100, engines:100 }, ups:{} },
       deckKeys: ["laser","laser","laser","laser","divert","divert","divert","patch","missile","overcharge"],
       battle:null, base:null, yard:null, evNode:null, end:null, reward:null, cardDetail:null, shakeP:0, shakeE:0
@@ -467,7 +477,9 @@
 
   // ---- battle setup / turn structure -------------------------------------
   Game.prototype.startBattle = function (node) {
-    var S=this.state, d=ENEMIES[node.enemy], m=this.diffMult()*((node.type==="elite"||node.type==="bounty")?1.3:1);
+    var S=this.state, d=ENEMIES[node.enemy];
+    var zm=(node.z&&ZBYK[node.z]&&ZBYK[node.z].mult)||1;
+    var m=this.diffMult()*((node.type==="elite"||node.type==="bounty")?1.3:1)*(node.type==="boss"?1:zm);
     S.battle = {
       node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false, aiming:null,
       armour:0, reflect:0, blind:0, overwatch:0, flank:0, sealCrew:false,
@@ -838,7 +850,8 @@
     if (node.type==="elite") { lo=36; hi=46; }
     if (node.type==="bounty") { lo=40; hi=50; }
     if (node.type==="boss") { lo=60; hi=80; how+=" The Verdict's escorts scatter — the Blackstar Gate is yours to take."; }
-    var salv=this.ri(lo,hi);
+    var zm=(node.z&&ZBYK[node.z]&&ZBYK[node.z].mult)||1;
+    var salv=Math.round(this.ri(lo,hi)*(node.type==="boss"?1:zm));
     if (S.player.ups.rig) salv=Math.round(salv*1.15);
     S.salvage+=salv;
     if (node.key && !S.zoneKeys[node.key]) { S.zoneKeys[node.key]=true; how+=" Recovered from the wreck: "+KEY_NAMES[node.key]+"."; }
@@ -858,6 +871,14 @@
   };
 
   // ---- map navigation (free travel over the zone graph) -------------------
+  // Threat readout for the intel panel: zone multiplier x elite/bounty bump.
+  Game.prototype.threatLabel = function (n) {
+    var zm=(ZBYK[n.z]&&ZBYK[n.z].mult)||1;
+    var lvl=zm*((n.type==="elite"||n.type==="bounty")?1.3:1);
+    var word = lvl<1.15?"LOW": lvl<1.4?"MEDIUM": lvl<1.75?"HIGH":"SEVERE";
+    var role = ENEMIES[n.enemy] ? ENEMIES[n.enemy].role : "UNKNOWN";
+    return { v: word+" — "+role, c: lvl<1.4?"#ffc266":"#ff8aa0" };
+  };
   Game.prototype.zoneUnlocked = function (z) {
     var S=this.state; if (!z.req) return true;
     if (z.req.key) return !!S.zoneKeys[z.req.key];
@@ -896,15 +917,24 @@
     this.state.sel=id; this.forceUpdate();
   };
   Game.prototype.setCourse = function (id) {
-    var S=this.state, self=this, n=NBYID[id];
+    var S=this.state, P=S.player, self=this, n=NBYID[id];
     if (!n || S.gliding || id===S.current) return;
-    if (this.mapDist()[id]==null) return;
+    var cost=this.mapDist()[id]; if (cost==null) return;
+    // Fuel: one cell per lane hop. Short on cells? Burn reserve mass instead —
+    // 5 hull per missing cell — but never onto a jump the hull can't survive.
+    var short=Math.max(0, cost-P.fuel);
+    if (short>0 && P.hull<=short*5) return;
+    P.fuel=Math.max(0, P.fuel-cost);
+    if (short>0) P.hull=this.cl(P.hull-short*5, 0, P.hullMax);
     S.current=id; S.sel=id; S.gliding=true; this.forceUpdate();
     this.scrollToNode(id, true);
     // Let the ship sprite glide (1.4s), then resolve the arrival.
     setTimeout(function(){
       var s=self.state; s.gliding=false;
       if (s.screen!=="map") { self.forceUpdate(); return; }
+      if (n.type==="home"||n.type==="station"||n.type==="shipyard"||n.type==="repair") {
+        s.player.fuel=s.player.fuelMax;   // friendly docks top the tanks off
+      }
       if (!s.taken[n.id]) {
         if (n.type==="fight"||n.type==="elite"||n.type==="bounty"||n.type==="boss") { self.startBattle(n); return; }
         if (n.type==="anomaly") { s.evNode=n; s.overlay="ev"; }
@@ -923,7 +953,7 @@
     var S=this.state;
     if (S.current!=="gate" || !S.taken.verdict) return;
     S.end={ kick:"SECTOR BROKEN", title:"THE GATE IS OPEN",
-      body:"The Iron Verdict is ash and the Blackstar Gate spins up for the first time in a decade. The Palewake threads the ring — hull scarred, crew thinned, but yours — and jumps for the next sector. New charts are being surveyed; the next sector arrives with the coming update." };
+      body:"The Iron Verdict is ash and the Blackstar Gate spins up for the first time in a decade. The Verge is yours behind you — anchorages lit, lanes patrolled by crews flying your flag. The Palewake threads the ring and jumps: the first gate on the long road home. New charts are being surveyed — the next sector arrives with the coming update." };
     S.overlay="end"; this.forceUpdate();
   };
   Game.prototype.evResolve = function (mode) {
@@ -974,8 +1004,8 @@
     if (k==="plating") { p.hullMax+=14; p.hull+=14; }
     if (k==="emitters") p.shieldCap+=8;
     if (k==="reactor") p.powerBase+=1;
-    // racks & rig live on the ups record: racks feeds the fuel system in the
-    // sector rebalance; rig is applied to salvage payouts in victory().
+    if (k==="racks") { p.fuelMax+=2; p.fuel+=2; }
+    // rig lives on the ups record and is applied to salvage in victory()
     this.forceUpdate();
   };
   Game.prototype.buyYardCard = function (key, price) {
@@ -1120,7 +1150,7 @@
       <div class="bv-wrap">
         <div class="bv-kicker">A ROGUELIKE DECK-BUILDER OF VOID COMBAT</div>
         <h1 class="bv-h1">BLACKSTAR VERGE</h1>
-        <div class="bv-sub">The last corvette in the Verge. Fight your way home.</div>
+        <div class="bv-sub">The last corvette still flying the flag. Take back the dark, sector by sector.</div>
         <div class="bv-menu">
           <button class="bv-primary" onClick=${function(){ self.beginRun(); }}>Begin Sortie ▸</button>
           <button class="bv-ghost" onClick=${function(){ self.cycleDifficulty(); }}>
@@ -1148,18 +1178,19 @@
         <div class="bv-kicker" style="text-align:left">BRIEFING · HOW IT PLAYS</div>
         <h2 class="bv-modal-h2">Command the ISV Palewake</h2>
         <p class="hf-lore" style="text-align:left;max-width:none;margin:0">
-          The war is over — you just haven't been told. You command the corvette${" "}
-          <b>ISV Palewake</b>, cut off in the dead reach called the <b>Blackstar Verge</b>.
-          Between you and the jump gate home lie pirate pickets, enforcement blockades,
-          and the dreadnought <b>HMS Iron Verdict</b> anchored on the only gate out.
-          Travel freely along the charted lanes: take systems card by card, secure
-          whole zones, and pry open the sealed reaches until the <b>Blackstar Gate</b>${" "}
-          unseals — the road out of this sector, and on to the next.
+          The war is over, and the navy that fought it is gone. You command the corvette${" "}
+          <b>ISV Palewake</b> — the last hull still flying its flag — holding one
+          anchorage in the <b>Blackstar Verge</b>, a sector the Corsair Pact now calls
+          its own. Their enforcers tax every lane, and <b>Ironwall Command</b> keeps the
+          jump gate sealed with the dreadnought <b>HMS Iron Verdict</b> anchored on it.
+          So take the Verge back: every system you clear is yours, every zone you secure
+          loosens the Pact's grip, and when the <b>Blackstar Gate</b> unseals, the road
+          home runs through it — one sector down, the next one waiting.
         </p>
         <div class="hf-primer" style="margin-top:22px">
           <div class="hf-primer-cell">
             <h3 style="color:#5fd8ff">① The Chart</h3>
-            <p>Travel freely along charted lanes. Take systems, secure zones, unlock sealed reaches — then unseal the Gate.</p>
+            <p>Travel freely along charted lanes — each jump burns a fuel cell. Take systems, secure zones, unseal the Gate.</p>
           </div>
           <div class="hf-primer-cell">
             <h3 style="color:#ff8aa0">② The Battle</h3>
@@ -1167,7 +1198,7 @@
           </div>
           <div class="hf-primer-cell">
             <h3 style="color:#7cf0c0">③ The Refit</h3>
-            <p>Dock to buy new cards, install upgrades, patch hull and hire crew. Then jump again — deadlier than before.</p>
+            <p>Dock to buy cards, patch hull, hire crew — and refuel, free at any friendly port. Shipyards weld on permanent refits.</p>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:24px">
@@ -1516,6 +1547,14 @@
           <img src="assets/ships/player.png" alt="ISV Palewake" style="width:100%;height:74px;object-fit:contain;margin:10px 0 6px;filter:drop-shadow(0 8px 16px #000000cc)" />
           <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:10px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HULL</span><span style=${"font-family:"+MONO+";font-size:12px"}>${m.hullTxt}</span></div>
           <div style="height:9px;border:1px solid #2c4066;border-radius:2px;background:#000000;overflow:hidden;margin:4px 0 8px"><div style=${"height:100%;width:"+m.hullPct+"%;background:linear-gradient(180deg,#8df2c8,#2aa878)"}></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px">
+            <span style="font-size:10px;font-weight:600;letter-spacing:.18em;color:#7d92b5">FUEL</span>
+            <span style="display:flex;gap:3px">
+              ${Array.apply(null,{length:m.fuelMax}).map(function(_,i){
+                return html`<span key=${i} style=${"width:10px;height:14px;border:1px solid #5c4a26;border-radius:2px;background:"+(i<m.fuel?"linear-gradient(180deg,#ffd9a0,#b3672a)":"#070b14")}></span>`;
+              })}
+            </span>
+          </div>
           <div style=${"font-family:"+MONO+";font-size:11px;color:#8fa3c4;line-height:1.7"}>CREW ${m.crewTxt} · DECK ${m.deckTxt} CARDS<br/>SALVAGE ${m.salv} ◈</div>
         </div>
         <div style="border:1px solid #1b2a45;border-radius:6px;background:#070b14d9;padding:14px 16px">
@@ -1660,7 +1699,7 @@
     var self=this, S=this.state, p=S.player, n=NBYID[S.current];
     var rOk=S.salvage>=10&&p.hull<p.hullMax, cOk=S.salvage>=8&&p.crew<p.crewMax;
     return this.mapOverlayShell("REPAIR DEPOT · DOCKED", n?n.label:"REPAIR DOCK", html`
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#8fa3c4">Tenders swarm the hull the moment the clamps bite. Hull ${Math.round(p.hull)}/${p.hullMax} · Crew ${p.crew}/${p.crewMax} · ${S.salvage} ◈</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#8fa3c4">Tenders swarm the hull the moment the clamps bite, and the fuel racks are already topped off. Hull ${Math.round(p.hull)}/${p.hullMax} · Crew ${p.crew}/${p.crewMax} · Fuel ${p.fuel}/${p.fuelMax} · ${S.salvage} ◈</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <button onClick=${rOk?function(){ self.repair(); }:undefined} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+(rOk?"pointer":"default")+";opacity:"+(rOk?1:.45)+";letter-spacing:.06em"}>PATCH HULL +15 — 10 ◈</button>
         <button onClick=${cOk?function(){ self.hire(); }:undefined} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+(cOk?"pointer":"default")+";opacity:"+(cOk?1:.45)+";letter-spacing:.06em"}>HIRE CREW +1 — 8 ◈</button>
@@ -1682,7 +1721,7 @@
   };
   Game.prototype.renderShipView = function () {
     var S=this.state, p=S.player;
-    var rows=[["HULL",Math.round(p.hull)+"/"+p.hullMax],["SHIELD CAP",String(p.shieldCap)],["REACTOR",p.powerBase+" / TURN"],["CREW",p.crew+"/"+p.crewMax]];
+    var rows=[["HULL",Math.round(p.hull)+"/"+p.hullMax],["SHIELD CAP",String(p.shieldCap)],["REACTOR",p.powerBase+" / TURN"],["CREW",p.crew+"/"+p.crewMax],["FUEL",p.fuel+"/"+p.fuelMax+" CELLS"]];
     return this.mapOverlayShell("SHIP STATUS", "ISV Palewake", html`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         ${rows.map(function(r,i){
@@ -1801,10 +1840,10 @@
           </div>
         </div>
         <div style="padding:22px 26px">
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">You command the corvette <b style="color:#eaf2ff">ISV Palewake</b>, alone in the Blackstar Verge. Between you and the jump gate: pirate pickets, blockades, and the dreadnought <b style="color:#eaf2ff">Iron Verdict</b>. Travel is free along the charted lanes — take systems, secure zones, and unseal the Gate.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, cards draw from <b style="color:#eaf2ff">reactor power</b>. A single deflector screen wraps the whole ship — while it holds, hits bleed into it before touching hull. Beneath it, three subsystems keep you alive: <b style="color:#eaf2ff">WEAPONS</b> drive your damage, the <b style="color:#eaf2ff">REACTOR</b> feeds power, and <b style="color:#eaf2ff">ENGINES</b> regenerate the screen.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Dock at stations to repair, hire crew, refit your deck and upgrade the ship. Win by <b style="color:#eaf2ff">gutting hulls</b> — or board and take them.</p>
-          <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">64</b></span><span>CREW <b style="color:#ffffff;font-weight:500">8</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">22</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span></div>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> runs the Blackstar Verge — its lanes taxed, its jump gate sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one hull: the corvette <b style="color:#eaf2ff">ISV Palewake</b>. Every system you take is yours. Take enough, and the sector follows.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> — friendly docks refill them free; run dry and you burn hull to keep moving. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, cards draw from <b style="color:#eaf2ff">reactor power</b>; a deflector screen soaks hits before hull, and your <b style="color:#eaf2ff">WEAPONS</b>, <b style="color:#eaf2ff">REACTOR</b> and <b style="color:#eaf2ff">ENGINES</b> can each be crippled. Win by gutting hulls — or board and take them. The far zones field heavier ships and pay better salvage.</p>
+          <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">64</b></span><span>CREW <b style="color:#ffffff;font-weight:500">8</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">22</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span><span>FUEL <b style="color:#ffffff;font-weight:500">5</b> CELLS</span></div>
           <button class="hf-btn" onClick=${function(){ self.closeBrief(); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:16px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:13px 30px;cursor:pointer;box-shadow:0 4px 0 #14506b">Plot the Course ▸</button>
         </div>
       </div>
@@ -1896,6 +1935,7 @@
       : "SECURE "+GATE_ZONES_REQ+" ZONES TO UNSEAL THE BLACKSTAR GATE ("+zsec+"/"+GATE_ZONES_REQ+")";
     m.hullTxt=Math.round(P.hull)+"/"+P.hullMax; m.hullPct=this.cl(P.hull/P.hullMax*100,0,100);
     m.crewTxt=P.crew+"/"+P.crewMax; m.deckTxt=S.deckKeys.length; m.salv=S.salvage;
+    m.fuel=P.fuel; m.fuelMax=P.fuelMax;
 
     m.zones=ZONES.map(function(z){
       var sub = secured[z.k] ? "SECURED"
@@ -1954,22 +1994,29 @@
     var cur=sn.id===S.current, taken=!!S.taken[sn.id], locked=!unlocked[sn.z];
     var hops=dist[sn.id], reachable=!cur&&hops!=null&&!locked;
     var hostile=isEnemy(sn)&&!taken;
+    var fShort=reachable?Math.max(0,hops-P.fuel):0, fLethal=fShort>0&&P.hull<=fShort*5;
     var lines=[];
-    if (reachable) lines.push({k:"ROUTE", v:hops+(hops===1?" JUMP":" JUMPS"), c:"#8deaff"});
+    if (reachable) {
+      lines.push({k:"ROUTE", v:hops+(hops===1?" JUMP":" JUMPS"), c:"#8deaff"});
+      lines.push({k:"FUEL", v:hops+(hops===1?" CELL":" CELLS")+(fShort>0?" — SHORT "+fShort+" (−"+(fShort*5)+" HULL)":""), c:fShort>0?"#ff8aa0":"#ffc266"});
+    }
     if (sn.type==="home") lines.push({k:"SERVICES", v:"REPAIR · ARMORY · CREW", c:"#7cf0c0"});
     if (sn.type==="station") lines.push({k:"SERVICES", v:"ARMORY · REPAIR · CREW", c:"#7cf0c0"});
     if (sn.type==="shipyard") { lines.push({k:"SERVICES", v:"SHIP UPGRADES · REPAIR", c:"#8deaff"}); lines.push({k:"STOCK", v:YARD_REFITS.length+" REFITS AVAILABLE", c:"#ffc266"}); }
     if (sn.type==="repair") lines.push({k:"SERVICES", v:"HULL +15 PER 10 ◈", c:"#7cf0c0"});
-    if (sn.type==="fight") lines.push({k:"THREAT", v:taken?"NONE":(sn.enemy>0?"MEDIUM — ENFORCEMENT":"LOW — CORSAIR RAIDER"), c:taken?"#7d92b5":"#ffc266"});
-    if (sn.type==="elite") lines.push({k:"THREAT", v:taken?"NONE":"HIGH — ELITE ESCORT", c:taken?"#7d92b5":"#ff8aa0"});
-    if (sn.type==="bounty") lines.push({k:"THREAT", v:taken?"NONE":"MEDIUM — PRIORITY TARGET", c:taken?"#7d92b5":"#ffc266"});
+    var zm=(z.mult||1);
+    if (sn.type==="fight"||sn.type==="elite"||sn.type==="bounty") {
+      var t=this.threatLabel(sn);
+      lines.push({k:"THREAT", v:taken?"NONE":t.v, c:taken?"#7d92b5":t.c});
+    }
     if (sn.type==="anomaly") lines.push({k:"RISK", v:taken?"NONE":"UNKNOWN", c:taken?"#7d92b5":"#b48aff"});
-    if (sn.type==="boss") lines.push({k:"THREAT", v:taken?"NONE":"FLAGSHIP", c:taken?"#7d92b5":"#ff5470"});
+    if (sn.type==="boss") lines.push({k:"THREAT", v:taken?"NONE":"FLAGSHIP — "+ENEMIES[sn.enemy].role, c:taken?"#7d92b5":"#ff5470"});
     if (sn.type==="gate") lines.push({k:"CONTROL", v:S.taken.verdict?"YOURS":"IRONWALL COMMAND", c:S.taken.verdict?"#7cf0c0":"#ff8aa0"});
     if (!taken) {
-      if (sn.type==="fight") lines.push({k:"REWARD", v:"20–30 ◈ + CARD", c:"#ffc266"});
-      if (sn.type==="elite") lines.push({k:"REWARD", v:"36–46 ◈ + CARD", c:"#ffc266"});
-      if (sn.type==="bounty") lines.push({k:"REWARD", v:"40–50 ◈"+(sn.key?" + "+KEY_NAMES[sn.key]:""), c:"#ffc266"});
+      var pay=function(lo,hi){ return Math.round(lo*zm)+"–"+Math.round(hi*zm)+" ◈"; };
+      if (sn.type==="fight") lines.push({k:"REWARD", v:pay(20,30)+" + CARD", c:"#ffc266"});
+      if (sn.type==="elite") lines.push({k:"REWARD", v:pay(36,46)+" + CARD", c:"#ffc266"});
+      if (sn.type==="bounty") lines.push({k:"REWARD", v:pay(40,50)+(sn.key?" + "+KEY_NAMES[sn.key]:""), c:"#ffc266"});
       if (sn.type==="anomaly"&&sn.key) lines.push({k:"REWARD", v:KEY_NAMES[sn.key]+"?", c:"#ffc266"});
     }
 
@@ -1994,8 +2041,11 @@
     }
     else if (locked) { act="SEALED"; en=false; }
     else if (!reachable) { act="NO LANE"; en=false; }
-    else if (hostile) { act="ENGAGE ▸"; actClick=function(){ self.setCourse(sn.id); }; }
-    else actClick=function(){ self.setCourse(sn.id); };
+    else if (fLethal) { act="RESERVES TOO LOW"; en=false; }
+    else {
+      act = fShort>0 ? "BURN RESERVES ▸" : hostile ? "ENGAGE ▸" : "SET COURSE ▸";
+      actClick=function(){ self.setCourse(sn.id); };
+    }
 
     m.d={
       kicker:TYPE_LABEL[sn.type]+" · "+z.name, name:sn.label, art:sn.label+" ART",
@@ -2021,7 +2071,8 @@
       {k:"HULL", v:Math.round(P.hull)+"/"+P.hullMax},
       {k:"SHIELD CAP", v:String(P.shieldCap)},
       {k:"REACTOR", v:P.powerBase+" / TURN"},
-      {k:"CREW", v:P.crew+"/"+P.crewMax}
+      {k:"CREW", v:P.crew+"/"+P.crewMax},
+      {k:"FUEL", v:P.fuel+"/"+P.fuelMax+" CELLS"}
     ];
     y.refits=YARD_REFITS.map(function(r){
       var got=!!P.ups[r.k], ok=!got&&S.salvage>=r.price;
@@ -2058,7 +2109,7 @@
     var v={};
     v.isMap=S.screen==="map"; v.isBattle=S.screen==="battle"; v.isBase=S.screen==="base"; v.isYard=S.screen==="yard";
     v.screenTag = v.isMap?"":v.isBattle?"// ENGAGEMENT IN PROGRESS":v.isYard?"// SHIPYARD REFIT":"// STATION REFIT";
-    v.hudRight = "◈ "+S.salvage+" SALVAGE · HULL "+Math.round(P.hull)+"/"+P.hullMax+" · CREW "+P.crew+"/"+P.crewMax+((v.isBattle&&B)?" · TURN "+B.turn:"");
+    v.hudRight = "◈ "+S.salvage+" SALVAGE · FUEL "+P.fuel+"/"+P.fuelMax+" · HULL "+Math.round(P.hull)+"/"+P.hullMax+" · CREW "+P.crew+"/"+P.crewMax+((v.isBattle&&B)?" · TURN "+B.turn:"");
 
     if (v.isMap) v.map=this.computeMapVals();
     if (v.isYard && S.yard) v.yd=this.computeYardVals();
