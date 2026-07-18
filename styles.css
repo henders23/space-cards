@@ -60,7 +60,15 @@ a:hover { color: #ffffff; }
 @keyframes titlein {0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes driftin {0%{opacity:0;transform:translateY(24px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
 
+@keyframes ringpulseO {0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.45);opacity:.12}}
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ---- zone-based sector map (free-travel redesign) ---- */
+.hf-mapscroll { scrollbar-width: none; -ms-overflow-style: none; }
+.hf-mapscroll::-webkit-scrollbar { display: none; }
+.hf-planet { transition: transform .12s; }
+.hf-planet:hover { transform: translate(-50%, -50%) scale(1.07); }
 
 /* ---- hover behaviours (the prototype's style-hover) ---- */
 .hf-hand-card { transition: transform .12s, box-shadow .12s, border-color .12s; }
