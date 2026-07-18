@@ -24,8 +24,10 @@ optional network call is Google Fonts for Space Grotesk / IBM Plex Mono; if it's
 blocked, the UI falls back to system fonts.)
 
 A looping ambient theme ("Echoes of the Void") starts with the game — browsers
-hold it until your first click/keypress — and there's a **♪ MUSIC** toggle on the
-title screen and in the top bar (the on/off choice is remembered).
+hold it until your first click/keypress — and a driving combat track takes over
+whenever a battle begins, handing back to the ambient theme when the fight ends.
+There's a **♪ MUSIC** toggle on the title screen and in the top bar (the on/off
+choice is remembered).
 
 ## How it plays
 
@@ -64,7 +66,7 @@ title screen and in the top bar (the on/off choice is remembered).
 | `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/` |
 | `assets/ships/` | Player and enemy ship sprites |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
-| `assets/audio/` | Weapon, "enemy sighted", "reporting damage" and destruction SFX |
+| `assets/audio/` | Ambient + combat music, weapon, "enemy sighted", "reporting damage" and destruction SFX |
 | `vendor/` | Preact + htm UMD builds (vendored, no CDN at runtime) |
 | `Game layout and features planning.zip` | Original design handoff (reference) |
 

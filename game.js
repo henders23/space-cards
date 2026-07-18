@@ -171,13 +171,20 @@
     this.aimOrigin = null;   // player muzzle in client coords while aiming
     if (!this.view) this.view = { zoom:1, panX:0, panY:0 };
     preloadAudio();
-    // Start/background music — created once, looped. Browsers block autoplay
-    // until the first user gesture, so also arm a one-shot gesture starter.
+    // Background music — created once, looped. Two tracks: the ambient theme
+    // for menus/map/station, and a driving combat track during battles.
+    // Browsers block autoplay until the first user gesture, so also arm a
+    // one-shot gesture starter.
+    this._scene = "ambient";
     try {
       this._music = new Audio("assets/audio/echoes_of_the_void.mp3");
       this._music.loop = true; this._music.volume = 0.4; this._music.preload = "auto";
     } catch (e) { this._music = null; }
-    this._startMusic = function () { if (self.music.on && self._music) { var p=self._music.play(); if (p&&p.catch) p.catch(function(){}); } };
+    try {
+      this._combat = new Audio("assets/audio/combat_music.mp3");
+      this._combat.loop = true; this._combat.volume = 0.45; this._combat.preload = "auto";
+    } catch (e) { this._combat = null; }
+    this._startMusic = function () { self.applyMusic(); };
     this._onGesture = function () { self._startMusic(); window.removeEventListener("pointerdown", self._onGesture); window.removeEventListener("keydown", self._onGesture); };
     this._startMusic();  // try immediately (works if the browser allows it)
     window.addEventListener("pointerdown", this._onGesture);
@@ -199,14 +206,31 @@
     window.removeEventListener("pointerdown", this._onGesture);
     window.removeEventListener("keydown", this._onGesture);
     if (this._music) { try { this._music.pause(); } catch (e) {} }
+    if (this._combat) { try { this._combat.pause(); } catch (e) {} }
+  };
+  // Play the track for the current scene ("ambient" or "combat") when music is
+  // on, pausing the other; pause both when muted.
+  Game.prototype.applyMusic = function () {
+    var combat = this._scene === "combat";
+    var want = combat ? this._combat : this._music;
+    var other = combat ? this._music : this._combat;
+    if (other) { try { other.pause(); } catch (e) {} }
+    if (!want) return;
+    if (this.music.on) { var p = want.play(); if (p && p.catch) p.catch(function(){}); }
+    else { try { want.pause(); } catch (e) {} }
+  };
+  // Switch the background scene, restarting the combat track at each battle.
+  Game.prototype.setMusicScene = function (scene) {
+    if (this._scene !== scene) {
+      this._scene = scene;
+      if (scene === "combat" && this._combat) { try { this._combat.currentTime = 0; } catch (e) {} }
+    }
+    this.applyMusic();
   };
   Game.prototype.toggleMusic = function () {
     this.music.on = !this.music.on;
     try { localStorage.setItem("hf_music", this.music.on ? "on" : "off"); } catch (e) {}
-    if (this._music) {
-      if (this.music.on) { var p=this._music.play(); if (p&&p.catch) p.catch(function(){}); }
-      else this._music.pause();
-    }
+    this.applyMusic();
     this.forceUpdate();
   };
   Game.prototype.renderMusicBtn = function () {
@@ -298,6 +322,7 @@
     this.fx = []; this.aimPos = null;   // clear any stale FX from a prior battle
     this.view = { zoom:1, panX:0, panY:0 }; this.hideHover();   // reset camera & dwell panel
     this.chooseIntent();
+    this.setMusicScene("combat");
     this.log("#5a6d8f", d.name+" closes to weapons range.", true);
     preloadAudio();
     sfx(rndOf(["enemy_sighted_m","enemy_sighted_f"]), .95);   // "enemy sighted" hail
@@ -641,6 +666,7 @@
       B.over=true;
       if (p.hull<=0) { this.spawnExplosion(this.shipCenter("p"), "red", 300); sfx("ship_destroyed", 1); }
       var why = p.hull<=0 ? "Hull integrity gone. ISV Palewake is lost with all hands." : "Boarders overrun your decks. Your ship is taken.";
+      this.setMusicScene("ambient");
       this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"SHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },700); return true;
     }
     return false;
@@ -650,7 +676,7 @@
     if (node.type==="boss") {
       S.end={ kick:"CORRIDOR CLEARED", title:"THE GATE IS OPEN",
         body:how+" The Blackstar Verge is broken and the jump gate yawns ahead. You run it — hull scarred, crew thinned, but yours." };
-      S.overlay="end"; this.forceUpdate(); return;
+      S.overlay="end"; this.setMusicScene("ambient"); this.forceUpdate(); return;
     }
     var salv = node.type==="elite" ? this.ri(36,46) : this.ri(20,30); S.salvage+=salv;
     S.reward={ how:how, salv:salv, cards:this.sh(REWARDS.slice()).slice(0,3).map(this.mk.bind(this)) };
@@ -664,7 +690,8 @@
     p.crew=this.cl(p.crew+1,0,p.crewMax);
     for (var k in p.subs) p.subs[k]=this.cl(p.subs[k]+40,0,100);
     p.shield=0;
-    S.cleared[node.id]=true; S.current=node.id; S.battle=null; S.reward=null; S.overlay=null; S.screen="map"; this.forceUpdate();
+    S.cleared[node.id]=true; S.current=node.id; S.battle=null; S.reward=null; S.overlay=null; S.screen="map";
+    this.setMusicScene("ambient"); this.forceUpdate();
   };
 
   // ---- map navigation -----------------------------------------------------
