@@ -1,10 +1,11 @@
 # Blackstar Verge
 
 A single-player **roguelike deck-builder of card-driven ship combat** — FTL meets
-Slay the Spire. You command the corvette **ISV Palewake** across the branching
-sector chart of the Blackstar Verge, fighting card-based ship battles, docking at
-stations to refit your deck and ship, and running the gauntlet to the dreadnought
-**HMS Iron Verdict** at the jump gate.
+Slay the Spire. You command the corvette **ISV Palewake** across a scrollable,
+zone-based galactic sector chart, fighting card-based ship battles, docking at
+stations and shipyards to refit your deck and ship, securing zones to unseal the
+**Blackstar Gate** — the road to the next sector — past the dreadnought
+**HMS Iron Verdict** anchored on it.
 
 Built from the `design_handoff_hollow_fleet` specification. The game is a
 self-contained static web app — **no build step, no bundler, no runtime CDN** — that
@@ -33,8 +34,16 @@ choice is remembered).
 
 1. **Title & briefing** — pick a difficulty (Standard / Hard / Brutal), read the
    situation, and launch the sortie.
-2. **The chart** — jump between nodes on a one-way branching map: skirmishes,
-   elites, stations, an anomaly, and the flagship. Choose your route.
+2. **The chart** — a free-travel, zone-based sector map (from the
+   `design_handoff_sector_map` bundle, scaled up 3×): 36 systems in 10 zones on a
+   scrollable chart. Drag to pan, click a system for intel, double-click (or SET
+   COURSE / ENGAGE) to travel along charted lanes — revisiting friendly ports is
+   allowed. Take every system in a zone to **secure** it; sealed zones open with
+   key items (won from anomalies and bounties) or by securing enough zones.
+   Secure 4 zones to unseal the **Blackstar Gate**, break the Iron Verdict
+   guarding it, and jump for the next sector. Dedicated **shipyards** (Forge
+   Tether, Hollow Yard) sell the permanent refits — including the new Extended
+   Fuel Racks and Salvage Rig — while stations keep the card armory.
 3. **Battle** — spend **reactor power** to play cards. A deflector screen soaks
    hits before they reach hull; your **weapons / reactor / engines** subsystems can
    each be crippled. Read the enemy's telegraphed intent and answer it. Win by
