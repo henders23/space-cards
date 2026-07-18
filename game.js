@@ -918,10 +918,9 @@
       onMouseDown=${function(e){ self.onViewDown(e); }}
       onMouseMove=${function(e){ self.onViewMove(e); }}
       onDblClick=${function(){ self.resetView(); }}>
-      <div style=${"position:absolute;left:50%;bottom:198px;transform:translateX(-50%);z-index:11;pointer-events:none;font-family:"+MONO+";font-size:11px;letter-spacing:.14em;color:#8fa3c4;background:#070b14d0;border:1px solid #1b2a45;border-radius:4px;padding:5px 12px;animation:hintfade 7s ease-out forwards"}>SCROLL: ZOOM · MIDDLE-DRAG: PAN · DBL-CLICK: RESET</div>
       <!-- central combat column (mouse-wheel zoom · middle-drag pan) -->
       <div style="position:absolute;left:50%;top:0;bottom:190px;width:760px;margin-left:-380px">
-      <div style=${"position:absolute;left:0;top:50%;width:760px;display:flex;flex-direction:column;gap:44px;transform:"+v.combatTransform+";transform-origin:center center;will-change:transform"}>
+      <div style=${"position:absolute;left:0;top:50%;width:760px;display:flex;flex-direction:column;gap:28px;transform:"+v.combatTransform+";transform-origin:center center;will-change:transform"}>
 
         <div style="position:absolute;inset:0;pointer-events:none;z-index:3">
           ${v.beams.map(function(b){
@@ -940,28 +939,21 @@
               <img src="assets/ships/enemy.png" alt="Hostile ship" ref=${function(el){ self.enemyImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:16px;margin:14px 30px 0">
-            <span style=${"font-family:"+MONO+";font-size:13px;letter-spacing:.2em;color:#7d92b5"}>SHIELD</span>
-            <div style="flex:1;height:13px;border:1px solid #2c4066;border-radius:3px;background:#000000;overflow:hidden"><div style=${"height:100%;width:"+v.eShPct+"%;background:linear-gradient(90deg,#c23a55,#ff8aa0);transition:width .3s"}></div></div>
-            <span style=${"font-family:"+MONO+";font-size:15px;color:#eaf2ff"}>${v.eShTxt}</span>
-          </div>
+          ${this.renderShieldArc(v.eShPct, v.eShTxt, "#7ce7ff")}
         </div>
 
-        <!-- PLAYER -->
+        <!-- PLAYER (subsystems above the ship so the hand bar never hides them;
+             only the ship's lower hull may tuck behind the cards) -->
         <div style=${"animation:"+v.pAnim}>
-          <div style="display:flex;align-items:center;gap:16px;margin:0 30px 14px">
-            <span style=${"font-family:"+MONO+";font-size:13px;letter-spacing:.2em;color:#7d92b5"}>SHIELD</span>
-            <div style="flex:1;height:13px;border:1px solid #2c4066;border-radius:3px;background:#000000;overflow:hidden"><div style=${"height:100%;width:"+v.pShPct+"%;background:linear-gradient(90deg,#1e8fc4,#7ce7ff);transition:width .3s"}></div></div>
-            <span style=${"font-family:"+MONO+";font-size:15px;color:#eaf2ff"}>${v.pShTxt}</span>
+          ${this.renderShieldArc(v.pShPct, v.pShTxt, "#7ce7ff")}
+          <div style="display:flex;justify-content:space-between;gap:16px;margin:14px 30px 0">
+            ${v.pSubs.map(function(s){ return self.renderSub(s); })}
           </div>
-          <div style="position:relative;height:300px;margin:0 30px;display:flex;justify-content:center">
+          <div style="position:relative;height:300px;margin:14px 30px 0;display:flex;justify-content:center">
             <div style="position:relative;height:100%;aspect-ratio:2.434">
               <div style=${"position:absolute;inset:-14px -30px;border:1.5px solid #6fe0ff;border-radius:50%;opacity:"+v.pBub+";transition:opacity .4s;box-shadow:0 0 30px #4fd8ff33, inset 0 0 30px #4fd8ff18"}></div>
               <img src="assets/ships/player.png" alt="ISV Palewake" ref=${function(el){ self.playerImgEl=el; }} style="position:relative;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 26px #000000cc)" />
             </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;gap:16px;margin:14px 30px 0">
-            ${v.pSubs.map(function(s){ return self.renderSub(s); })}
           </div>
         </div>
 
@@ -986,6 +978,7 @@
             return html`<div key=${l.k} style=${"font-family:"+MONO+";font-size:12.5px;line-height:1.5;color:"+l.color+";border-top:"+l.bt+";padding-top:"+l.pt+";margin-top:"+l.mt}>${l.text}</div>`;
           })}
         </div>
+        <div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.08em;color:#4d6288;border-top:1px solid #14203a;margin-top:9px;padding-top:8px"}>SCROLL ZOOM · MIDDLE-DRAG PAN · DBL-CLICK RESET</div>
       </div>
 
       <!-- enemy plate + intent -->
@@ -1163,6 +1156,28 @@
       <div style=${"display:flex;justify-content:space-between;font-size:12px;letter-spacing:.14em;font-weight:600;text-transform:uppercase;color:"+s.col}><span>${s.lab}</span><span style=${"font-family:"+MONO+";font-weight:400"}>${s.val}</span></div>
       <div style="height:6px;background:#000000;border-radius:2px;margin-top:6px;overflow:hidden"><div style=${"height:100%;width:"+s.val+"%;background:"+s.bar+";transition:width .3s"}></div></div>
       <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:5px"}>${s.fx}</div>
+    </div>`;
+  };
+
+  // ---- shield readout: a 270° arc gauge for a ship, with the value beside it.
+  // Replaces the old horizontal shield bar; the arc fills clockwise with the
+  // deflector screen's charge. r=40 → circumference 251.3, of which 270° = 188.5.
+  Game.prototype.renderShieldArc = function (pct, txt, color) {
+    var vis = 188.5, len = (vis * this.cl(pct, 0, 100) / 100).toFixed(1);
+    return html`
+    <div style="display:flex;align-items:center;justify-content:center;gap:13px;margin:14px 30px 0">
+      <div style="position:relative;width:52px;height:52px;flex:0 0 auto">
+        <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(135deg)">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#0d1830" stroke-width="9" stroke-linecap="round" stroke-dasharray="188.5 62.8"></circle>
+          <circle cx="50" cy="50" r="40" fill="none" stroke=${color} stroke-width="9" stroke-linecap="round"
+            stroke-dasharray=${len+" 251.3"} style=${"transition:stroke-dasharray .35s;filter:drop-shadow(0 0 4px "+color+"aa)"}></circle>
+        </svg>
+        <div style=${"position:absolute;inset:0;display:grid;place-items:center;font-size:18px;color:"+color+";opacity:.85"}>⛨</div>
+      </div>
+      <div style="display:flex;flex-direction:column;line-height:1.15">
+        <span style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.22em;color:#7d92b5"}>SHIELD</span>
+        <span style=${"font-family:"+MONO+";font-size:18px;color:#eaf2ff"}>${txt}</span>
+      </div>
     </div>`;
   };
 
@@ -1420,8 +1435,14 @@
     var vw=window.innerWidth||1280, vh=window.innerHeight||800;
     if (B) {
       var e=B.enemy;
-      // Bigger ships by default; user zoom (wheel) and pan (middle-drag) on top.
-      var baseFit=this.cl(Math.min((vw-24)/760,(vh-165)/615),0.6,1.45);
+      // Fit the whole combat column (both subsystem rows + ships + shield arcs)
+      // to the space between the top bar and the hand bar, so nothing clips or
+      // hides behind the UI. colW/colH are the column's natural size; the height
+      // budget is viewport minus the 58px top bar and the 190px hand bar (plus a
+      // little breathing room). User zoom (wheel) and pan (middle-drag) ride on
+      // top. Clamp keeps ships readable on small screens and sane on big ones.
+      var colW=760, colH=900;
+      var baseFit=this.cl(Math.min((vw-40)/colW,(vh-292)/colH),0.46,1.2);
       var zoom=baseFit*this.view.zoom;
       v.combatTransform="translate("+Math.round(this.view.panX)+"px, calc(-50% + "+Math.round(this.view.panY)+"px)) scale("+zoom.toFixed(3)+")";
       var sc=zoom;
