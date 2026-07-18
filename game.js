@@ -171,17 +171,17 @@
      desc:"Your fortified anchorage. Secure the Reach and its lanes stay patrol-free."},
     {id:"picket",x:13,y:62,type:"fight",z:"reach",enemy:0,sz:34,label:"PICKET LINE",
      desc:"A corsair picket watches the anchorage's northern lane. Break it and the Reach breathes easier."},
-    {id:"k9",x:15,y:80,type:"station",z:"reach",sz:40,label:"K-9 WAYPOINT",
-     desc:"Neutral waystation with a full armory. Revisitable at any time."},
+    {id:"k9",x:15,y:80,type:"station",z:"reach",enemy:0,sz:40,label:"K-9 WAYPOINT",
+     desc:"A waystation with a full armory, held by a Pact toll crew. Liberate it and its shops open to you — revisitable any time after."},
     {id:"debris",x:7,y:92,type:"fight",z:"reach",enemy:0,sz:34,disc:"fight2",label:"DEBRIS FIELD",
      desc:"Raiders hunt salvage teams in the wreck-thick dark south of the anchorage."},
     // — THE SHOALS —
-    {id:"forge",x:24,y:68,type:"shipyard",z:"shoals",sz:52,label:"FORGE TETHER",
+    {id:"forge",x:24,y:68,type:"shipyard",z:"shoals",enemy:3,sz:52,label:"FORGE TETHER",
      stock:["laser","missile","flak"],
      gossip:"“Red Augur came through two cycles back, running hot. Whatever she's hauling, the Pact wants it kept behind the Ironwall.”",
-     desc:"An orbital yard wrapped around a gutted moon. Permanent hull refits — plating, emitters, coils, fuel racks."},
-    {id:"mercy",x:22,y:50,type:"repair",z:"shoals",sz:34,label:"MERCY DOCK",
-     desc:"Hospital hulk. Cheap hull work, no questions asked."},
+     desc:"An orbital yard wrapped around a gutted moon, worked at gunpoint by a Pact prize crew. Break them and its permanent refits are yours."},
+    {id:"mercy",x:22,y:50,type:"repair",z:"shoals",enemy:0,sz:34,label:"MERCY DOCK",
+     desc:"A hospital hulk pressed into patching Pact raiders. Its tenders would rather work for you."},
     {id:"hulk",x:30,y:44,type:"anomaly",z:"shoals",key:"corsair",sz:44,label:"DERELICT HULK",
      desc:"A dead capital ship drifting at the zone's edge. Boarding parties report... movement.",
      evd:"A dead capital ship, spine cracked, holds open to vacuum. Your teams find the Pact's lane cipher still warm in the navigation core. They can also strip the wreck fast — or sweep it for survivors sealed in the aft frames."},
@@ -190,8 +190,8 @@
     // — THE EMBER SHELF —
     {id:"emberpicket",x:10,y:28,type:"fight",z:"ember",enemy:0,sz:34,disc:"fight2",label:"EMBER PICKET",
      desc:"Corsair lookouts squat in the cinder-glow where the Shelf burns closest to the lanes."},
-    {id:"cinder",x:8,y:12,type:"station",z:"ember",sz:40,label:"CINDER YARDS",
-     desc:"A soot-black trade ring hanging over the Shelf's furnace clouds. Full armory."},
+    {id:"cinder",x:8,y:12,type:"station",z:"ember",enemy:4,sz:40,label:"CINDER YARDS",
+     desc:"A soot-black trade ring under Pact tribute, hanging over the Shelf's furnace clouds. Burn off the garrison and its armory trades free again."},
     {id:"ashconvoy",x:18,y:20,type:"fight",z:"ember",enemy:4,sz:36,label:"ASH CONVOY RAID",
      desc:"An enforcement supply run crosses the Shelf under frigate escort."},
     {id:"furnace",x:24,y:10,type:"anomaly",z:"ember",sz:44,label:"FURNACE ANOMALY",
@@ -210,15 +210,15 @@
     {id:"chapel",x:42,y:50,type:"anomaly",z:"hallowed",sz:44,label:"CHAPEL HULK",
      desc:"A pilgrim ship gone silent mid-hymn. The congregation never disembarked.",
      evd:"The pilgrim ship drifts mid-hymn, reliquary lamps still lit. The hold is heavy with votive metal; the aft frames knock, slowly, from the inside."},
-    {id:"hermitage",x:40,y:66,type:"repair",z:"hallowed",sz:34,label:"DRIFT HERMITAGE",
-     desc:"Anchorite tenders patch hulls for any crew that keeps the silence."},
+    {id:"hermitage",x:40,y:66,type:"repair",z:"hallowed",enemy:3,sz:34,label:"DRIFT HERMITAGE",
+     desc:"Anchorite tenders who patch hulls for any crew that keeps the silence — once the Pact watch-post welded to their spine is cut away."},
     {id:"choir",x:48,y:58,type:"fight",z:"hallowed",enemy:3,sz:36,label:"SILENT CHOIR",
      desc:"Wreckers broadcasting a false distress-hymn to bait salvage crews."},
     {id:"reliquary",x:54,y:48,type:"bounty",z:"hallowed",enemy:4,key:"veil",sz:40,label:"BOUNTY: RELIQUARY",
      desc:"An armored reliquary barge. Its vault holds the only chart through Augur's Veil."},
     // — SMUGGLER'S RUN — sealed: smuggler's cipher
-    {id:"harbor",x:34,y:88,type:"station",z:"smuggler",sz:40,label:"QUIET HARBOR",
-     desc:"A no-flag freeport sunk in the shadow of the Run. Everything's for sale once."},
+    {id:"harbor",x:34,y:88,type:"station",z:"smuggler",enemy:3,sz:40,label:"QUIET HARBOR",
+     desc:"A no-flag freeport paying protection to the Run's enforcers. Liberate it and everything's for sale — to you."},
     {id:"cache",x:42,y:82,type:"anomaly",z:"smuggler",sz:44,label:"CONTRABAND CACHE",
      desc:"A cold-drifting cargo train, transponders cut. Somebody's rainy-day fortune.",
      evd:"A kilometre of cold-drifting cargo pods, transponders cut. Stencilled on every hatch: PROPERTY OF THE RED AUGUR."},
@@ -234,12 +234,12 @@
     // — THE STARVED MARCHES —
     {id:"marchespicket",x:58,y:60,type:"fight",z:"marches",enemy:4,sz:36,label:"MARCHES PICKET",
      desc:"Hungry ships guard hungrier lanes on the sector's long east road."},
-    {id:"hollowyard",x:62,y:74,type:"shipyard",z:"marches",sz:52,label:"HOLLOW YARD",
+    {id:"hollowyard",x:62,y:74,type:"shipyard",z:"marches",enemy:4,sz:52,label:"HOLLOW YARD",
      stock:["railgun","capacitor","scavenge"],
      gossip:"“Ironwall Command doubled the Gate watch. Four zones' worth of trouble, they reckon, before anyone sees that ring light up.”",
-     desc:"A half-starved yard drinking power from a cracked reactor barge. The refits are honest; the prices aren't."},
-    {id:"famine",x:70,y:62,type:"repair",z:"marches",sz:34,label:"FAMINE RELIEF STATION",
-     desc:"A relief hulk that patches hulls in trade for escort work nobody logs."},
+     desc:"A half-starved yard drinking power from a cracked reactor barge, requisitioned by the Pact. Free it and its honest refits are yours — the prices still aren't."},
+    {id:"famine",x:70,y:62,type:"repair",z:"marches",enemy:4,sz:34,label:"FAMINE RELIEF STATION",
+     desc:"A relief hulk patching Pact hulls under duress. Its crews will patch yours gladly, once the overseers are ash."},
     {id:"locust",x:72,y:84,type:"elite",z:"marches",enemy:7,sz:38,label:"LOCUST SWARM",
      desc:"A strip-fleet that eats convoys down to the frame. It has noticed the Palewake."},
     // — AUGUR'S VEIL — sealed: veil chart
@@ -347,19 +347,29 @@
     this.aimOrigin = null;   // player muzzle in client coords while aiming
     if (!this.view) this.view = { zoom:1, panX:0, panY:0 };
     preloadAudio();
-    // Background music — created once, looped. Two tracks: the ambient theme
-    // for menus/map/station, and a driving combat track during battles.
-    // Browsers block autoplay until the first user gesture, so also arm a
-    // one-shot gesture starter.
+    // Background music — three tracks: the ambient theme for menus/map/station,
+    // a driving combat track during battles, and a one-shot victory fanfare.
+    // Every scene change crossfades (~1s); the ambient theme restarts from the
+    // top each time the player leaves combat. Browsers block autoplay until the
+    // first user gesture, so also arm a one-shot gesture starter.
     this._scene = "ambient";
-    try {
-      this._music = new Audio("assets/audio/drift_beyond_io.mp3");
-      this._music.loop = true; this._music.volume = 0.4; this._music.preload = "auto";
-    } catch (e) { this._music = null; }
-    try {
-      this._combat = new Audio("assets/audio/combat_music.mp3");
-      this._combat.loop = true; this._combat.volume = 0.45; this._combat.preload = "auto";
-    } catch (e) { this._combat = null; }
+    this._tracks = {};
+    var mkTrack = function (file, loop, vol) {
+      try {
+        var a = new Audio("assets/audio/" + file);
+        a.loop = loop; a.volume = 0; a.preload = "auto"; a._baseVol = vol;
+        return a;
+      } catch (e) { return null; }
+    };
+    this._tracks.ambient = mkTrack("drift_beyond_io.mp3", true, 0.4);
+    this._tracks.combat = mkTrack("combat_music.mp3", true, 0.45);
+    this._tracks.victory = mkTrack("galactic_victory_fanfare.mp3", false, 0.5);
+    if (this._tracks.victory) {
+      // when the fanfare plays out, ease back into a fresh ambient loop
+      this._tracks.victory.addEventListener("ended", function () {
+        if (self._scene === "victory") self.setMusicScene("ambient", true);
+      });
+    }
     this._startMusic = function () { self.applyMusic(); };
     this._onGesture = function () { self._startMusic(); window.removeEventListener("pointerdown", self._onGesture); window.removeEventListener("keydown", self._onGesture); };
     this._startMusic();  // try immediately (works if the browser allows it)
@@ -381,26 +391,47 @@
     window.removeEventListener("mouseup", this._onUp);
     window.removeEventListener("pointerdown", this._onGesture);
     window.removeEventListener("keydown", this._onGesture);
-    if (this._music) { try { this._music.pause(); } catch (e) {} }
-    if (this._combat) { try { this._combat.pause(); } catch (e) {} }
+    var T = this._tracks || {};
+    for (var k in T) { if (T[k]) { try { T[k].pause(); } catch (e) {} if (T[k]._fadeTimer) clearInterval(T[k]._fadeTimer); } }
   };
-  // Play the track for the current scene ("ambient" or "combat") when music is
-  // on, pausing the other; pause both when muted.
+  // Fade a track's volume toward `target` (~1s ramp); pause it when it lands
+  // at silence. Play() is attempted whenever the target is audible — rejected
+  // autoplay is retried by the first-gesture handler calling applyMusic again.
+  Game.prototype.fadeTrack = function (a, target) {
+    if (!a) return;
+    if (target > 0) { var p = a.play(); if (p && p.catch) p.catch(function () {}); }
+    a._fadeTarget = target;
+    if (a._fadeTimer) return;
+    a._fadeTimer = setInterval(function () {
+      var step = (a._baseVol || 0.4) / 10;
+      var t = a._fadeTarget, v = a.volume;
+      if (Math.abs(v - t) <= step) {
+        a.volume = t;
+        clearInterval(a._fadeTimer); a._fadeTimer = null;
+        if (t === 0) { try { a.pause(); } catch (e) {} }
+      } else {
+        a.volume = Math.max(0, Math.min(1, v + (t > v ? step : -step)));
+      }
+    }, 100);
+  };
+  // Fade the current scene's track in and every other track out.
   Game.prototype.applyMusic = function () {
-    var combat = this._scene === "combat";
-    var want = combat ? this._combat : this._music;
-    var other = combat ? this._music : this._combat;
-    if (other) { try { other.pause(); } catch (e) {} }
-    if (!want) return;
-    if (this.music.on) { var p = want.play(); if (p && p.catch) p.catch(function(){}); }
-    else { try { want.pause(); } catch (e) {} }
-  };
-  // Switch the background scene, restarting the combat track at each battle.
-  Game.prototype.setMusicScene = function (scene) {
-    if (this._scene !== scene) {
-      this._scene = scene;
-      if (scene === "combat" && this._combat) { try { this._combat.currentTime = 0; } catch (e) {} }
+    var T = this._tracks || {};
+    for (var k in T) {
+      if (!T[k]) continue;
+      this.fadeTrack(T[k], (this.music.on && k === this._scene) ? T[k]._baseVol : 0);
     }
+  };
+  // Crossfade to a scene ("ambient" | "combat" | "victory"); restart=true
+  // rewinds the incoming track so it starts from the top.
+  Game.prototype.setMusicScene = function (scene, restart) {
+    var want = this._tracks && this._tracks[scene];
+    var entering = this._scene !== scene;
+    // combat & victory always start from the top; ambient only when asked
+    if (want && (restart || (entering && scene !== "ambient"))) {
+      try { want.currentTime = 0; } catch (e) {}
+    }
+    this._scene = scene;
     this.applyMusic();
   };
   Game.prototype.toggleMusic = function () {
@@ -846,7 +877,7 @@
       B.over=true;
       if (p.hull<=0) { this.spawnExplosion(this.shipCenter("p"), "red", 300); sfx("ship_destroyed", 1); }
       var why = p.hull<=0 ? "Hull integrity gone. ISV Palewake is lost with all hands." : "Boarders overrun your decks. Your ship is taken.";
-      this.setMusicScene("ambient");
+      this.setMusicScene("ambient", true);
       this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"SHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },700); return true;
     }
     return false;
@@ -861,9 +892,12 @@
     var salv=Math.round(this.ri(lo,hi)*(node.type==="boss"?1:zm));
     if (S.player.ups.rig) salv=Math.round(salv*1.15);
     S.salvage+=salv;
+    if (node.type==="station"||node.type==="shipyard"||node.type==="repair") how+=" "+node.label+" is liberated — its docks and services are yours now.";
     if (node.key && !S.zoneKeys[node.key]) { S.zoneKeys[node.key]=true; how+=" Recovered from the wreck: "+KEY_NAMES[node.key]+"."; }
     S.reward={ how:how, salv:salv, cards:this.sh(REWARDS.slice()).slice(0,3).map(this.mk.bind(this)) };
-    S.overlay="reward"; this.forceUpdate();
+    S.overlay="reward";
+    this.setMusicScene("victory");   // combat fades out, the fanfare fades in
+    this.forceUpdate();
   };
   Game.prototype.claimReward = function (key) { this.hideHover(); this.state.deckKeys.push(key); this.finishBattle(); };
   Game.prototype.skipReward = function () { this.hideHover(); this.finishBattle(); };
@@ -874,7 +908,10 @@
     for (var k in p.subs) p.subs[k]=this.cl(p.subs[k]+40,0,100);
     p.shield=0;
     S.taken[node.id]=true; S.battle=null; S.reward=null; S.overlay=null; S.screen="map";
-    this.setMusicScene("ambient"); this.forceUpdate();
+    // liberated ports top the tanks off the moment their docks change hands
+    if (node.type==="station"||node.type==="shipyard"||node.type==="repair") p.fuel=p.fuelMax;
+    this.setMusicScene("ambient", true);   // the theme starts anew after combat
+    this.forceUpdate();
   };
 
   // ---- map navigation (free travel over the zone graph) -------------------
@@ -939,13 +976,13 @@
     setTimeout(function(){
       var s=self.state; s.gliding=false;
       if (s.screen!=="map") { self.forceUpdate(); return; }
-      if (n.type==="home"||n.type==="station"||n.type==="shipyard"||n.type==="repair") {
-        s.player.fuel=s.player.fuelMax;   // friendly docks top the tanks off
-      }
       if (!s.taken[n.id]) {
-        if (n.type==="fight"||n.type==="elite"||n.type==="bounty"||n.type==="boss") { self.startBattle(n); return; }
+        if (n.enemy!=null) { self.startBattle(n); return; }   // occupied — garrison defends, ports included
         if (n.type==="anomaly") { s.evNode=n; s.overlay="ev"; }
-        else s.taken[n.id]=true;   // ports (and the gate itself) are yours once you dock
+        else s.taken[n.id]=true;   // only the gate ring itself is unguarded
+      }
+      if (s.taken[n.id] && (n.type==="home"||n.type==="station"||n.type==="shipyard"||n.type==="repair")) {
+        s.player.fuel=s.player.fuelMax;   // liberated docks top the tanks off
       }
       self.forceUpdate();
     }, 1450);
@@ -1191,9 +1228,11 @@
           anchorage in the <b>Blackstar Verge</b>, a sector the Corsair Pact now calls
           its own. Their enforcers tax every lane, and <b>Ironwall Command</b> keeps the
           jump gate sealed with the dreadnought <b>HMS Iron Verdict</b> anchored on it.
-          So take the Verge back: every system you clear is yours, every zone you secure
-          loosens the Pact's grip, and when the <b>Blackstar Gate</b> unseals, the road
-          home runs through it — one sector down, the next one waiting.
+          Beyond your anchorage, everything flies their colours — every picket, every
+          station, every shipyard and dock is occupied territory. So take the Verge back:
+          liberate ports to use their services, secure whole zones to loosen the Pact's
+          grip, and when the <b>Blackstar Gate</b> unseals, the road home runs through
+          it — one sector down, the next one waiting.
         </p>
         <div class="hf-primer" style="margin-top:22px">
           <div class="hf-primer-cell">
@@ -1206,7 +1245,7 @@
           </div>
           <div class="hf-primer-cell">
             <h3 style="color:#7cf0c0">③ The Refit</h3>
-            <p>Dock to buy cards, patch hull, hire crew — and refuel, free at any friendly port. Shipyards weld on permanent refits.</p>
+            <p>Liberate occupied ports to use them: buy cards, patch hull, hire crew — and refuel free. Shipyards weld on permanent refits.</p>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:24px">
@@ -1746,7 +1785,7 @@
     var self=this, S=this.state;
     var zsec=this.zonesSecured();
     return this.mapOverlayShell("SECTOR CODEX", "The Blackstar Verge", html`
-      <p style="margin:0 0 14px;font-size:14.5px;line-height:1.55;color:#8fa3c4">Ten zones, one way out. Take every system in a zone to secure it — <b style="color:#eaf2ff">${zsec} secured</b>, ${GATE_ZONES_REQ} needed to unseal the Blackstar Gate.</p>
+      <p style="margin:0 0 14px;font-size:14.5px;line-height:1.55;color:#8fa3c4">Ten zones, one way out — and every system beyond Haven Anchorage began this run under Pact occupation. Liberate every system in a zone to secure it — <b style="color:#eaf2ff">${zsec} secured</b>, ${GATE_ZONES_REQ} needed to unseal the Blackstar Gate.</p>
       ${ZONES.map(function(z){
         var secured=self.zoneSecured(z), unlocked=self.zoneUnlocked(z);
         var tot=0, tk=0;
@@ -1849,8 +1888,8 @@
           </div>
         </div>
         <div style="padding:22px 26px">
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> runs the Blackstar Verge — its lanes taxed, its jump gate sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one hull: the corvette <b style="color:#eaf2ff">ISV Palewake</b>. Every system you take is yours. Take enough, and the sector follows.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> — friendly docks refill them free; run dry and you burn hull to keep moving. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> owns the Blackstar Verge — every station, shipyard and dock beyond your anchorage is occupied territory, and the jump gate is sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one hull: the corvette <b style="color:#eaf2ff">ISV Palewake</b>. Every system you liberate is yours. Liberate enough, and the sector follows.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> — <b style="color:#eaf2ff">liberated</b> docks refill them free; run dry and you burn hull to keep moving. Fight the garrison off a port and its armory, yard or repair bay works for you. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
           <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, cards draw from <b style="color:#eaf2ff">reactor power</b>; a deflector screen soaks hits before hull, and your <b style="color:#eaf2ff">WEAPONS</b>, <b style="color:#eaf2ff">REACTOR</b> and <b style="color:#eaf2ff">ENGINES</b> can each be crippled. Win by gutting hulls — or board and take them. The far zones field heavier ships and pay better salvage.</p>
           <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">64</b></span><span>CREW <b style="color:#ffffff;font-weight:500">8</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">22</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span><span>FUEL <b style="color:#ffffff;font-weight:500">5</b> CELLS</span></div>
           <button class="hf-btn" onClick=${function(){ self.closeBrief(); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:16px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:13px 30px;cursor:pointer;box-shadow:0 4px 0 #14506b">Plot the Course ▸</button>
@@ -1955,7 +1994,7 @@
       return { x:z.lx+"%", y:z.ly+"%", name:z.name, sub:sub, c:z.c };
     });
 
-    var isEnemy=function(n){ return n.type==="fight"||n.type==="elite"||n.type==="bounty"||n.type==="boss"||n.type==="anomaly"; };
+    var isEnemy=function(n){ return n.enemy!=null || n.type==="anomaly"; };
     var isAllied=function(n){ return n.type==="home"||n.type==="station"||n.type==="shipyard"||n.type==="repair"||n.type==="gate"; };
     m.nodes=NODES.map(function(n){
       var t=NODE_TY[n.type], cur=n.id===S.current, isSel=n.id===S.sel;
@@ -1979,7 +2018,7 @@
         pulseC: hostile?"#ff5470":"#ffffff",
         selOp: isSel?1:0,
         lockDisp: frontier?"flex":"none",
-        tag: cur?"YOU ARE HERE": locked?"SEALED": taken?"": n.type==="shipyard"?"SHIPYARD": n.type==="station"?"STATION": n.type==="repair"?"REPAIR": n.type==="bounty"?"HIGH REWARD": n.type==="anomaly"?"ANOMALY":"",
+        tag: cur?"YOU ARE HERE": locked?"SEALED": taken?"": n.type==="shipyard"?"OCCUPIED SHIPYARD": n.type==="station"?"OCCUPIED STATION": n.type==="repair"?"OCCUPIED DOCK": n.type==="bounty"?"HIGH REWARD": n.type==="anomaly"?"ANOMALY":"",
         tagC: cur?"#4fd8ff": locked?"#ff5470aa": taken?"#7cf0c0":"#a9bcda",
         click:function(){ self.selectNode(n.id); },
         dbl: accessible ? function(){ if (!self._didPan) self.setCourse(n.id); } : undefined
@@ -2015,6 +2054,10 @@
     if (sn.type==="station") lines.push({k:"SERVICES", v:"ARMORY · REPAIR · CREW", c:"#7cf0c0"});
     if (sn.type==="shipyard") { lines.push({k:"SERVICES", v:"SHIP UPGRADES · REPAIR", c:"#8deaff"}); lines.push({k:"STOCK", v:YARD_REFITS.length+" REFITS AVAILABLE", c:"#ffc266"}); }
     if (sn.type==="repair") lines.push({k:"SERVICES", v:"HULL +15 PER 10 ◈", c:"#7cf0c0"});
+    if (!taken && sn.enemy!=null && (sn.type==="station"||sn.type==="shipyard"||sn.type==="repair")) {
+      var g=this.threatLabel(sn);
+      lines.push({k:"GARRISON", v:g.v, c:g.c});
+    }
     var zm=(z.mult||1);
     if (sn.type==="fight"||sn.type==="elite"||sn.type==="bounty") {
       var t=this.threatLabel(sn);
@@ -2031,11 +2074,20 @@
       if (sn.type==="anomaly"&&sn.key) lines.push({k:"REWARD", v:KEY_NAMES[sn.key]+"?", c:"#ffc266"});
     }
 
+    var isPort=(sn.type==="station"||sn.type==="shipyard"||sn.type==="repair");
+    var desc=sn.desc;
+    if (taken && sn.id!=="haven") {
+      if (isPort) desc="Liberated and flying your flag — docks, services and shops are open to the Palewake.";
+      else if (sn.type==="anomaly") desc="Swept and salvaged. Whatever moved in the dark here is quiet now.";
+      else if (sn.enemy!=null) desc="Cleared and held. The wrecks are picked over and the lane runs quiet under your flag.";
+    }
+
     var status, statusCol;
     if (cur) { status="YOU ARE HERE"; statusCol="#4fd8ff"; }
     else if (locked) { status="SEALED"; statusCol="#ff5470"; }
     else if (taken) { status="UNDER YOUR CONTROL"; statusCol="#7cf0c0"; }
     else if (sn.type==="anomaly") { status="UNKNOWN SIGNATURE"; statusCol="#b48aff"; }
+    else if (hostile && (sn.type==="station"||sn.type==="shipyard"||sn.type==="repair")) { status="OCCUPIED — LIBERATE TO DOCK"; statusCol="#ff8aa0"; }
     else if (hostile) { status=sn.type==="bounty"?"TARGET TRACKED":"HOSTILE CONTACT"; statusCol=sn.type==="bounty"?"#ffc266":"#ff8aa0"; }
     else { status="DOCK AVAILABLE"; statusCol="#7cf0c0"; }
 
@@ -2060,7 +2112,7 @@
 
     m.d={
       kicker:TYPE_LABEL[sn.type]+" · "+z.name, name:sn.label, art:sn.label+" ART",
-      status:status, statusCol:statusCol, desc:sn.desc, lines:lines,
+      status:status, statusCol:statusCol, desc:desc, lines:lines,
       req:(locked&&z.req) ? (z.req.zones ? z.req.txt+" ("+zsec+"/"+z.req.zones+")" : z.req.txt)
         : (cur&&sn.type==="gate"&&!S.taken.verdict) ? "DESTROY THE IRON VERDICT" : null,
       act:act, en:en, actClick:actClick,

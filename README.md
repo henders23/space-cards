@@ -25,8 +25,10 @@ optional network call is Google Fonts for Space Grotesk / IBM Plex Mono; if it's
 blocked, the UI falls back to system fonts.)
 
 A looping ambient theme ("Drift Beyond Io") starts with the game — browsers
-hold it until your first click/keypress — and a driving combat track takes over
-whenever a battle begins, handing back to the ambient theme when the fight ends.
+hold it until your first click/keypress — a driving combat track takes over
+whenever a battle begins, and victories are capped with a fanfare ("Galactic
+Victory Fanfare"). Every hand-off crossfades, and the ambient theme restarts
+from the top each time you leave combat.
 There's a **♪ MUSIC** toggle on the title screen and in the top bar (the on/off
 choice is remembered).
 
@@ -38,14 +40,17 @@ choice is remembered).
    `design_handoff_sector_map` bundle, scaled up 3×): 36 systems in 10 zones on a
    scrollable chart. Drag to pan, click a system for intel, double-click (or SET
    COURSE / ENGAGE) to travel along charted lanes — revisiting friendly ports is
-   allowed. Take every system in a zone to **secure** it; sealed zones open with
+   allowed. Every system beyond Haven Anchorage starts the run occupied — even
+   stations, shipyards, and repair depots have Pact garrisons, and their
+   services unlock only after you liberate them in battle. Take every system in
+   a zone to **secure** it; sealed zones open with
    key items (won from anomalies and bounties) or by securing enough zones.
    Secure 4 zones to unseal the **Blackstar Gate**, break the Iron Verdict
    guarding it, and jump for the next sector. Dedicated **shipyards** (Forge
    Tether, Hollow Yard) sell the permanent refits — including Extended Fuel
    Racks and the Salvage Rig — while stations keep the card armory.
    - **Fuel**: every lane hop burns one fuel cell (a multi-hop SET COURSE costs
-     its full route). Docking at any friendly port — home, station, shipyard, or
+     its full route). Docking at any liberated port — home, station, shipyard, or
      repair depot — refills the racks free. Short on cells? You can still move by
      **burning reserves** at 5 hull per missing cell, but never onto a jump the
      hull can't survive. Extended Fuel Racks adds +2 cells.
