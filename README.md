@@ -34,8 +34,12 @@ choice is remembered).
 
 ## How it plays
 
-1. **Title & briefing** — pick a difficulty (Standard / Hard / Brutal), read the
-   situation, and launch the sortie.
+1. **Title, commission & briefing** — pick a difficulty (Standard / Hard /
+   Brutal), then choose a **commission** that sets your opening ten-card deck —
+   *Gunline* (aggressive weapons), *Bulwark* (shields & boarding), or *Saboteur*
+   (subsystem warfare) — read the situation, and launch the sortie. Your bridge
+   crew and Fleet Command speak to you at key beats over an in-game **dialogue**
+   system driven by the Galactic Navy portrait cast.
 2. **The chart** — a free-travel, zone-based sector map (from the
    `design_handoff_sector_map` bundle, scaled up 3×): 36 systems in 10 zones on a
    scrollable chart. Drag to pan, click a system for intel, double-click (or SET
@@ -61,6 +65,19 @@ choice is remembered).
    hits before they reach hull; your **weapons / reactor / engines** subsystems can
    each be crippled. Read the enemy's telegraphed intent and answer it. Win by
    gutting the enemy hull — or boarding and taking the ship.
+   - **Enemy behaviour archetypes**: every hull now fights to a personality —
+     *raiders* board, *gunlines* telegraph a **charged main-gun salvo** a turn
+     before it fires (break their weapons or reactor to spoil it), *carriers*
+     scramble **fighters** you must clear, *wardens* turtle and repair, and
+     *zealots* hit harder as they die. The flagship does all of it.
+   - **Called shots**: click an enemy subsystem to focus your gunners on it —
+     every weapon then chips that system's integrity as well as dealing damage.
+     Crippling their reactor stops them charging or launching; crippling weapons
+     softens every shot they land.
+   - **Strike craft**: launch **fighter wings** (sustained per-turn strafing) and
+     **bomber wings** (a delayed, shield-piercing subsystem strike) from your
+     **hangar bays**, and **interceptors** to sweep enemy craft. A shipyard
+     **Flight Deck** refit adds a bay.
    - **Manual gunnery**: playing a weapon card raises a **crosshair** — aim with the
      mouse and click where on the enemy hull to fire. Your bolt streaks from the
      Palewake to the point you chose and detonates on impact. Right-click or
@@ -85,7 +102,9 @@ choice is remembered).
 | `index.html` | Page shell; loads the vendored libs, styles, and game |
 | `game.js` | The whole game — rules engine + UI, one Preact component |
 | `styles.css` | Global reset, starfield, keyframes, hover/title styles |
-| `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/` |
+| `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/`. Strike-craft cards render through a procedural card face (no PNG needed) |
+| `assets/crew/` | Galactic Navy portrait cast for the dialogue system, keyed by name, with a `manifest.csv` |
+| `docs/IMPROVEMENT_PLAN.md` | The five-phase design plan this build implements |
 | `assets/ships/` | Chroma-keyed fleet pack: player ship + one hull per enemy class, each with a damaged twin that swaps in below half hull |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
 | `assets/audio/` | Ambient + combat music, weapon, "enemy sighted", "reporting damage" and destruction SFX |
@@ -103,9 +122,22 @@ an accompanying sounds pack (both licensed for use with no attribution required)
 - **Rendering**: [Preact](https://preactjs.com/) + [htm](https://github.com/developit/htm),
   both vendored as UMD globals — no JSX, no transpile. The game is a single class
   component whose imperative state mirrors the design spec's logic class.
-- **Expanded card library**: the original 19 cards are joined by 31 new cards,
-  for 50 total. Every card has distinct artwork, a compact hand summary, a full
-  detail view, shop/reward availability, and implemented combat behaviour.
+- **Expanded card library**: the original 19 cards are joined by 31 new cards
+  plus 3 strike-craft cards, for 53 total. Painted cards have distinct artwork;
+  strike-craft cards render through a procedural card face. Each has a compact
+  hand summary, a full detail view, shop/reward availability, and implemented
+  combat behaviour.
+- **Narrative layer**: a data-driven dialogue engine (`SCENES` / `CAST` /
+  `NODE_CAMEO`) plays short character beats — intro, first blood, first dock,
+  critical-hull and crippled-system moments mid-battle, zone secured, the Gate
+  unsealing, per-zone antagonist cameos (Grey in the Corsair Expanse, the Red
+  Augur, Corelli on the Ironwall, Ashford in the Veil, the Locust swarm), and a
+  full confrontation with the Iron Verdict's captain at the Gate — using the
+  portrait cast in `assets/crew/`.
+- **Commissions**: three opening decks chosen at launch (`COMMISSIONS`).
+- **Deeper combat**: enemy `ai` archetypes with multi-turn charged shots and
+  fighter launches; called-shot subsystem targeting; and a player strike-craft /
+  hangar system.
 - **Added for this build**: the title/intro screen with story context and an
   in-game difficulty selector, ahead of the original tactical briefing overlay.
 - **Motion** respects `prefers-reduced-motion`.

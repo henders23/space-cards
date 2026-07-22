@@ -90,25 +90,173 @@
     "marine-detachment":{key:"marine-detachment",name:"Marine Detachment",cost:2,type:"boarding",summary:"CREW -4",text:"Enemy crew -4, yours -1. Needs 3 crew.",eCrew:4,sCrew:1,needCrew:3},
     "command-seizure":{key:"command-seizure",name:"Command Seizure",cost:3,type:"boarding",summary:"CAPTURE",text:"Capture if enemy crew is 3 or less; otherwise enemy crew -3. Needs 3 crew.",capture:3,eCrew:3,needCrew:3}
   });
+  // ---- strike craft (Phase 4): squadrons that persist between turns ---------
+  // These have no bespoke PNG face, so they render through the procedural card
+  // face (art:false). A fighter wing strafes every enemy turn until shot down;
+  // a bomber wing runs in and detonates on a subsystem after a delay;
+  // interceptors clear enemy craft.
+  Object.assign(LIB, {
+    "fighter-wing":{key:"fighter-wing",name:"Fighter Wing",cost:2,type:"strike",art:false,glyph:"⟡",summary:"STRAFE 4 ×3",
+      text:"Launch a fighter wing (needs a free hangar bay). It strafes the enemy for 4 damage at the start of every enemy turn for 3 turns. Enemy point-defense can shoot it down.",
+      strike:{kind:"fighter",dmg:4,turns:3,hp:2}},
+    "bomber-wing":{key:"bomber-wing",name:"Bomber Wing",cost:3,type:"strike",art:false,glyph:"⏦",summary:"TORPEDO RUN",
+      text:"Launch bombers (needs a free hangar bay). After one turn they run in for 16 shield-piercing damage and cripple your focused subsystem (-25).",
+      strike:{kind:"bomber",dmg:16,delay:1,pierce:true,sab:25,hp:1}},
+    "interceptors":{key:"interceptors",name:"Interceptor Screen",cost:1,type:"strike",art:false,glyph:"✳",summary:"CLEAR CRAFT",
+      text:"Scramble interceptors: destroy all enemy strike craft, raise 5 shields, and draw a card.",
+      draw:1, strike:{kind:"defense",clear:true,shield:5}}
+  });
   var SUMMARIES = {laser:"7 DAMAGE",flak:"ANTI-SHIELD",missile:"SHIELD PIERCE",railgun:"REACTOR HIT",broadside:"TRIPLE HIT",torpedo:"15 PIERCE",divert:"SHIELDS +9",angle:"SHIELD + DRAW",capacitor:"SHIELDS +14",brace:"HALVE HIT",dcontrol:"REPAIR + HULL",patch:"HULL +9",overcharge:"POWER +2",reroute:"POWER + DRAW",boarding:"CREW -3",breach:"CREW -5",lock:"NEXT HIT +7",evasive:"DODGE",scavenge:"DRAW 2"};
   Object.keys(SUMMARIES).forEach(function(k){ LIB[k].summary=SUMMARIES[k]; });
   var PRICE = {laser:10,flak:12,missile:20,railgun:26,broadside:22,torpedo:30,divert:10,angle:12,capacitor:18,brace:12,dcontrol:20,patch:10,overcharge:12,reroute:14,boarding:20,breach:26,lock:14,evasive:14,scavenge:14,
-    "plasma-lance":20,"ion-needle":14,"chain-cannon":20,"kinetic-ram":30,"mine-layer":16,"emp-warhead":24,"point-blank":22,graviton:28,"execution-beam":30,"emergency-bubble":10,"reflective-screen":20,"phase-screen":22,"layered-plating":16,"engine-screen":16,"bulwark-field":28,"nanite-swarm":24,"jury-rig":14,"seal-bulkheads":14,"reboot-protocol":18,"coolant-flush":12,"reactor-surge":16,cannibalise:12,"aux-battery":14,"sensor-ghost":14,"flanking-burn":16,"decoy-drone":14,"combat-scan":10,overwatch:16,"saboteur-team":22,"marine-detachment":22,"command-seizure":30};
+    "plasma-lance":20,"ion-needle":14,"chain-cannon":20,"kinetic-ram":30,"mine-layer":16,"emp-warhead":24,"point-blank":22,graviton:28,"execution-beam":30,"emergency-bubble":10,"reflective-screen":20,"phase-screen":22,"layered-plating":16,"engine-screen":16,"bulwark-field":28,"nanite-swarm":24,"jury-rig":14,"seal-bulkheads":14,"reboot-protocol":18,"coolant-flush":12,"reactor-surge":16,cannibalise:12,"aux-battery":14,"sensor-ghost":14,"flanking-burn":16,"decoy-drone":14,"combat-scan":10,overwatch:16,"saboteur-team":22,"marine-detachment":22,"command-seizure":30,
+    "fighter-wing":22,"bomber-wing":30,"interceptors":14};
   var SHOP = Object.keys(LIB);
   var REWARDS = Object.keys(LIB);
   // Per-zone enemy roster. Indices 0-2 are the original three; 3-8 were added
   // for the zone rebalance so each region fields its own hulls. The final
   // difficulty of any encounter is stats x difficulty x elite/bounty x zone mult.
+  // Each hull carries an `ai` archetype that shapes how chooseIntent() weights
+  // its options and whether it can charge a big shot or scramble fighters:
+  //   raider   — fast, high board chance, no charge
+  //   gunline  — telegraphs charged heavy shots
+  //   carrier  — scrambles enemy fighter craft you must clear
+  //   warden   — shields and repairs defensively
+  //   zealot   — escalates its fire as its hull falls
+  //   dread    — the flagship: charges AND launches, all of it heavier
   var ENEMIES = [
-    {name:"RSV Carrion Jackal",img:"ship-09",role:"CORSAIR RAIDER",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
-    {name:"PCS Ledger's Edge",img:"ship-12",role:"ENFORCEMENT FRIGATE",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
-    {name:"HMS Iron Verdict",img:"ship-04",role:"DREADNOUGHT · FLAGSHIP",hull:82,shieldCap:22,regen:4,crew:10,atkLo:11,atkHi:15,sab:.28,boardN:3,boardCh:.2,shieldAmt:13,rep:.18},
-    {name:"PCV Rust Psalm",img:"ship-13",role:"CORSAIR CUTTER",hull:50,shieldCap:14,regen:3,crew:6,atkLo:6,atkHi:10,sab:.18,boardN:2,boardCh:.18,shieldAmt:9,rep:0},
-    {name:"HMS Tithe Collector",img:"ship-06",role:"PACT GUNSHIP",hull:56,shieldCap:14,regen:4,crew:6,atkLo:8,atkHi:11,sab:.22,boardN:2,boardCh:.15,shieldAmt:10,rep:.1},
-    {name:"RSV Red Augur",img:"ship-15",role:"SMUGGLER CORSAIR",hull:52,shieldCap:18,regen:5,crew:5,atkLo:9,atkHi:13,sab:.2,boardN:2,boardCh:.1,shieldAmt:12,rep:.12},
-    {name:"HMS Anvil Chorus",img:"ship-02",role:"IRONWALL HEAVY FRIGATE",hull:70,shieldCap:18,regen:4,crew:8,atkLo:10,atkHi:14,sab:.28,boardN:3,boardCh:.18,shieldAmt:12,rep:.15},
-    {name:"The Locust Prime",img:"ship-14",role:"STRIP-FLEET TENDER",hull:64,shieldCap:12,regen:3,crew:10,atkLo:7,atkHi:11,sab:.2,boardN:3,boardCh:.35,shieldAmt:9,rep:.2},
-    {name:"PCS Whisper Warden",img:"ship-03",role:"VEIL PICKET SHIP",hull:58,shieldCap:20,regen:6,crew:6,atkLo:8,atkHi:12,sab:.3,boardN:2,boardCh:.12,shieldAmt:13,rep:0}
+    {name:"RSV Carrion Jackal",img:"ship-09",role:"CORSAIR RAIDER",ai:"raider",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
+    {name:"PCS Ledger's Edge",img:"ship-12",role:"ENFORCEMENT FRIGATE",ai:"gunline",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
+    {name:"HMS Iron Verdict",img:"ship-04",role:"DREADNOUGHT · FLAGSHIP",ai:"dread",hull:82,shieldCap:22,regen:4,crew:10,atkLo:11,atkHi:15,sab:.28,boardN:3,boardCh:.2,shieldAmt:13,rep:.18,fighter:{dmg:6,hp:2}},
+    {name:"PCV Rust Psalm",img:"ship-13",role:"CORSAIR CUTTER",ai:"raider",hull:50,shieldCap:14,regen:3,crew:6,atkLo:6,atkHi:10,sab:.18,boardN:2,boardCh:.18,shieldAmt:9,rep:0},
+    {name:"HMS Tithe Collector",img:"ship-06",role:"PACT GUNSHIP",ai:"gunline",hull:56,shieldCap:14,regen:4,crew:6,atkLo:8,atkHi:11,sab:.22,boardN:2,boardCh:.15,shieldAmt:10,rep:.1},
+    {name:"RSV Red Augur",img:"ship-15",role:"SMUGGLER CORSAIR",ai:"zealot",hull:52,shieldCap:18,regen:5,crew:5,atkLo:9,atkHi:13,sab:.2,boardN:2,boardCh:.1,shieldAmt:12,rep:.12},
+    {name:"HMS Anvil Chorus",img:"ship-02",role:"IRONWALL HEAVY FRIGATE",ai:"gunline",hull:70,shieldCap:18,regen:4,crew:8,atkLo:10,atkHi:14,sab:.28,boardN:3,boardCh:.18,shieldAmt:12,rep:.15},
+    {name:"The Locust Prime",img:"ship-14",role:"STRIP-FLEET TENDER",ai:"carrier",hull:64,shieldCap:12,regen:3,crew:10,atkLo:7,atkHi:11,sab:.2,boardN:3,boardCh:.35,shieldAmt:9,rep:.2,fighter:{dmg:5,hp:2}},
+    {name:"PCS Whisper Warden",img:"ship-03",role:"VEIL PICKET SHIP",ai:"warden",hull:58,shieldCap:20,regen:6,crew:6,atkLo:8,atkHi:12,sab:.3,boardN:2,boardCh:.12,shieldAmt:13,rep:0}
+  ];
+
+  // ---- narrative cast (Phase 2) -------------------------------------------
+  // Portraits live in assets/crew/<img>.png (from the Galactic Navy pack).
+  // `you` is the player and renders as an insignia rather than a face.
+  var CAST = {
+    halloway:{name:"V.Adm. Margaret Halloway", role:"FLEET COMMAND",        img:"margaret_halloway", c:"#8deaff"},
+    novak:   {name:"V.Adm. Peter Novak",       role:"FLEET LOGISTICS",      img:"peter_novak",       c:"#8deaff"},
+    solan:   {name:"Cdr. Mira Solan",          role:"EXECUTIVE OFFICER",    img:"mira_solan",        c:"#7cf0c0"},
+    drake:   {name:"Lt.Cdr. Ethan Drake",      role:"TACTICAL OFFICER",     img:"ethan_drake",       c:"#7cf0c0"},
+    park:    {name:"Lt. Insu Park",            role:"CHIEF ENGINEER",       img:"insu_park",         c:"#7cf0c0"},
+    ndala:   {name:"Lt. Kiara N'Dala",         role:"COMMS OFFICER",        img:"kiara_n_dala",      c:"#7cf0c0"},
+    katz:    {name:"Lt. Sloane Katz",          role:"GUNNERY OFFICER",      img:"sloane_katz",       c:"#7cf0c0"},
+    grey:    {name:"Capt. Thomas Grey",        role:"CORSAIR PACT",         img:"thomas_grey",       c:"#ff8aa0"},
+    ashford: {name:"R.Adm. Julian Ashford",    role:"IRONWALL COMMAND",     img:"julian_ashford",    c:"#ff8aa0"},
+    corelli: {name:"R.Adm. Isabella Corelli",  role:"PACT ENFORCEMENT",     img:"isabella_corelli",  c:"#ff8aa0"},
+    vale:    {name:"R.Adm. Alexander Vale",    role:"HMS IRON VERDICT",     img:"alexander_vale",    c:"#ff5470"},
+    augurcap:{name:"The Red Augur",            role:"SMUGGLER CAPTAIN",     img:"helen_morozova",    c:"#ffc266"},
+    you:     {name:"You",                      role:"CAPTAIN · ISV PALEWAKE", img:null,              c:"#5fd8ff"}
+  };
+  // A scene is a list of {who, line}. `who` keys into CAST. Kept short so the
+  // narrative punctuates play without stalling it.
+  var SCENES = {
+    intro: [
+      {who:"halloway", line:"Palewake, this is Halloway. What's left of Fleet Command is me and a relay buoy, so I'll keep it short. The Corsair Pact owns the Verge — every dock, every yard, every lane out."},
+      {who:"halloway", line:"Ironwall Command has the Blackstar Gate sealed behind the dreadnought Iron Verdict. Break their grip on this sector and you break the seal. That's the whole war now, Captain — one corvette."},
+      {who:"solan", line:"Bridge is yours, Captain. Crew's aboard, reactor's warm. Mira Solan — I've got the watch and the bad news, as usual."},
+      {who:"you", line:"Then let's give the Pact some bad news of their own. Plot us out of Haven."}
+    ],
+    firstFight: [
+      {who:"ndala", line:"Contact — Pact colours, weapons hot. They've already tagged us as a target, not a threat."},
+      {who:"katz", line:"Gunnery's live. Read their intent off the plate and answer it — shields when they charge, guns when they don't. I'll put rounds wherever you point."},
+      {who:"solan", line:"First blood in the Verge, Captain. Make it ours."}
+    ],
+    elite: [
+      {who:"drake", line:"This one's an anchor, not a picket — heavier hull, and it hits back. Tactical says pick a subsystem and gut it before it settles into a rhythm."},
+      {who:"grey", line:"Little corvette flying a dead navy's flag. Thomas Grey, Corsair Pact. Strike your colours and I'll only take the ship."},
+      {who:"you", line:"Counter-offer, Grey. You keep talking, and we keep shooting."}
+    ],
+    bounty: [
+      {who:"ndala", line:"That's our bounty on the plate — the Pact wants them dead as much as we do, they just haven't admitted it."},
+      {who:"solan", line:"Bag the captain and we take what's in the hold. Could be a key we can't get any other way."}
+    ],
+    carrier: [
+      {who:"drake", line:"Tender's opening its flight deck — that's a carrier. It'll scramble craft and let them chew us while it hangs back."},
+      {who:"park", line:"Interceptors or focused fire clear the wings, Captain. Let them stack up and it's death by a thousand cuts."}
+    ],
+    boss: [
+      {who:"solan", line:"That's it. HMS Iron Verdict, anchored right on the Gate. Eighty-plus of hull, guns that charge like a siege battery, and a flight deck to boot."},
+      {who:"vale", line:"So the flag still flies. I am Alexander Vale, and this ring is closed by order of Ironwall Command. You've come a long way to die in front of a door, Captain."},
+      {who:"vale", line:"Watch the main gun. When it charges, it does not miss twice."},
+      {who:"you", line:"Then we won't give it a second shot. All hands — this is the one that opens the road home."}
+    ],
+    zoneSecured: [
+      {who:"solan", line:"Zone's clean, Captain. Every hull in it flying our flag now — or flying apart. That's one more piece of the Verge back."},
+      {who:"halloway", line:"Command sees it, Palewake. Keep securing zones and that Gate comes open. You're doing what a whole fleet couldn't."}
+    ],
+    firstVictory: [
+      {who:"park", line:"Engineering's holding — barely, but holding. Nice shooting up there."},
+      {who:"solan", line:"Salvage aboard. We refit at any dock we've liberated — patch the hull, buy schematics, weld on the heavy kit. Pick our next fight carefully and this ends with us on the far side of that Gate."}
+    ],
+    // ---- per-zone antagonist cameos ----
+    greyCorsair: [
+      {who:"grey", line:"Back again, little corvette. You cost me two prize crews at the Tollgate. Thomas Grey does not forget a debt like that."},
+      {who:"solan", line:"He's rallying the whole Expanse to him, Captain. Put him down and the corsairs lose their nerve."},
+      {who:"you", line:"Then let's settle the account, Grey."}
+    ],
+    redAugur: [
+      {who:"augurcap", line:"So you're the flag they're all whispering about. I'm the Red Augur — I sell secrets, I don't hand them over. The cipher you're hunting? Pry it off my cold hull."},
+      {who:"ndala", line:"She's running hot, Captain — whatever's in that hold, the Pact wants it sealed behind the Ironwall. That cipher opens Smuggler's Run. Take her."}
+    ],
+    corelliWall: [
+      {who:"corelli", line:"This is the Ironwall, Captain, and I am Isabella Corelli. Nothing has crossed it in a decade. You will not be the exception."},
+      {who:"drake", line:"Heavy frigates, a dreadnought-calibre gun bolted to a rock. This is where the sector keeps its teeth, Captain."},
+      {who:"you", line:"Walls come down, Admiral. Let's start with yours."}
+    ],
+    ashfordVeil: [
+      {who:"ashford", line:"Julian Ashford, Ironwall Command. You chased ghosts all the way into the Veil. Fitting — out here, no one will even log how you died."},
+      {who:"park", line:"Instruments are lying to us in this soup, Captain. Trust the intent plate, not the stars."}
+    ],
+    locustSwarm: [
+      {who:"drake", line:"That's the Locust Prime — a strip-fleet tender. It'll open its deck, throw everything it has, and pick our bones while it hangs back."},
+      {who:"solan", line:"Kill the flight deck or clear the swarm fast, Captain. Don't let it grind us down a fighter at a time."}
+    ],
+    // ---- other beats ----
+    gateUnsealed: [
+      {who:"ndala", line:"Captain — the Blackstar Gate just lit up. Four zones flying our flag. The seal is broken."},
+      {who:"halloway", line:"You did what a whole fleet couldn't, Palewake. Command's marking the Gate open. Only the Iron Verdict stands between you and the road home now. Go and finish it."}
+    ],
+    firstDock: [
+      {who:"park", line:"Clamps are good, tanks are topping off. First honest dock we've had in a long while — feels strange to breathe."},
+      {who:"solan", line:"Refit while we can, Captain. Patch the hull, wire in new schematics, hire crew, weld on the heavy kit. The far zones won't be this kind."}
+    ],
+    lowHull: [
+      {who:"park", line:"Captain, hull integrity's critical — we're venting atmosphere on three decks! She can't take much more of this!"},
+      {who:"you", line:"Then we end it now, Insu. Everything we've got — put it into them."}
+    ],
+    subCrippled: [
+      {who:"park", line:"That's a system gone, Captain — crippled and dark. Damage control's on it, but we're fighting hurt now. Watch what you lean on."}
+    ]
+  };
+  // Node-specific antagonist cameos: node id -> scene key (each fires once).
+  var NODE_CAMEO = {
+    ambush:"greyCorsair", anchorage:"greyCorsair", tollgate:"greyCorsair",
+    augur:"redAugur",
+    bastion:"corelliWall", anvil:"corelliWall",
+    veilambush:"ashfordVeil", whisper:"ashfordVeil",
+    locust:"locustSwarm"
+  };
+  // ---- commissions (Phase 1): choose your opening doctrine & 10-card deck ---
+  var COMMISSIONS = [
+    {k:"gunline", name:"Gunline Doctrine", glyph:"🜂", c:"#ff8aa0",
+      blurb:"Overwhelming fire. You open fights fast and end them faster — but a thin defense means every trade has to count.",
+      tags:"AGGRESSIVE · WEAPONS",
+      deck:["laser","laser","laser","flak","missile","broadside","lock","divert","divert","patch"]},
+    {k:"bulwark", name:"Bulwark Doctrine", glyph:"⛨", c:"#5fd8ff",
+      blurb:"Outlast and board. Shields soak the storm while your marines cross over and take the ship out from the inside.",
+      tags:"DEFENSIVE · BOARDING",
+      deck:["laser","laser","divert","divert","brace","capacitor","angle","boarding","overcharge","patch"]},
+    {k:"saboteur", name:"Saboteur Doctrine", glyph:"⚡", c:"#b48aff",
+      blurb:"Cripple and dismantle. Knock out their systems, keep your hand flowing, and take a ship that can no longer fight back.",
+      tags:"TEMPO · SUBSYSTEMS",
+      deck:["laser","laser","ion-needle","flak","divert","angle","overcharge","reroute","combat-scan","patch"]}
   ];
   // ---- sector data: zone-based free-travel galactic map --------------------
   // From the "design_handoff_sector_map" bundle, scaled up 3x: 36 systems in
@@ -294,7 +442,8 @@
     {k:"emitters",name:"Shield Emitters",     desc:"+8 shield capacity",                price:35},
     {k:"reactor", name:"Reactor Coils",       desc:"+1 reactor power every turn",       price:50},
     {k:"racks",   name:"Extended Fuel Racks", desc:"+2 fuel cell capacity, filled on install", price:45, isNew:true},
-    {k:"rig",     name:"Salvage Rig",         desc:"+15% salvage from every wreck",     price:55, isNew:true}
+    {k:"rig",     name:"Salvage Rig",         desc:"+15% salvage from every wreck",     price:55, isNew:true},
+    {k:"hangar",  name:"Flight Deck",         desc:"+1 strike-craft squadron capacity", price:48, isNew:true}
   ];
   var DIFFS = {
     standard:{mult:1,  name:"Standard", blurb:"A fair fight. The Verge as intended."},
@@ -377,6 +526,10 @@
     window.addEventListener("keydown", this._onGesture);
     this._onR = function () { self.forceUpdate(); };
     this._onKey = function (e) {
+      if (self.state.dialogue) {
+        if (e.key===" "||e.key==="Enter"||e.key==="ArrowRight") { e.preventDefault(); self.advanceDialogue(); return; }
+        if (e.key==="Escape") { e.preventDefault(); self.endDialogue(); return; }
+      }
       if (e.key === "Escape") { var B=self.state.battle; if (B && B.aiming) { self.cancelAim(); } if (self.hoverCard) { self.hoverLeave(); } }
     };
     // Global mouse-up ends any panning even if released outside the battle area.
@@ -455,10 +608,11 @@
       salvage: (this.config && this.config.startingSalvage != null) ? this.config.startingSalvage : 40,
       current: "haven", sel: null, taken: { haven: true }, gliding: false,
       zoneKeys: {}, yardBought: {}, stationStock: {},
+      seen: {}, securedCount: 0, dialogue: null, commission: null,
       player: { hullMax:64, hull:64, crew:8, crewMax:8, powerBase:3, shieldCap:22, shield:0,
-                fuel:5, fuelMax:5,
+                fuel:5, fuelMax:5, hangarCap:2,
                 subs:{ weapons:100, reactor:100, engines:100 }, ups:{} },
-      deckKeys: ["laser","laser","laser","laser","divert","divert","divert","patch","missile","overcharge"],
+      deckKeys: COMMISSIONS[0].deck.slice(),
       battle:null, base:null, yard:null, evNode:null, end:null, reward:null, cardDetail:null, shakeP:0, shakeE:0
     };
   };
@@ -514,7 +668,26 @@
   };
 
   // ---- battle setup / turn structure -------------------------------------
+  // A one-time narrative beat can precede a battle; play it, then drop in.
   Game.prototype.startBattle = function (node) {
+    var self=this, scene=this.preBattleScene(node);
+    if (scene) this.startDialogue(scene, function(){ self._enterBattle(node); });
+    else this._enterBattle(node);
+  };
+  Game.prototype.preBattleScene = function (node) {
+    var seen=this.state.seen;
+    if (node.type==="boss" && !seen.boss) { seen.boss=true; return SCENES.boss; }
+    if (!seen.firstFight) { seen.firstFight=true; return SCENES.firstFight; }
+    // Named antagonist cameo for this specific system (each fires once).
+    var cam=NODE_CAMEO[node.id];
+    if (cam && !seen["cam_"+cam]) { seen["cam_"+cam]=true; return SCENES[cam]; }
+    var d=ENEMIES[node.enemy];
+    if (d && d.ai==="carrier" && !seen.carrier) { seen.carrier=true; return SCENES.carrier; }
+    if (node.type==="elite" && !seen.elite) { seen.elite=true; return SCENES.elite; }
+    if (node.type==="bounty" && !seen.bounty) { seen.bounty=true; return SCENES.bounty; }
+    return null;
+  };
+  Game.prototype._enterBattle = function (node) {
     var S=this.state, d=ENEMIES[node.enemy];
     var zm=(node.z&&ZBYK[node.z]&&ZBYK[node.z].mult)||1;
     var m=this.diffMult()*((node.type==="elite"||node.type==="bounty")?1.3:1)*(node.type==="boss"?1:zm);
@@ -522,10 +695,13 @@
       node:node, turn:1, busy:false, over:false, lock:0, brace:false, evade:false, aiming:null,
       armour:0, reflect:0, blind:0, overwatch:0, flank:0, sealCrew:false,
       nextPower:0, nextPowerPenalty:0, mines:[], detailUid:null,
-      enemy:{ name:d.name, role:d.role, img:d.img||"ship-09", hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
+      squadrons:[], focus:null,
+      enemy:{ name:d.name, role:d.role, img:d.img||"ship-09", ai:d.ai||"gunline", hullMax:Math.round(d.hull*m), hull:Math.round(d.hull*m),
         shieldCap:d.shieldCap, shield:0, regen:d.regen, crew:d.crew, crewMax:d.crew,
         atkLo:Math.round(d.atkLo*m), atkHi:Math.round(d.atkHi*m), sab:d.sab, boardN:d.boardN,
         boardCh:d.boardCh, shieldAmt:d.shieldAmt, rep:d.rep,
+        fighterDef:d.fighter?{dmg:Math.round(d.fighter.dmg*Math.min(1.5,m)),hp:d.fighter.hp}:null,
+        charged:0, fighters:[],
         subs:{ weapons:100, reactor:100, engines:100 }, intent:null },
       draw:this.sh(S.deckKeys.map(this.mk.bind(this))), hand:[], disc:[], logs:[], floats:[], beams:[], played:null
     };
@@ -566,6 +742,14 @@
     p.power=Math.max(0,this.rp()+(B.nextPower||0)-(B.nextPowerPenalty||0));
     B.nextPower=0; B.nextPowerPenalty=0; B.lock=0; B.brace=false; B.evade=false;
     while (B.hand.length<5 && (B.draw.length||B.disc.length)) this.drawCards(1);
+    this.maybeBattleBeat();
+  };
+  // One-time in-battle story beats, checked at a safe point (the player's turn).
+  Game.prototype.maybeBattleBeat = function () {
+    var S=this.state, B=S.battle, p=S.player; if (!B||B.over||S.dialogue) return;
+    if (!S.seen.lowHull && p.hull>0 && p.hull<p.hullMax*0.3) { S.seen.lowHull=true; this.startDialogue(SCENES.lowHull, null); return; }
+    var worst=Math.min(p.subs.weapons,p.subs.reactor,p.subs.engines);
+    if (!S.seen.subCrippled && worst<=25) { S.seen.subCrippled=true; this.startDialogue(SCENES.subCrippled, null); return; }
   };
   Game.prototype.endTurn = function () {
     var B=this.state.battle; if (!B||B.busy||B.over||B.aiming) return;
@@ -577,28 +761,39 @@
     var S=this.state, B=S.battle; if (!B||B.over) return;
     var e=B.enemy, p=S.player, it=e.intent; var self=this;
     this.log("#5a6d8f","— "+e.name+" acts —",true);
+    // (1) Your strike craft act first — fighters strafe, bombers count down / run in.
+    this.resolvePlayerSquadrons();
+    if (this.checkEnd()) return;
     var reg=Math.round(e.regen*e.subs.engines/100);
     if (reg>0) e.shield=this.cl(e.shield+reg,0,e.shieldCap);
-    if (it.type==="attack") {
+    // (2) The enemy resolves its telegraphed intent.
+    if (it.type==="attack" || it.type==="salvo") {
       if (B.evade) { this.log("#9fdcff","Evasive burn — you slip the volley. No damage."); }
       else {
         var d=Math.round(it.value*this.wm(e.subs));
         if (B.blind) { d=Math.max(0,d-B.blind); this.log("#9fdcff","Sensor ghost spoils their aim (-"+B.blind+" damage)."); B.blind=0; }
         if (B.brace) { d=Math.ceil(d/2); this.log("#9fdcff","Brace cuts the hit in half."); }
-        // enemy weapon fire — a distinct (red) bolt + sound, impact on the player ship
         this.enemyFire();
         var r=this.dealDamage("p",d,false);
-        this.log("#ff8aa0","Fire rakes your ship — "+(r.abs?r.abs+" to shields, ":"")+(r.arm?r.arm+" to armour, ":"")+r.toHull+" to hull.");
+        this.log("#ff8aa0",(it.type==="salvo"?"The charged salvo lands — ":"Fire rakes your ship — ")+(r.abs?r.abs+" to shields, ":"")+(r.arm?r.arm+" to armour, ":"")+r.toHull+" to hull.");
         if (it.sab) { var nm=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm,it.sab); this.log("#ff8aa0","Their gunners smash your "+nm.toUpperCase()+" (-"+it.sab+")."); }
         if (B.reflect) { var ref=B.reflect; B.reflect=0; this.dealDamage("e",ref,true); this.log("#9fdcff","Reflective screen returns "+ref+" damage."); }
         if (B.overwatch) { var ow=B.overwatch; B.overwatch=0; this.dealDamage("e",ow,false); this.log("#9fdcff","Overwatch counterfires for "+ow+"."); }
       }
+    } else if (it.type==="charge") {
+      e.charged=it.value; this.log("#ff8aa0",e.name+" floods its main gun — a "+it.value+"-damage salvo fires next turn. Break its weapons or its reactor to spoil the shot.");
+    } else if (it.type==="launch") {
+      var fd=e.fighterDef||{dmg:5,hp:2}, n=Math.max(0,Math.min(it.value||2, 3-e.fighters.length));
+      for (var fi=0;fi<n;fi++) e.fighters.push({ id:this.fid(), dmg:fd.dmg, hp:fd.hp });
+      if (n>0) this.log("#ff8aa0",e.name+" scrambles "+n+" fighter"+(n>1?"s":"")+" from its flight deck. Clear them with interceptors or point-defense.");
     } else if (it.type==="shield") { e.shield=this.cl(e.shield+it.value,0,e.shieldCap); this.log("#ff8aa0",e.name+" reinforces its shields (+"+it.value+")."); }
     else if (it.type==="board") {
       if (B.sealCrew) { B.sealCrew=false; this.log("#9fdcff","Sealed bulkheads stop the boarding assault."); }
       else { p.crew=this.cl(p.crew-it.value,0,p.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtPlayerSub(nm2,10); S.shakeP++; this.log("#ff8aa0","Boarders storm your decks — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
     }
     else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
+    // (3) Any enemy fighters already aloft strafe your hull.
+    this.resolveEnemyFighters();
     if (B.mines.length) {
       var mineTotal=B.mines.reduce(function(sum,n){return sum+n;},0); B.mines=[];
       this.dealDamage("e",mineTotal,false); this.log("#9fdcff","Planted mines detonate for "+mineTotal+" damage.");
@@ -607,12 +802,68 @@
     if (this.checkEnd()) return;
     setTimeout(function(){ var b=self.state.battle; if(!b||b.over)return; self.chooseIntent(); b.turn++; b.busy=false; self.startPlayerTurn(); self.forceUpdate(); },600);
   };
+  // Player squadrons resolve at the top of the enemy phase.
+  Game.prototype.resolvePlayerSquadrons = function () {
+    var B=this.state.battle, e=B.enemy; if (!B.squadrons.length) return; var self=this;
+    var keep=[];
+    B.squadrons.forEach(function(sq){
+      if (sq.kind==="fighter") {
+        var dmg=Math.round(sq.dmg*self.wm(self.state.player.subs));
+        self.dealDamage("e",dmg,false); self.log("#9fdcff","Your fighter wing strafes "+e.name+" for "+dmg+".");
+        sq.turns--; if (sq.turns>0) keep.push(sq);
+        else self.log("#b3c4de","Fighter wing is Winchester — returning to the hangar.");
+      } else if (sq.kind==="bomber") {
+        sq.delay--;
+        if (sq.delay<=0) {
+          var t=B.focus||self.bestSub(e.subs);
+          self.dealDamage("e",sq.dmg,true); e.subs[t]=self.cl(e.subs[t]-(sq.sab||0),0,100);
+          self.log("#9fdcff","Bombers run in — "+sq.dmg+" straight to hull and "+t.toUpperCase()+" gutted (-"+(sq.sab||0)+").");
+        } else { keep.push(sq); self.log("#b3c4de","Bombers line up their run..."); }
+      }
+    });
+    B.squadrons=keep;
+  };
+  // Enemy fighters strafe the player, then passive point-defense splashes one.
+  Game.prototype.resolveEnemyFighters = function () {
+    var B=this.state.battle, e=B.enemy, p=this.state.player; if (!e.fighters.length) return;
+    // Healthy engines throw up a tighter flak screen — one strafing run is stopped cold.
+    var pd = p.subs.engines>=60 ? 1 : 0;
+    var runners=e.fighters.slice(pd);
+    var total=runners.reduce(function(s,f){return s+f.dmg;},0);
+    if (total>0) { this.dealDamage("p",total,false); this.state.shakeP++; this.log("#ff8aa0","Enemy fighters strafe your hull for "+total+"."); }
+    // Point-defense splashes one whole fighter each turn.
+    if (e.fighters.length) { e.fighters.shift(); this.log("#9fdcff","Point-defense splashes an enemy fighter."+(pd?" Flak screen blunts the rest.":"")); }
+  };
+  // Archetype-driven intent with multi-turn telegraphs and subsystem gating.
   Game.prototype.chooseIntent = function () {
     var B=this.state.battle, e=B.enemy, p=this.state.player, o=[]; var self=this;
-    o.push({ w:5, m:function(){ return { type:"attack", value:self.ri(e.atkLo,e.atkHi), sab:Math.random()<e.sab?self.ri(12,22):0 }; } });
-    if (e.shield<e.shieldCap*.4) o.push({ w:2, m:function(){ return { type:"shield", value:e.shieldAmt }; } });
-    if (e.boardCh && p.crew>0) o.push({ w:e.boardCh*10, m:function(){ return { type:"board", value:e.boardN }; } });
-    if (e.rep && (e.hull<e.hullMax*.55 || Math.min(e.subs.weapons,e.subs.reactor,e.subs.engines)<50)) o.push({ w:e.rep*10, m:function(){ return { type:"repair", value:self.ri(8,14) }; } });
+    // A charged main gun overrides everything — it fires this turn.
+    if (e.charged>0) { var v=e.charged; e.charged=0; e.intent={ type:"salvo", value:v, sab:Math.random()<e.sab?self.ri(10,18):0 }; return; }
+    var ai=e.ai||"gunline";
+    var lowHull=e.hull<e.hullMax*.5;
+    var canPower=e.subs.reactor>=35;   // crippled reactor can't charge or launch
+    // Base attack — always available.
+    var atkW = ai==="raider"?7 : ai==="warden"?3 : 5;
+    if (ai==="zealot" && lowHull) atkW+=4;
+    o.push({ w:atkW, m:function(){
+      var base=self.ri(e.atkLo,e.atkHi);
+      if (ai==="zealot" && lowHull) base=Math.round(base*1.3);   // fights harder as it dies
+      return { type:"attack", value:base, sab:Math.random()<e.sab?self.ri(12,22):0 };
+    } });
+    // Charged heavy shot — gunlines and the dreadnought, needs reactor.
+    if ((ai==="gunline"||ai==="dread") && canPower) o.push({ w:ai==="dread"?5:4, m:function(){
+      return { type:"charge", value:Math.round(self.ri(e.atkHi+3,e.atkHi+9)*(ai==="dread"?1.12:1)) };
+    } });
+    // Scramble fighters — carriers and the dreadnought, if they have deck space.
+    if ((ai==="carrier"||ai==="dread") && e.fighterDef && canPower && e.fighters.length<3)
+      o.push({ w:ai==="carrier"?6:3, m:function(){ return { type:"launch", value:ai==="dread"?2:self.ri(1,2) }; } });
+    // Shields when exposed — wardens value it most.
+    if (e.shield<e.shieldCap*.4) o.push({ w:ai==="warden"?4:2, m:function(){ return { type:"shield", value:e.shieldAmt }; } });
+    // Board — raiders and heavies love it.
+    if (e.boardCh && p.crew>0) o.push({ w:e.boardCh*10*(ai==="raider"?1.5:1), m:function(){ return { type:"board", value:e.boardN }; } });
+    // Damage control — wardens and reppers when hurt.
+    if (e.rep && (lowHull || Math.min(e.subs.weapons,e.subs.reactor,e.subs.engines)<50))
+      o.push({ w:e.rep*10*(ai==="warden"?1.6:1), m:function(){ return { type:"repair", value:self.ri(8,14) }; } });
     var tot=o.reduce(function(s,x){return s+x.w;},0); var r=Math.random()*tot, c=o[0];
     for (var i=0;i<o.length;i++){ r-=o[i].w; if (r<=0){ c=o[i]; break; } }
     e.intent=c.m();
@@ -627,6 +878,9 @@
     var c=B.hand[i];
     if (c.cost>S.player.power) return;
     if (c.needCrew && S.player.crew<c.needCrew) { this.log("#b3c4de","Not enough crew to man "+c.name+"."); this.forceUpdate(); return; }
+    if (c.strike && (c.strike.kind==="fighter"||c.strike.kind==="bomber") && B.squadrons.length>=S.player.hangarCap) {
+      this.log("#b3c4de","Hangar is full — no free bay to launch "+c.name+"."); this.forceUpdate(); return;
+    }
     // Weapons are aimed by hand: enter targeting mode instead of resolving now.
     if (c.type==="weapon") { this.beginAim(c); return; }
     S.player.power-=c.cost; B.hand.splice(i,1); this.restoreCardCost(c); B.disc.push(c);
@@ -651,6 +905,12 @@
       if (c.sab) { e.subs.reactor=this.cl(e.subs.reactor-c.sab,0,100); this.log("#9fdcff","Their REACTOR loses "+c.sab+" integrity."); }
       if (c.sabEngine) { e.subs.engines=this.cl(e.subs.engines-c.sabEngine,0,100); this.log("#9fdcff","Their ENGINES lose "+c.sabEngine+" integrity."); }
       if (c.sabAll) { Object.keys(e.subs).forEach(function(k){e.subs[k]=Math.max(0,e.subs[k]-c.sabAll);}); this.log("#9fdcff","EMP shocks every enemy subsystem (-"+c.sabAll+")."); }
+      // Called shot: a focused subsystem takes extra integrity damage from weapons.
+      if (B.focus && c.type==="weapon" && (tot>0||absTot>0)) {
+        var cs=this.cl(Math.round((tot+absTot*0.5)*0.4),3,26);
+        e.subs[B.focus]=this.cl(e.subs[B.focus]-cs,0,100);
+        this.log("#9fdcff","Called shot chews their "+B.focus.toUpperCase()+" (-"+cs+").");
+      }
     }
     if (c.mine) { B.mines.push(c.mine); this.log("#9fdcff","Mine armed — "+c.mine+" damage after the enemy acts."); }
     if (c.selfHull) { p.hull=this.cl(p.hull-c.selfHull,0,p.hullMax); this.addFloat("p","-"+c.selfHull,"#ff8aa0"); S.shakeP++; this.log("#b3c4de","Ramming costs "+c.selfHull+" hull."); }
@@ -686,7 +946,25 @@
       if (c.sabWorst) { var ew=this.worstSub(e.subs); e.subs[ew]=this.cl(e.subs[ew]-c.sabWorst,0,100); this.log("#c4d2ea",ew.toUpperCase()+" sabotaged (-"+c.sabWorst+")."); }
       this.log("#c4d2ea", c.name+" — enemy crew -"+c.eCrew+", yours -"+(c.sCrew||0)+".");
     }
+    if (c.strike) this.launchStrike(c.strike);
     delete c._flank; delete c._flankBonus;
+  };
+  // Resolve a strike-craft card: field a squadron or scramble a defensive screen.
+  Game.prototype.launchStrike = function (st) {
+    var B=this.state.battle, p=this.state.player, e=B.enemy;
+    if (st.kind==="fighter") { B.squadrons.push({ id:this.fid(), kind:"fighter", dmg:st.dmg, turns:st.turns }); this.log("#9fdcff","Fighter wing away — strafing "+st.dmg+" per enemy turn for "+st.turns+" turns."); }
+    else if (st.kind==="bomber") { B.squadrons.push({ id:this.fid(), kind:"bomber", dmg:st.dmg, delay:st.delay, sab:st.sab }); this.log("#9fdcff","Bombers launched — torpedo run in "+st.delay+" turn"+(st.delay>1?"s":"")+"."); }
+    else if (st.kind==="defense") {
+      if (st.clear) { var n=e.fighters.length; e.fighters=[]; this.log(n?"#9fdcff":"#b3c4de", n?("Interceptors splash "+n+" enemy fighter"+(n>1?"s":"")+"."):"Interceptors sweep — no enemy craft aloft."); }
+      if (st.shield) { p.shield=this.cl(p.shield+st.shield,0,p.shieldCap); this.log("#9fdcff","Interceptor screen adds +"+st.shield+" shields."); }
+    }
+  };
+  // Called-shot focus: cycle which enemy subsystem your gunners aim to cripple.
+  Game.prototype.setFocus = function (nm) {
+    var B=this.state.battle; if (!B||B.over) return;
+    B.focus = (B.focus===nm) ? null : nm;
+    this.log("#9fdcff", B.focus ? ("Gunnery focusing fire on their "+nm.toUpperCase()+".") : "Gunnery back to hull fire.");
+    this.forceUpdate();
   };
 
   // ---- manual weapon aiming ----------------------------------------------
@@ -911,7 +1189,15 @@
     // liberated ports top the tanks off the moment their docks change hands
     if (node.type==="station"||node.type==="shipyard"||node.type==="repair") p.fuel=p.fuelMax;
     this.setMusicScene("ambient", true);   // the theme starts anew after combat
+    // Narrative beats: first victory, gate unsealed, then whenever a zone falls.
+    var zsec=this.zonesSecured();
+    var scene=null;
+    if (!S.seen.firstVictory) { S.seen.firstVictory=true; scene=SCENES.firstVictory; }
+    else if (zsec>=GATE_ZONES_REQ && !S.seen.gateUnsealed) { S.seen.gateUnsealed=true; scene=SCENES.gateUnsealed; }
+    else if (zsec>(S.securedCount||0)) scene=SCENES.zoneSecured;
+    S.securedCount=zsec;
     this.forceUpdate();
+    if (scene) this.startDialogue(scene, null);
   };
 
   // ---- map navigation (free travel over the zone graph) -------------------
@@ -988,7 +1274,16 @@
     }, 1450);
   };
   Game.prototype.dockCurrent = function () {
-    var S=this.state, n=NBYID[S.current]; if (!n||S.gliding) return;
+    var S=this.state, n=NBYID[S.current], self=this; if (!n||S.gliding) return;
+    var dockable = n.type==="shipyard"||n.type==="home"||n.type==="station"||n.type==="repair";
+    // First honest dock of the run gets a beat, then opens the port.
+    if (dockable && n.type!=="home" && !S.seen.firstDock) {
+      S.seen.firstDock=true; this.startDialogue(SCENES.firstDock, function(){ self._doDock(n); }); return;
+    }
+    this._doDock(n);
+  };
+  Game.prototype._doDock = function (n) {
+    var S=this.state;
     if (n.type==="shipyard") { S.yard={ node:n }; S.screen="yard"; this.forceUpdate(); }
     else if (n.type==="home"||n.type==="station") this.openBase(n);
     else if (n.type==="repair") { S.overlay="dock"; this.forceUpdate(); }
@@ -1049,6 +1344,7 @@
     if (k==="emitters") p.shieldCap+=8;
     if (k==="reactor") p.powerBase+=1;
     if (k==="racks") { p.fuelMax+=2; p.fuel+=2; }
+    if (k==="hangar") p.hangarCap+=1;
     // rig lives on the ups record and is applied to salvage in victory()
     this.forceUpdate();
   };
@@ -1065,19 +1361,53 @@
   Game.prototype.depart = function () { var S=this.state; S.base=null; S.screen="map"; this.forceUpdate(); };
 
   // ---- overlays / meta ----------------------------------------------------
-  Game.prototype.closeBrief = function () { this.state.overlay=null; this.forceUpdate(); };
+  Game.prototype.closeBrief = function () {
+    var self=this, S=this.state; S.overlay=null;
+    if (!S.seen.intro) { S.seen.intro=true; this.startDialogue(SCENES.intro, null); }
+    else this.forceUpdate();
+  };
   Game.prototype.inspectCard = function (key) { this.state.cardDetail=LIB[key]||null; this.forceUpdate(); };
   Game.prototype.closeCardDetail = function () { this.state.cardDetail=null; this.forceUpdate(); };
   Game.prototype.restart = function () { this.setState(this.freshRun()); };
+
+  // ---- dialogue engine (Phase 2) ------------------------------------------
+  // A scene is a list of {who, line}. `after` (kept off state so it can be a
+  // function) fires when the scene is dismissed — used to gate battles behind
+  // their pre-fight beat.
+  Game.prototype.startDialogue = function (scene, after) {
+    if (!scene || !scene.length) { if (after) after(); return; }
+    this.dlgAfter = after || null;
+    this.state.dialogue = { lines: scene, i: 0 };
+    this.forceUpdate();
+  };
+  Game.prototype.advanceDialogue = function () {
+    var d=this.state.dialogue; if (!d) return;
+    if (d.i >= d.lines.length-1) this.endDialogue();
+    else { d.i++; this.forceUpdate(); }
+  };
+  Game.prototype.endDialogue = function () {
+    this.state.dialogue=null; var a=this.dlgAfter; this.dlgAfter=null;
+    this.forceUpdate(); if (a) a();
+  };
+
+  // ---- commissions (Phase 1) ----------------------------------------------
+  Game.prototype.pickCommission = function (k) {
+    var S=this.state, com=null;
+    for (var i=0;i<COMMISSIONS.length;i++) if (COMMISSIONS[i].k===k) com=COMMISSIONS[i];
+    if (!com) return;
+    S.commission=k; S.deckKeys=com.deck.slice();
+    S.overlay="brief"; this.forceUpdate();
+  };
 
   // ---- title screen -------------------------------------------------------
   Game.prototype.setDifficulty = function (d) { this.config.difficulty = d; this.forceUpdate(); };
   Game.prototype.toggleScanlines = function () { this.config.scanlines = !this.config.scanlines; this.forceUpdate(); };
   Game.prototype.beginRun = function () {
     // Fresh run seeded with the chosen config, then drop the player onto the
-    // sector chart with the tactical briefing raised.
+    // sector chart with the commission picker raised (deck chosen there),
+    // followed by the tactical briefing and the opening dialogue.
     var run = this.freshRun();
-    run.screen = "map"; run.overlay = "brief";
+    run.screen = "map"; run.overlay = "commission";
     this.setState(run);
   };
 
@@ -1086,16 +1416,19 @@
     return html`<img src=${"assets/cards/"+key+".png"} alt="" style="width:100%;height:84px;object-fit:cover;display:block;border-bottom:1px solid #1a2942" />`;
   };
   Game.prototype.shipAnim = function (n) { return n ? (n%2 ? "shakeA .35s" : "shakeB .35s") : "none"; };
-  Game.prototype.subsView = function (sh) {
+  Game.prototype.subsView = function (sh, side, focus) {
     var self=this;
     return ["weapons","reactor","engines"].map(function(nm){
       var v=sh.subs[nm], st = v<=25?"crit":v<=55?"warn":"ok";
+      var focusable = side==="e" && !!(self.state.battle && !self.state.battle.over);
       return {
-        lab:nm.toUpperCase(), val:v,
+        lab:nm.toUpperCase(), val:v, nm:nm, side:side||"p",
+        focusable:focusable, focused: side==="e" && focus===nm,
         col: st==="crit"?"#ff8aa0":st==="warn"?"#ffc266":"#7d92b5",
         bd:  st==="crit"?"#ff5470":st==="warn"?"#6b5a33":"#1b2a45",
         bar: st==="crit"?"linear-gradient(90deg,#c23a55,#ff8aa0)":st==="warn"?"linear-gradient(90deg,#b3813a,#ffc266)":"linear-gradient(90deg,#1e6f94,#4fd8ff)",
-        fx: self.subFx(nm,v)
+        fx: self.subFx(nm,v),
+        click: focusable ? function(ev){ if(ev&&ev.stopPropagation)ev.stopPropagation(); self.setFocus(nm); } : undefined
       };
     });
   };
@@ -1104,15 +1437,38 @@
   };
 
   // ============ card-face fragment (hand / shop / reward / played) ==========
+  var TYPE_COL = { weapon:"#ff8aa0", shield:"#5fd8ff", repair:"#7cf0c0", power:"#ffc266",
+    tactic:"#b48aff", boarding:"#ffb0c0", strike:"#8deaff" };
+  Game.prototype.hasArt = function (c) { return c && c.art!==false; };
   Game.prototype.cardFace = function (c) {
     var self=this;
+    var face = this.hasArt(c)
+      ? html`<img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name+": "+c.summary} title=${c.text}
+          style="width:100%;height:auto;display:block;pointer-events:none" />`
+      : this.cardFaceProc(c);
     return html`
-      <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name+": "+c.summary} title=${c.text}
-        style="width:100%;height:auto;display:block;pointer-events:none" />
+      ${face}
       ${c.baseCost!=null ? html`<span style=${"position:absolute;left:8px;top:7px;z-index:4;width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:#08101d;border:2px solid #65e4ff;color:#fff;font-family:"+MONO+";font-weight:700;box-shadow:0 0 12px #4fd8ffaa"}>${c.cost}</span>` : null}
       <button aria-label=${"View "+c.name+" details"} title="View full card details"
         onClick=${function(e){ e.stopPropagation(); self.inspectCard(c.key); }}
         style=${"position:absolute;right:5px;top:5px;z-index:3;width:24px;height:24px;border-radius:50%;border:1px solid #6b7f9f;background:#07101ddd;color:#dcecff;font-family:"+MONO+";font-size:13px;cursor:pointer;display:grid;place-items:center;padding:0"}>i</button>`;
+  };
+  // Procedural face for cards that ship without bespoke PNG art (e.g. strike craft).
+  Game.prototype.cardFaceProc = function (c) {
+    var col = TYPE_COL[c.type] || "#9fb4d6";
+    return html`
+      <div style=${"width:100%;height:100%;min-height:222px;display:flex;flex-direction:column;pointer-events:none;background:linear-gradient(180deg,#0e1728,#070b14)"}>
+        <div style=${"display:flex;align-items:center;gap:8px;padding:9px 12px 8px;border-bottom:1px solid "+col+"44;background:linear-gradient(180deg,"+col+"22,transparent)"}>
+          <span style=${"width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#08101d;border:2px solid "+col+";color:#fff;font-family:"+MONO+";font-weight:700;font-size:13px;flex:0 0 auto"}>${c.cost}</span>
+          <span style=${"font-family:"+MONO+";font-size:9.5px;letter-spacing:.16em;color:"+col+";text-transform:uppercase"}>${c.type}</span>
+        </div>
+        <div style=${"flex:1;display:grid;place-items:center;font-size:58px;color:"+col+";text-shadow:0 0 22px "+col+"66;padding:6px"}>${c.glyph||"◆"}</div>
+        <div style="padding:0 12px 12px">
+          <div style="font-weight:600;font-size:15px;color:#eaf2ff;line-height:1.1;margin-bottom:4px">${c.name}</div>
+          <div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.1em;color:"+col+";margin-bottom:7px"}>${c.summary||""}</div>
+          <div style="font-size:11.5px;line-height:1.4;color:#8fa3c4">${c.text}</div>
+        </div>
+      </div>`;
   };
 
   Game.prototype.renderCardDetail = function (c) {
@@ -1120,7 +1476,9 @@
     return html`<div onClick=${function(){self.closeCardDetail();}}
       style="position:absolute;inset:0;z-index:90;background:#000000df;backdrop-filter:blur(5px);display:grid;place-items:center;padding:24px">
       <div onClick=${function(e){e.stopPropagation();}} style="max-width:680px;width:100%;display:flex;gap:24px;align-items:center;border:1px solid #334b70;border-radius:12px;background:linear-gradient(180deg,#111a2b,#070b14);padding:22px;box-shadow:0 28px 90px #000">
-        <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:264px;height:336px;object-fit:contain;flex:0 0 auto" />
+        ${this.hasArt(c)
+          ? html`<img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:264px;height:336px;object-fit:contain;flex:0 0 auto" />`
+          : html`<div style="width:264px;height:336px;flex:0 0 auto;border:1px solid #22345a;border-radius:8px;overflow:hidden;position:relative">${this.cardFaceProc(c)}</div>`}
         <div style="min-width:0;flex:1">
           <div style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.2em;color:#7d92b5;text-transform:uppercase"}>${c.type+" · COST "+c.cost}</div>
           <h2 style="font-size:30px;line-height:1.05;margin:10px 0;color:#fff">${c.name}</h2>
@@ -1169,8 +1527,10 @@
       ${S.overlay==="deckview" ? this.renderDeckView() : null}
       ${S.overlay==="shipview" ? this.renderShipView() : null}
       ${S.overlay==="codex" ? this.renderCodex() : null}
+      ${S.overlay==="commission" ? this.renderCommission() : null}
       ${this.hoverCard ? this.renderHoverPanel(this.hoverCard) : null}
       ${S.cardDetail ? this.renderCardDetail(S.cardDetail) : null}
+      ${S.dialogue ? this.renderDialogue() : null}
     </div>`;
   };
 
@@ -1344,6 +1704,11 @@
             <span style=${"font-size:20px;color:"+v.inBd}>${v.inIco}</span>
             <span style="font-size:15px"><b style="font-weight:600;letter-spacing:.03em;color:#ffffff">${v.inTxt}</b><span style=${"display:block;font-family:"+MONO+";font-size:11px;color:#7d92b5;letter-spacing:.05em;margin-top:2px"}>${v.inSub}</span></span>
           </div>` : null}
+        ${v.efighters>0 ? html`
+          <div style="border:1px solid #6b5a33;border-left:3px solid #ffc266;background:#0d0b06d9;border-radius:4px;padding:8px 12px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:17px;color:#ffc266">⟡</span>
+            <span style=${"font-family:"+MONO+";font-size:12px;color:#ffc266;letter-spacing:.06em"}>${v.efighters} ENEMY FIGHTER${v.efighters>1?"S":""} ALOFT — strafing your hull each turn</span>
+          </div>` : null}
       </div>
 
       <!-- player plate -->
@@ -1356,6 +1721,16 @@
         <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HULL</span><span style=${"font-family:"+MONO+";font-size:13px"}>${v.pHullTxt}</span></div>
         <div style="height:12px;border:1px solid #2c4066;border-radius:2px;background:#000000;overflow:hidden;margin:4px 0 9px"><div style=${"height:100%;width:"+v.pHullPct+"%;background:"+v.pHullBg+";transition:width .35s"}></div></div>
         <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;font-weight:600;letter-spacing:.18em;color:#7d92b5">CREW</span><span style=${"font-family:"+MONO+";font-size:13px;color:#c4d2ea"}>${v.pCrewTxt}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:9px;border-top:1px solid #14203a;padding-top:9px"><span style="font-size:11px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HANGAR</span><span style=${"font-family:"+MONO+";font-size:11px;color:#5f7396"}>${v.hangarCap} BAYS</span></div>
+        <div style="display:flex;gap:6px;margin-top:7px">
+          ${v.squadrons.map(function(sq){
+            return html`<div style=${"flex:1;border:1px solid "+(sq.empty?"#1b2a45":sq.col+"66")+";border-radius:4px;background:"+(sq.empty?"#070b14":"#0c1626")+";padding:6px 7px;text-align:center"}>
+              <div style=${"font-size:15px;color:"+sq.col}>${sq.ico}</div>
+              <div style=${"font-family:"+MONO+";font-size:8.5px;letter-spacing:.08em;color:"+(sq.empty?"#33465f":sq.col)+";margin-top:2px"}>${sq.txt}</div>
+              <div style=${"font-family:"+MONO+";font-size:8.5px;color:#5f7396;margin-top:1px"}>${sq.sub}</div>
+            </div>`;
+          })}
+        </div>
       </div>
 
       <!-- HAND BAR -->
@@ -1399,7 +1774,9 @@
   Game.prototype.renderHoverPanel = function (c) {
     return html`
     <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);width:300px;z-index:55;border:1px solid #334b70;border-radius:10px;background:linear-gradient(180deg,#111a2be8,#070b14f2);box-shadow:0 20px 60px #000c;backdrop-filter:blur(3px);overflow:hidden;pointer-events:none;animation:hoverfade .15s ease-out both">
-      <img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:100%;height:auto;display:block;border-bottom:1px solid #1b2a45" />
+      ${this.hasArt(c)
+        ? html`<img src=${"assets/cards/full/"+c.key+".png"} alt=${c.name} style="width:100%;height:auto;display:block;border-bottom:1px solid #1b2a45" />`
+        : html`<div style="position:relative;height:300px;border-bottom:1px solid #1b2a45">${this.cardFaceProc(c)}</div>`}
       <div style="padding:13px 16px 16px">
         <div style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.2em;color:#7d92b5;text-transform:uppercase"}>${c.type+" · COST "+c.cost}</div>
         <div style="font-weight:600;font-size:20px;color:#fff;margin:5px 0 3px">${c.name}</div>
@@ -1496,11 +1873,13 @@
   };
 
   Game.prototype.renderSub = function (s) {
+    var bd = s.focused ? "#ffd24a" : s.bd;
     return html`
-    <div style=${"flex:1;border:1px solid "+s.bd+";border-radius:4px;background:#0a101ce6;padding:8px 11px"}>
-      <div style=${"display:flex;justify-content:space-between;font-size:12px;letter-spacing:.14em;font-weight:600;text-transform:uppercase;color:"+s.col}><span>${s.lab}</span><span style=${"font-family:"+MONO+";font-weight:400"}>${s.val}</span></div>
+    <div onClick=${s.click} title=${s.focusable?(s.focused?"Focused — click to stop focusing "+s.lab:"Click to focus gunnery on "+s.lab):undefined}
+      style=${"flex:1;border:1px solid "+bd+";border-radius:4px;background:"+(s.focused?"#1a1607e6":"#0a101ce6")+";padding:8px 11px;cursor:"+(s.focusable?"pointer":"default")+";box-shadow:"+(s.focused?"0 0 14px #ffd24a55":"none")+";position:relative"}>
+      <div style=${"display:flex;justify-content:space-between;font-size:12px;letter-spacing:.14em;font-weight:600;text-transform:uppercase;color:"+(s.focused?"#ffd24a":s.col)}><span>${(s.focused?"◎ ":"")+s.lab}</span><span style=${"font-family:"+MONO+";font-weight:400"}>${s.val}</span></div>
       <div style="height:6px;background:#000000;border-radius:2px;margin-top:6px;overflow:hidden"><div style=${"height:100%;width:"+s.val+"%;background:"+s.bar+";transition:width .3s"}></div></div>
-      <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:5px"}>${s.fx}</div>
+      <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:5px"}>${s.focused?"CALLED-SHOT TARGET":s.fx}</div>
     </div>`;
   };
 
@@ -1875,6 +2254,82 @@
   };
 
   // ----------------------------- OVERLAYS ----------------------------------
+  // ---- portrait + dialogue (Phase 2) --------------------------------------
+  Game.prototype.renderPortrait = function (sp, size) {
+    var s=size||96, hgt=Math.round(s*1.28);
+    if (!sp.img) {
+      return html`<div style=${"width:"+s+"px;height:"+hgt+"px;flex:0 0 auto;border:2px solid "+sp.c+";border-radius:8px;background:radial-gradient(circle at 50% 35%,#12314a,#070b14);display:grid;place-items:center;box-shadow:0 0 22px "+sp.c+"44"}>
+        <span style=${"font-size:"+Math.round(s*0.4)+"px;color:"+sp.c+";text-shadow:0 0 16px "+sp.c}>✷</span>
+      </div>`;
+    }
+    // The source portraits carry a small number caption on the bottom edge — clip
+    // it by giving the image its natural aspect and hiding the overflow.
+    return html`<div style=${"width:"+s+"px;height:"+hgt+"px;flex:0 0 auto;border:2px solid "+sp.c+";border-radius:8px;box-shadow:0 0 22px "+sp.c+"44;background:#070b14;overflow:hidden"}>
+      <img src=${"assets/crew/"+sp.img+".png"} alt=${sp.name}
+        style=${"width:100%;display:block;object-fit:cover;object-position:center top"}/>
+    </div>`;
+  };
+  Game.prototype.renderDialogue = function () {
+    var self=this, d=this.state.dialogue; if (!d) return null;
+    var line=d.lines[d.i], sp=CAST[line.who]||CAST.you;
+    return html`
+    <div onClick=${function(){ self.advanceDialogue(); }}
+      style="position:absolute;inset:0;z-index:95;background:linear-gradient(180deg,#00000055,#000000cc);backdrop-filter:blur(2px);display:flex;flex-direction:column;justify-content:flex-end;padding:0 0 34px;cursor:pointer">
+      <div style="max-width:940px;width:calc(100% - 48px);margin:0 auto;display:flex;gap:20px;align-items:flex-end">
+        ${this.renderPortrait(sp, 150)}
+        <div style=${"flex:1;min-width:0;border:1px solid "+sp.c+"66;border-left:3px solid "+sp.c+";border-radius:10px;background:linear-gradient(180deg,#0d1626f2,#070b14fa);box-shadow:0 22px 60px #000d;padding:16px 22px 18px"}>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:9px">
+            <span style=${"font-weight:700;font-size:19px;color:"+sp.c}>${sp.name}</span>
+            <span style=${"font-family:"+MONO+";font-size:10.5px;letter-spacing:.16em;color:#7d92b5"}>${sp.role}</span>
+          </div>
+          <p style="margin:0;font-size:17px;line-height:1.55;color:#e4edfb">${line.line}</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+            <span style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.14em;color:#5f7396"}>${(d.i+1)+" / "+d.lines.length} · CLICK OR SPACE ▸</span>
+            <button onClick=${function(e){ e.stopPropagation(); self.endDialogue(); }}
+              style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.14em;color:#8fa3c4;background:none;border:1px solid #2c4066;border-radius:4px;padding:6px 14px;cursor:pointer"}>SKIP ▸</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  };
+  // ---- commission picker (Phase 1) ----------------------------------------
+  Game.prototype.renderCommission = function () {
+    var self=this;
+    return html`
+    <div style="position:absolute;inset:0;background:#000000e0;backdrop-filter:blur(4px);display:grid;place-items:center;z-index:52;padding:20px;overflow:auto">
+      <div style="max-width:920px;width:100%">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.26em;color:#5f7396"}>CHOOSE YOUR COMMISSION</div>
+          <div style="font-weight:700;letter-spacing:.06em;font-size:30px;color:#ffffff;margin-top:4px">How does the Palewake fight?</div>
+          <div style="font-size:14px;color:#8fa3c4;margin-top:8px">Your doctrine sets your opening ten-card deck. You can reshape it at any liberated dock.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px">
+          ${COMMISSIONS.map(function(com){
+            return html`
+            <div key=${com.k} onClick=${function(){ self.pickCommission(com.k); }}
+              class="hf-reward-card"
+              style=${"border:1px solid "+com.c+"55;border-top:3px solid "+com.c+";border-radius:10px;background:linear-gradient(180deg,#101a2b,#070b14);padding:18px 18px 20px;cursor:pointer;display:flex;flex-direction:column"}>
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                <span style=${"font-size:34px;color:"+com.c+";text-shadow:0 0 18px "+com.c+"88"}>${com.glyph}</span>
+                <div>
+                  <div style="font-weight:700;font-size:19px;color:#eaf2ff">${com.name}</div>
+                  <div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.14em;color:"+com.c}>${com.tags}</div>
+                </div>
+              </div>
+              <p style="margin:0 0 14px;font-size:13.5px;line-height:1.5;color:#8fa3c4;flex:1">${com.blurb}</p>
+              <div style=${"font-family:"+MONO+";font-size:10.5px;letter-spacing:.06em;color:#7d92b5;border-top:1px solid #1b2a45;padding-top:10px;margin-bottom:14px;line-height:1.7"}>${self.deckPreview(com.deck)}</div>
+              <button class="hf-btn" style=${"font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.12em;font-size:13px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,"+com.c+","+com.c+"cc);border:1px solid "+com.c+";border-radius:4px;padding:11px 18px;cursor:pointer"}>Take Command ▸</button>
+            </div>`;
+          })}
+        </div>
+      </div>
+    </div>`;
+  };
+  Game.prototype.deckPreview = function (deck) {
+    var counts={}; deck.forEach(function(k){ counts[k]=(counts[k]||0)+1; });
+    return Object.keys(counts).map(function(k){ var nm=(LIB[k]&&LIB[k].name)||k; return (counts[k]>1?counts[k]+"× ":"")+nm; }).join(" · ");
+  };
+
   Game.prototype.renderBriefing = function () {
     var self=this;
     return html`
@@ -2208,7 +2663,15 @@
       var n=Math.max(1,B.hand.length); var mid=Math.max(200,vw-470); var mh=Math.min(5,(mid-n*176)/(2*n)); v.cardMh=Math.max(mh,-55).toFixed(1)+"px";
       v.pAnim=this.shipAnim(S.shakeP); v.eAnim=this.shipAnim(S.shakeE);
       v.pImg=shipImg(PLAYER_SHIP, P.hull<P.hullMax*.5); v.eImg=shipImg(e.img, e.hull<e.hullMax*.5);
-      v.pSubs=this.subsView(P); v.eSubs=this.subsView(e);
+      v.pSubs=this.subsView(P,"p"); v.eSubs=this.subsView(e,"e",B.focus);
+      v.squadrons=B.squadrons.map(function(sq){
+        return sq.kind==="fighter"
+          ? { ico:"⟡", col:"#8deaff", txt:"FIGHTERS", sub:"strafe "+sq.dmg+" · "+sq.turns+"t left" }
+          : { ico:"⏦", col:"#ffc266", txt:"BOMBERS", sub:sq.delay>0?("run in "+sq.delay+"t"):"striking" };
+      });
+      for (var hb=B.squadrons.length; hb<P.hangarCap; hb++) v.squadrons.push({ ico:"·", col:"#33465f", txt:"BAY "+(hb+1), sub:"empty", empty:true });
+      v.hangarCap=P.hangarCap;
+      v.efighters=e.fighters.length;
       v.pShTxt=Math.round(P.shield)+"/"+P.shieldCap; v.pShPct=this.cl(P.shield/P.shieldCap*100,0,100);
       v.eShTxt=Math.round(e.shield)+"/"+e.shieldCap; v.eShPct=this.cl(e.shield/e.shieldCap*100,0,100);
       v.pBub=this.cl(P.shield/P.shieldCap*.6,0,.6); v.eBub=this.cl(e.shield/e.shieldCap*.6,0,.6);
@@ -2220,6 +2683,9 @@
       if (it) {
         var shown=Math.round(it.value*this.wm(e.subs));
         if (it.type==="attack") { v.inBd="#ff5470"; v.inIco="🜂"; v.inTxt="INCOMING FIRE "+shown; v.inSub=it.sab?"targeting your subsystems":"hull / shield volley"; }
+        else if (it.type==="salvo") { v.inBd="#ff2d55"; v.inIco="💥"; v.inTxt="CHARGED SALVO "+shown; v.inSub="the main gun fires NOW — brace or evade"; }
+        else if (it.type==="charge") { v.inBd="#ff8a3d"; v.inIco="⚡"; v.inTxt="CHARGING MAIN GUN "+it.value; v.inSub="fires next turn — cripple their weapons/reactor to spoil it"; }
+        else if (it.type==="launch") { v.inBd="#ffc266"; v.inIco="⟡"; v.inTxt="SCRAMBLING "+it.value+" FIGHTER"+(it.value>1?"S":""); v.inSub="clear them with interceptors or point-defense"; }
         else if (it.type==="shield") { v.inBd="#4fd8ff"; v.inIco="⛨"; v.inTxt="REINFORCING SHIELDS +"+it.value; v.inSub="hardening the deflector screen"; }
         else if (it.type==="board") { v.inBd="#ffc266"; v.inIco="☖"; v.inTxt="BOARDING — "+it.value+" CREW"; v.inSub="prepare to repel boarders"; }
         else { v.inBd="#7cf0c0"; v.inIco="✚"; v.inTxt="DAMAGE CONTROL"; v.inSub="patching hull and systems"; }
