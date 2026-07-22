@@ -127,8 +127,11 @@ an accompanying sounds pack (both licensed for use with no attribution required)
   strike-craft cards render through a procedural card face. Each has a compact
   hand summary, a full detail view, shop/reward availability, and implemented
   combat behaviour.
-- **Narrative layer**: a data-driven dialogue engine (`SCENES` / `CAST`) plays
-  short character beats — intro, first blood, elite taunts, zone secured, and a
+- **Narrative layer**: a data-driven dialogue engine (`SCENES` / `CAST` /
+  `NODE_CAMEO`) plays short character beats — intro, first blood, first dock,
+  critical-hull and crippled-system moments mid-battle, zone secured, the Gate
+  unsealing, per-zone antagonist cameos (Grey in the Corsair Expanse, the Red
+  Augur, Corelli on the Ironwall, Ashford in the Veil, the Locust swarm), and a
   full confrontation with the Iron Verdict's captain at the Gate — using the
   portrait cast in `assets/crew/`.
 - **Commissions**: three opening decks chosen at launch (`COMMISSIONS`).

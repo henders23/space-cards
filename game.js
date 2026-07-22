@@ -151,6 +151,7 @@
     ashford: {name:"R.Adm. Julian Ashford",    role:"IRONWALL COMMAND",     img:"julian_ashford",    c:"#ff8aa0"},
     corelli: {name:"R.Adm. Isabella Corelli",  role:"PACT ENFORCEMENT",     img:"isabella_corelli",  c:"#ff8aa0"},
     vale:    {name:"R.Adm. Alexander Vale",    role:"HMS IRON VERDICT",     img:"alexander_vale",    c:"#ff5470"},
+    augurcap:{name:"The Red Augur",            role:"SMUGGLER CAPTAIN",     img:"helen_morozova",    c:"#ffc266"},
     you:     {name:"You",                      role:"CAPTAIN · ISV PALEWAKE", img:null,              c:"#5fd8ff"}
   };
   // A scene is a list of {who, line}. `who` keys into CAST. Kept short so the
@@ -193,7 +194,54 @@
     firstVictory: [
       {who:"park", line:"Engineering's holding — barely, but holding. Nice shooting up there."},
       {who:"solan", line:"Salvage aboard. We refit at any dock we've liberated — patch the hull, buy schematics, weld on the heavy kit. Pick our next fight carefully and this ends with us on the far side of that Gate."}
+    ],
+    // ---- per-zone antagonist cameos ----
+    greyCorsair: [
+      {who:"grey", line:"Back again, little corvette. You cost me two prize crews at the Tollgate. Thomas Grey does not forget a debt like that."},
+      {who:"solan", line:"He's rallying the whole Expanse to him, Captain. Put him down and the corsairs lose their nerve."},
+      {who:"you", line:"Then let's settle the account, Grey."}
+    ],
+    redAugur: [
+      {who:"augurcap", line:"So you're the flag they're all whispering about. I'm the Red Augur — I sell secrets, I don't hand them over. The cipher you're hunting? Pry it off my cold hull."},
+      {who:"ndala", line:"She's running hot, Captain — whatever's in that hold, the Pact wants it sealed behind the Ironwall. That cipher opens Smuggler's Run. Take her."}
+    ],
+    corelliWall: [
+      {who:"corelli", line:"This is the Ironwall, Captain, and I am Isabella Corelli. Nothing has crossed it in a decade. You will not be the exception."},
+      {who:"drake", line:"Heavy frigates, a dreadnought-calibre gun bolted to a rock. This is where the sector keeps its teeth, Captain."},
+      {who:"you", line:"Walls come down, Admiral. Let's start with yours."}
+    ],
+    ashfordVeil: [
+      {who:"ashford", line:"Julian Ashford, Ironwall Command. You chased ghosts all the way into the Veil. Fitting — out here, no one will even log how you died."},
+      {who:"park", line:"Instruments are lying to us in this soup, Captain. Trust the intent plate, not the stars."}
+    ],
+    locustSwarm: [
+      {who:"drake", line:"That's the Locust Prime — a strip-fleet tender. It'll open its deck, throw everything it has, and pick our bones while it hangs back."},
+      {who:"solan", line:"Kill the flight deck or clear the swarm fast, Captain. Don't let it grind us down a fighter at a time."}
+    ],
+    // ---- other beats ----
+    gateUnsealed: [
+      {who:"ndala", line:"Captain — the Blackstar Gate just lit up. Four zones flying our flag. The seal is broken."},
+      {who:"halloway", line:"You did what a whole fleet couldn't, Palewake. Command's marking the Gate open. Only the Iron Verdict stands between you and the road home now. Go and finish it."}
+    ],
+    firstDock: [
+      {who:"park", line:"Clamps are good, tanks are topping off. First honest dock we've had in a long while — feels strange to breathe."},
+      {who:"solan", line:"Refit while we can, Captain. Patch the hull, wire in new schematics, hire crew, weld on the heavy kit. The far zones won't be this kind."}
+    ],
+    lowHull: [
+      {who:"park", line:"Captain, hull integrity's critical — we're venting atmosphere on three decks! She can't take much more of this!"},
+      {who:"you", line:"Then we end it now, Insu. Everything we've got — put it into them."}
+    ],
+    subCrippled: [
+      {who:"park", line:"That's a system gone, Captain — crippled and dark. Damage control's on it, but we're fighting hurt now. Watch what you lean on."}
     ]
+  };
+  // Node-specific antagonist cameos: node id -> scene key (each fires once).
+  var NODE_CAMEO = {
+    ambush:"greyCorsair", anchorage:"greyCorsair", tollgate:"greyCorsair",
+    augur:"redAugur",
+    bastion:"corelliWall", anvil:"corelliWall",
+    veilambush:"ashfordVeil", whisper:"ashfordVeil",
+    locust:"locustSwarm"
   };
   // ---- commissions (Phase 1): choose your opening doctrine & 10-card deck ---
   var COMMISSIONS = [
@@ -630,6 +678,9 @@
     var seen=this.state.seen;
     if (node.type==="boss" && !seen.boss) { seen.boss=true; return SCENES.boss; }
     if (!seen.firstFight) { seen.firstFight=true; return SCENES.firstFight; }
+    // Named antagonist cameo for this specific system (each fires once).
+    var cam=NODE_CAMEO[node.id];
+    if (cam && !seen["cam_"+cam]) { seen["cam_"+cam]=true; return SCENES[cam]; }
     var d=ENEMIES[node.enemy];
     if (d && d.ai==="carrier" && !seen.carrier) { seen.carrier=true; return SCENES.carrier; }
     if (node.type==="elite" && !seen.elite) { seen.elite=true; return SCENES.elite; }
@@ -691,6 +742,14 @@
     p.power=Math.max(0,this.rp()+(B.nextPower||0)-(B.nextPowerPenalty||0));
     B.nextPower=0; B.nextPowerPenalty=0; B.lock=0; B.brace=false; B.evade=false;
     while (B.hand.length<5 && (B.draw.length||B.disc.length)) this.drawCards(1);
+    this.maybeBattleBeat();
+  };
+  // One-time in-battle story beats, checked at a safe point (the player's turn).
+  Game.prototype.maybeBattleBeat = function () {
+    var S=this.state, B=S.battle, p=S.player; if (!B||B.over||S.dialogue) return;
+    if (!S.seen.lowHull && p.hull>0 && p.hull<p.hullMax*0.3) { S.seen.lowHull=true; this.startDialogue(SCENES.lowHull, null); return; }
+    var worst=Math.min(p.subs.weapons,p.subs.reactor,p.subs.engines);
+    if (!S.seen.subCrippled && worst<=25) { S.seen.subCrippled=true; this.startDialogue(SCENES.subCrippled, null); return; }
   };
   Game.prototype.endTurn = function () {
     var B=this.state.battle; if (!B||B.busy||B.over||B.aiming) return;
@@ -724,9 +783,9 @@
     } else if (it.type==="charge") {
       e.charged=it.value; this.log("#ff8aa0",e.name+" floods its main gun — a "+it.value+"-damage salvo fires next turn. Break its weapons or its reactor to spoil the shot.");
     } else if (it.type==="launch") {
-      var fd=e.fighterDef||{dmg:5,hp:2}, n=it.value||2;
+      var fd=e.fighterDef||{dmg:5,hp:2}, n=Math.max(0,Math.min(it.value||2, 3-e.fighters.length));
       for (var fi=0;fi<n;fi++) e.fighters.push({ id:this.fid(), dmg:fd.dmg, hp:fd.hp });
-      this.log("#ff8aa0",e.name+" scrambles "+n+" fighter"+(n>1?"s":"")+" from its flight deck. Clear them with interceptors or point-defense.");
+      if (n>0) this.log("#ff8aa0",e.name+" scrambles "+n+" fighter"+(n>1?"s":"")+" from its flight deck. Clear them with interceptors or point-defense.");
     } else if (it.type==="shield") { e.shield=this.cl(e.shield+it.value,0,e.shieldCap); this.log("#ff8aa0",e.name+" reinforces its shields (+"+it.value+")."); }
     else if (it.type==="board") {
       if (B.sealCrew) { B.sealCrew=false; this.log("#9fdcff","Sealed bulkheads stop the boarding assault."); }
@@ -764,20 +823,22 @@
     });
     B.squadrons=keep;
   };
-  // Enemy fighters strafe the player, then the player's point-defense clips one.
+  // Enemy fighters strafe the player, then passive point-defense splashes one.
   Game.prototype.resolveEnemyFighters = function () {
-    var B=this.state.battle, e=B.enemy; if (!e.fighters.length) return;
-    var total=e.fighters.reduce(function(s,f){return s+f.dmg;},0);
-    this.dealDamage("p",total,false); this.state.shakeP++;
-    this.log("#ff8aa0","Enemy fighters strafe your hull for "+total+".");
-    // Passive point-defense: engines/crew shred one fighter a turn.
-    var f=e.fighters[0]; f.hp--; if (f.hp<=0) { e.fighters.shift(); this.log("#9fdcff","Point-defense splashes one enemy fighter."); }
+    var B=this.state.battle, e=B.enemy, p=this.state.player; if (!e.fighters.length) return;
+    // Healthy engines throw up a tighter flak screen — one strafing run is stopped cold.
+    var pd = p.subs.engines>=60 ? 1 : 0;
+    var runners=e.fighters.slice(pd);
+    var total=runners.reduce(function(s,f){return s+f.dmg;},0);
+    if (total>0) { this.dealDamage("p",total,false); this.state.shakeP++; this.log("#ff8aa0","Enemy fighters strafe your hull for "+total+"."); }
+    // Point-defense splashes one whole fighter each turn.
+    if (e.fighters.length) { e.fighters.shift(); this.log("#9fdcff","Point-defense splashes an enemy fighter."+(pd?" Flak screen blunts the rest.":"")); }
   };
   // Archetype-driven intent with multi-turn telegraphs and subsystem gating.
   Game.prototype.chooseIntent = function () {
     var B=this.state.battle, e=B.enemy, p=this.state.player, o=[]; var self=this;
     // A charged main gun overrides everything — it fires this turn.
-    if (e.charged>0) { var v=e.charged; e.charged=0; e.intent={ type:"salvo", value:v, sab:Math.random()<e.sab?self.ri(14,24):0 }; return; }
+    if (e.charged>0) { var v=e.charged; e.charged=0; e.intent={ type:"salvo", value:v, sab:Math.random()<e.sab?self.ri(10,18):0 }; return; }
     var ai=e.ai||"gunline";
     var lowHull=e.hull<e.hullMax*.5;
     var canPower=e.subs.reactor>=35;   // crippled reactor can't charge or launch
@@ -791,7 +852,7 @@
     } });
     // Charged heavy shot — gunlines and the dreadnought, needs reactor.
     if ((ai==="gunline"||ai==="dread") && canPower) o.push({ w:ai==="dread"?5:4, m:function(){
-      return { type:"charge", value:Math.round(self.ri(e.atkHi+4,e.atkHi+12)*(ai==="dread"?1.15:1)) };
+      return { type:"charge", value:Math.round(self.ri(e.atkHi+3,e.atkHi+9)*(ai==="dread"?1.12:1)) };
     } });
     // Scramble fighters — carriers and the dreadnought, if they have deck space.
     if ((ai==="carrier"||ai==="dread") && e.fighterDef && canPower && e.fighters.length<3)
@@ -1128,10 +1189,11 @@
     // liberated ports top the tanks off the moment their docks change hands
     if (node.type==="station"||node.type==="shipyard"||node.type==="repair") p.fuel=p.fuelMax;
     this.setMusicScene("ambient", true);   // the theme starts anew after combat
-    // Narrative beats: first victory, then whenever a whole zone falls.
+    // Narrative beats: first victory, gate unsealed, then whenever a zone falls.
     var zsec=this.zonesSecured();
     var scene=null;
     if (!S.seen.firstVictory) { S.seen.firstVictory=true; scene=SCENES.firstVictory; }
+    else if (zsec>=GATE_ZONES_REQ && !S.seen.gateUnsealed) { S.seen.gateUnsealed=true; scene=SCENES.gateUnsealed; }
     else if (zsec>(S.securedCount||0)) scene=SCENES.zoneSecured;
     S.securedCount=zsec;
     this.forceUpdate();
@@ -1212,7 +1274,16 @@
     }, 1450);
   };
   Game.prototype.dockCurrent = function () {
-    var S=this.state, n=NBYID[S.current]; if (!n||S.gliding) return;
+    var S=this.state, n=NBYID[S.current], self=this; if (!n||S.gliding) return;
+    var dockable = n.type==="shipyard"||n.type==="home"||n.type==="station"||n.type==="repair";
+    // First honest dock of the run gets a beat, then opens the port.
+    if (dockable && n.type!=="home" && !S.seen.firstDock) {
+      S.seen.firstDock=true; this.startDialogue(SCENES.firstDock, function(){ self._doDock(n); }); return;
+    }
+    this._doDock(n);
+  };
+  Game.prototype._doDock = function (n) {
+    var S=this.state;
     if (n.type==="shipyard") { S.yard={ node:n }; S.screen="yard"; this.forceUpdate(); }
     else if (n.type==="home"||n.type==="station") this.openBase(n);
     else if (n.type==="repair") { S.overlay="dock"; this.forceUpdate(); }
