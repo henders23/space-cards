@@ -54,14 +54,15 @@ portrait cast. Everything stays inside the no-build single-file architecture
 
 | Role | Characters |
 | --- | --- |
+| The player | Adm. Alexander Vale, commanding the ISV Resolute |
 | Fleet Command | VAdm. Margaret Halloway, VAdm. Peter Novak |
 | Bridge crew | Cdr. Mira Solan (XO), Lt.Cdr. Ethan Drake (tactical), Lt. Insu Park (engineering), Lt. Kiara N'Dala (comms), Lt. Sloane Katz (gunnery) |
-| Pact antagonists | Capt. Thomas Grey, RAdm. Julian Ashford, RAdm. Isabella Corelli |
-| Iron Verdict (final) | RAdm. Alexander Vale |
+| Pact antagonists | Thomas Grey, Julian Ashford, Isabella Corelli, the Red Augur |
+| Iron Verdict (final) | Fleet Adm. Lena Mori |
 
 ## Phase 6 — Fleet combat ("Line of Battle" rework)
 
-The Palewake is re-classed from corvette to **battleship**, and combat becomes
+The Resolute is re-classed from corvette to **battleship**, and combat becomes
 **up to 3 capital ships per side**, each with its own deck — the player runs a
 squadron, not a lone hull.
 
@@ -92,7 +93,17 @@ squadron, not a lone hull.
   bounties bring a light escort; the Iron Verdict anchors the center lane of a
   three-ship battle line.
 
+## Phase 7 — Manoeuvre, atmosphere & polish
+
+- **Lane manoeuvre**: one reposition per turn — a player capital may swap lanes
+  with an adjacent friendly hull, changing who screens whom mid-battle.
+- **Parallax starfields**: each combat is set against one of several large
+  starfield backdrops that drift a fraction of the camera pan/zoom, giving depth
+  behind the battle line. Drop-in images at `assets/backgrounds/combat-N.jpg`.
+- **Portraits everywhere**: every speaker (the player included, as Adm. Vale)
+  now shows a face; dialogue rewritten to read like real bridge chatter.
+
 ## Sequencing
 
-Phases are built in order (1 → 6) and shipped together. Each phase is
+Phases are built in order (1 → 7) and shipped together. Each phase is
 self-contained and leaves the game playable.

@@ -1,7 +1,7 @@
 # Blackstar Verge
 
 A single-player **roguelike deck-builder of card-driven ship combat** — FTL meets
-Slay the Spire. You command the battleship **ISV Palewake** across a scrollable,
+Slay the Spire. You command the battleship **ISV Resolute** across a scrollable,
 zone-based galactic sector chart, fighting card-based ship battles, docking at
 stations and shipyards to refit your deck and ship, securing zones to unseal the
 **Blackstar Gate** — the road to the next sector — past the dreadnought
@@ -66,7 +66,9 @@ choice is remembered).
    each be crippled. Read the enemy's telegraphed intent and answer it. Win by
    gutting the enemy hull — or boarding and taking the ship.
    - **Line of battle (fleets)**: up to **3 capital ships per side**, each with
-     its own deck, hand and reactor — click a ship to command it. Guns and
+     its own deck, hand and reactor — click a ship to command it. Once per turn
+     you may **manoeuvre** — swap a capital with the adjacent friendly hull
+     (◄►), changing who screens whom. Guns and
      boarders are **screened** to the enemy capital in their own lane until that
      ship is destroyed or struck; strike craft ignore lanes. Buy escorts (Gun
      Frigate, Light Carrier) at shipyard dry docks, or **capture** enemy hulls
@@ -92,7 +94,7 @@ choice is remembered).
      round (needs ENGINES ≥ 60). A shipyard **Flight Deck** refit adds a bay.
    - **Manual gunnery**: playing a weapon card raises a **crosshair** — aim with the
      mouse and click where on the enemy hull to fire. Your bolt streaks from the
-     Palewake to the point you chose and detonates on impact. Right-click or
+     Resolute to the point you chose and detonates on impact. Right-click or
      press **Esc** to cancel the shot. Non-weapon cards resolve instantly as before.
    - Player and enemy weapons use distinct projectiles, muzzle flashes, and sounds.
      An "enemy sighted" hail opens every encounter, and your crew calls out over the
@@ -116,6 +118,7 @@ choice is remembered).
 | `styles.css` | Global reset, starfield, keyframes, hover/title styles |
 | `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/`. Strike-craft cards render through a procedural card face (no PNG needed) |
 | `assets/crew/` | Galactic Navy portrait cast for the dialogue system, keyed by name, with a `manifest.csv` |
+| `assets/backgrounds/` | Parallax combat starfields (`combat-1..4.jpg`) — drop in your own at the same paths to replace them |
 | `docs/IMPROVEMENT_PLAN.md` | The five-phase design plan this build implements |
 | `assets/ships/` | Chroma-keyed fleet pack: player ship + one hull per enemy class, each with a damaged twin that swaps in below half hull |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |

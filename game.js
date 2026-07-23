@@ -140,101 +140,101 @@
 
   // ---- narrative cast (Phase 2) -------------------------------------------
   // Portraits live in assets/crew/<img>.png (from the Galactic Navy pack).
-  // `you` is the player and renders as an insignia rather than a face.
+  // The player is Adm. Alexander Vale, commanding the ISV Resolute.
   var CAST = {
-    halloway:{name:"V.Adm. Margaret Halloway", role:"FLEET COMMAND",        img:"margaret_halloway", c:"#8deaff"},
-    novak:   {name:"V.Adm. Peter Novak",       role:"FLEET LOGISTICS",      img:"peter_novak",       c:"#8deaff"},
-    solan:   {name:"Cdr. Mira Solan",          role:"EXECUTIVE OFFICER",    img:"mira_solan",        c:"#7cf0c0"},
-    drake:   {name:"Lt.Cdr. Ethan Drake",      role:"TACTICAL OFFICER",     img:"ethan_drake",       c:"#7cf0c0"},
-    park:    {name:"Lt. Insu Park",            role:"CHIEF ENGINEER",       img:"insu_park",         c:"#7cf0c0"},
-    ndala:   {name:"Lt. Kiara N'Dala",         role:"COMMS OFFICER",        img:"kiara_n_dala",      c:"#7cf0c0"},
-    katz:    {name:"Lt. Sloane Katz",          role:"GUNNERY OFFICER",      img:"sloane_katz",       c:"#7cf0c0"},
-    grey:    {name:"Capt. Thomas Grey",        role:"CORSAIR PACT",         img:"thomas_grey",       c:"#ff8aa0"},
-    ashford: {name:"R.Adm. Julian Ashford",    role:"IRONWALL COMMAND",     img:"julian_ashford",    c:"#ff8aa0"},
-    corelli: {name:"R.Adm. Isabella Corelli",  role:"PACT ENFORCEMENT",     img:"isabella_corelli",  c:"#ff8aa0"},
-    vale:    {name:"R.Adm. Alexander Vale",    role:"HMS IRON VERDICT",     img:"alexander_vale",    c:"#ff5470"},
-    augurcap:{name:"The Red Augur",            role:"SMUGGLER CAPTAIN",     img:"helen_morozova",    c:"#ffc266"},
-    you:     {name:"You",                      role:"CAPTAIN · ISV PALEWAKE", img:null,              c:"#5fd8ff"}
+    you:     {name:"Adm. Vale",                role:"COMMANDING · ISV RESOLUTE", img:"alexander_vale", c:"#5fd8ff"},
+    halloway:{name:"V.Adm. Halloway",          role:"FLEET COMMAND",        img:"margaret_halloway", c:"#8deaff"},
+    novak:   {name:"V.Adm. Novak",             role:"FLEET LOGISTICS",      img:"peter_novak",       c:"#8deaff"},
+    solan:   {name:"Cdr. Solan",               role:"EXECUTIVE OFFICER",    img:"mira_solan",        c:"#7cf0c0"},
+    drake:   {name:"Lt.Cdr. Drake",            role:"TACTICAL",             img:"ethan_drake",       c:"#7cf0c0"},
+    park:    {name:"Lt. Park",                 role:"CHIEF ENGINEER",       img:"insu_park",         c:"#7cf0c0"},
+    ndala:   {name:"Lt. N'Dala",               role:"COMMS",                img:"kiara_n_dala",      c:"#7cf0c0"},
+    katz:    {name:"Lt. Katz",                 role:"GUNNERY",              img:"sloane_katz",       c:"#7cf0c0"},
+    grey:    {name:"Thomas Grey",              role:"CORSAIR PACT",         img:"thomas_grey",       c:"#ff8aa0"},
+    ashford: {name:"Julian Ashford",           role:"IRONWALL COMMAND",     img:"julian_ashford",    c:"#ff8aa0"},
+    corelli: {name:"Isabella Corelli",         role:"PACT ENFORCEMENT",     img:"isabella_corelli",  c:"#ff8aa0"},
+    mori:    {name:"Fleet Adm. Mori",          role:"HMS IRON VERDICT",     img:"lena_mori",         c:"#ff5470"},
+    augurcap:{name:"The Red Augur",            role:"SMUGGLER CAPTAIN",     img:"helen_morozova",    c:"#ffc266"}
   };
-  // A scene is a list of {who, line}. `who` keys into CAST. Kept short so the
-  // narrative punctuates play without stalling it.
+  // A scene is a list of {who, line}. `who` keys into CAST. Written to sound
+  // like people on a bridge — short, plain, a little tired.
   var SCENES = {
     intro: [
-      {who:"halloway", line:"Palewake, this is Halloway. What's left of Fleet Command is me and a relay buoy, so I'll keep it short. The Corsair Pact owns the Verge — every dock, every yard, every lane out."},
-      {who:"halloway", line:"Ironwall Command has the Blackstar Gate sealed behind the dreadnought Iron Verdict. Break their grip on this sector and you break the seal. That's the whole war now, Captain — one battleship, and whatever line you can build around her."},
-      {who:"solan", line:"Bridge is yours, Captain. Crew's aboard, reactor's warm. Mira Solan — I've got the watch and the bad news, as usual."},
-      {who:"you", line:"Then let's give the Pact some bad news of their own. Plot us out of Haven."}
+      {who:"halloway", line:"Resolute, it's Halloway. Fleet Command is down to me and a relay buoy, so I'll keep this quick. The Pact has the whole Verge — every dock, every lane."},
+      {who:"halloway", line:"The gate home is sealed, and the Iron Verdict is sitting on it. Take this sector back and the seal breaks. That's the war now. Just you."},
+      {who:"solan", line:"You've got the bridge, sir. Crew's aboard, reactor's warm. I'll bring the coffee and the bad news."},
+      {who:"you", line:"Bad news both ways, then. Take us out of Haven."}
     ],
     firstFight: [
-      {who:"ndala", line:"Contact — Pact colours, weapons hot. They've already tagged us as a target, not a threat."},
-      {who:"katz", line:"Gunnery's live. Read their intent off the plate and answer it — shields when they charge, guns when they don't. I'll put rounds wherever you point."},
-      {who:"solan", line:"First blood in the Verge, Captain. Make it ours."}
+      {who:"ndala", line:"Contact ahead. Pact colours, guns already live. They're not hailing — they've decided we're easy."},
+      {who:"katz", line:"Gunnery's up. Watch what they line up on the plate and answer it — shields when they wind up, guns when they don't. Point, I'll shoot."},
+      {who:"solan", line:"First one, sir. Let's make it count."}
     ],
     elite: [
-      {who:"drake", line:"This one's an anchor, not a picket — heavier hull, and it hits back. Tactical says pick a subsystem and gut it before it settles into a rhythm."},
-      {who:"grey", line:"A battleship flying a dead navy's flag. Thomas Grey, Corsair Pact. Strike your colours and I'll only take the ship."},
-      {who:"you", line:"Counter-offer, Grey. You keep talking, and we keep shooting."}
+      {who:"drake", line:"This isn't a picket. Heavier hull, and it'll hit back hard. My advice — pick a system and break it before it finds a rhythm."},
+      {who:"grey", line:"A warship still flying a dead flag. Thomas Grey. Cut your engines and I'll only take the hull, not the crew."},
+      {who:"you", line:"Generous. We'll pass."}
     ],
     bounty: [
-      {who:"ndala", line:"That's our bounty on the plate — the Pact wants them dead as much as we do, they just haven't admitted it."},
-      {who:"solan", line:"Bag the captain and we take what's in the hold. Could be a key we can't get any other way."}
+      {who:"ndala", line:"That's the bounty. The Pact wants this one gone as badly as we do — they just won't say so out loud."},
+      {who:"solan", line:"Take the captain, take the hold. Could be something in there we can't get any other way."}
     ],
     carrier: [
-      {who:"drake", line:"Tender's opening its flight deck — that's a carrier. It'll scramble craft and let them chew us while it hangs back."},
-      {who:"park", line:"Interceptors or focused fire clear the wings, Captain. Let them stack up and it's death by a thousand cuts."}
+      {who:"drake", line:"Flight deck's opening. It's a carrier — it'll throw craft at us and sit back while they work."},
+      {who:"park", line:"Interceptors or just shoot the wings down, sir. Let them pile up and it's a slow bleed."}
     ],
     boss: [
-      {who:"solan", line:"That's it. HMS Iron Verdict, anchored right on the Gate. Eighty-plus of hull, guns that charge like a siege battery, and a flight deck to boot."},
-      {who:"vale", line:"So the flag still flies. I am Alexander Vale, and this ring is closed by order of Ironwall Command. You've come a long way to die in front of a door, Captain."},
-      {who:"vale", line:"Watch the main gun. When it charges, it does not miss twice."},
-      {who:"you", line:"Then we won't give it a second shot. All hands — this is the one that opens the road home."}
+      {who:"solan", line:"There she is. Iron Verdict, parked right on the gate, with an escort either side. Big hull, siege guns, and her own flight deck."},
+      {who:"mori", line:"So it's you. Mori, Ironwall. That gate stays shut — my orders, and I don't argue with them. You came a long way to die at a door."},
+      {who:"mori", line:"When the main gun charges, mind it. It doesn't miss twice."},
+      {who:"you", line:"Then it won't get a second shot. All hands — this is the one that opens the road home."}
     ],
     zoneSecured: [
-      {who:"solan", line:"Zone's clean, Captain. Every hull in it flying our flag now — or flying apart. That's one more piece of the Verge back."},
-      {who:"halloway", line:"Command sees it, Palewake. Keep securing zones and that Gate comes open. You're doing what a whole fleet couldn't."}
+      {who:"solan", line:"Zone's clear, sir. Everything in it is ours now, or it's scrap. That's a real piece of the Verge back."},
+      {who:"halloway", line:"We see it, Resolute. Keep it up and the gate opens. You're doing what a whole fleet couldn't."}
     ],
     firstVictory: [
-      {who:"park", line:"Engineering's holding — barely, but holding. Nice shooting up there."},
-      {who:"solan", line:"Salvage aboard. We refit at any dock we've liberated — patch the hull, buy schematics, weld on the heavy kit. Pick our next fight carefully and this ends with us on the far side of that Gate."}
+      {who:"park", line:"Engineering's holding. Good shooting up there — genuinely."},
+      {who:"solan", line:"Salvage's aboard. Any dock we've freed, we can refit at — patch up, buy schematics, add hulls to the line. Pick the next fight well."}
     ],
     // ---- per-zone antagonist cameos ----
     greyCorsair: [
-      {who:"grey", line:"Back again, Palewake. You cost me two prize crews at the Tollgate. Thomas Grey does not forget a debt like that."},
-      {who:"solan", line:"He's rallying the whole Expanse to him, Captain. Put him down and the corsairs lose their nerve."},
-      {who:"you", line:"Then let's settle the account, Grey."}
+      {who:"grey", line:"You again. You cost me two prize crews at the Tollgate. I don't forget that kind of thing."},
+      {who:"solan", line:"He's pulling the whole Expanse in behind him, sir. Break him and the rest lose their nerve."},
+      {who:"you", line:"Let's settle up, then."}
     ],
     redAugur: [
-      {who:"augurcap", line:"So you're the flag they're all whispering about. I'm the Red Augur — I sell secrets, I don't hand them over. The cipher you're hunting? Pry it off my cold hull."},
-      {who:"ndala", line:"She's running hot, Captain — whatever's in that hold, the Pact wants it sealed behind the Ironwall. That cipher opens Smuggler's Run. Take her."}
+      {who:"augurcap", line:"So you're the ghost everyone's whispering about. I'm the Augur. I sell secrets — I don't give them away. The cipher you want? Come and take it off the wreck."},
+      {who:"ndala", line:"She's running hot, sir. Whatever's in that hold, the Pact wanted it locked away. That cipher opens Smuggler's Run — take her."}
     ],
     corelliWall: [
-      {who:"corelli", line:"This is the Ironwall, Captain, and I am Isabella Corelli. Nothing has crossed it in a decade. You will not be the exception."},
-      {who:"drake", line:"Heavy frigates, a dreadnought-calibre gun bolted to a rock. This is where the sector keeps its teeth, Captain."},
-      {who:"you", line:"Walls come down, Admiral. Let's start with yours."}
+      {who:"corelli", line:"This is the Ironwall, and I'm Corelli. Nothing's crossed it in ten years. You won't be first."},
+      {who:"drake", line:"Heavy frigates, a siege gun bolted to an asteroid. This is where the sector keeps its teeth."},
+      {who:"you", line:"Walls come down. Let's start with hers."}
     ],
     ashfordVeil: [
-      {who:"ashford", line:"Julian Ashford, Ironwall Command. You chased ghosts all the way into the Veil. Fitting — out here, no one will even log how you died."},
-      {who:"park", line:"Instruments are lying to us in this soup, Captain. Trust the intent plate, not the stars."}
+      {who:"ashford", line:"Ashford, Ironwall. You chased shadows all the way into the Veil. No one out here will even log how you died."},
+      {who:"park", line:"Sensors are lying to us in this murk, sir. Trust the plate, not the stars."}
     ],
     locustSwarm: [
-      {who:"drake", line:"That's the Locust Prime — a strip-fleet tender. It'll open its deck, throw everything it has, and pick our bones while it hangs back."},
-      {who:"solan", line:"Kill the flight deck or clear the swarm fast, Captain. Don't let it grind us down a fighter at a time."}
+      {who:"drake", line:"That's the Locust — a strip-fleet tender. It'll launch everything it has and pick us apart while it runs."},
+      {who:"solan", line:"Kill the flight deck or clear the swarm fast. Don't let it nickel-and-dime us, sir."}
     ],
     // ---- other beats ----
     gateUnsealed: [
-      {who:"ndala", line:"Captain — the Blackstar Gate just lit up. Four zones flying our flag. The seal is broken."},
-      {who:"halloway", line:"You did what a whole fleet couldn't, Palewake. Command's marking the Gate open. Only the Iron Verdict stands between you and the road home now. Go and finish it."}
+      {who:"ndala", line:"Sir — the gate just lit up. Four zones, all ours. The seal's broken."},
+      {who:"halloway", line:"You did it, Resolute. We're marking the gate open. Only the Iron Verdict left between you and home. Go finish it."}
     ],
     firstDock: [
-      {who:"park", line:"Clamps are good, tanks are topping off. First honest dock we've had in a long while — feels strange to breathe."},
-      {who:"solan", line:"Refit while we can, Captain. Patch the hull, wire in new schematics, hire crew, weld on the heavy kit. The far zones won't be this kind."}
+      {who:"park", line:"Clamps are good, tanks are filling. First real dock in a while. Almost forgot what quiet sounds like."},
+      {who:"solan", line:"Refit while we can, sir — hull, schematics, crew, more hulls for the line. It won't stay this quiet out east."}
     ],
     lowHull: [
-      {who:"park", line:"Captain, hull integrity's critical — we're venting atmosphere on three decks! She can't take much more of this!"},
-      {who:"you", line:"Then we end it now, Insu. Everything we've got — put it into them."}
+      {who:"park", line:"Sir, the hull's going — we're venting air on three decks. She can't take much more of this."},
+      {who:"you", line:"Then we end it now. Everything we've got — put it into them."}
     ],
     subCrippled: [
-      {who:"park", line:"That's a system gone, Captain — crippled and dark. Damage control's on it, but we're fighting hurt now. Watch what you lean on."}
+      {who:"park", line:"Lost a system, sir. It's dark. Damage control's on it, but we're fighting hurt — watch what you lean on."}
     ]
   };
   // Node-specific antagonist cameos: node id -> scene key (each fires once).
@@ -290,7 +290,7 @@
   // in 4 zones unseals the Blackstar Gate — the road to the next sector.
   var WORLD = { w: 2400, h: 1400 };
   var ZONES = [
-    {k:"reach", mult:1.0,    name:"PALEWAKE REACH",      c:"#4fd8ff", lx:2,  ly:55, wx:9,  wy:78, wash:"#10294d66"},
+    {k:"reach", mult:1.0,    name:"RESOLUTE REACH",      c:"#4fd8ff", lx:2,  ly:55, wx:9,  wy:78, wash:"#10294d66"},
     {k:"shoals", mult:1.0,   name:"THE SHOALS",          c:"#ffc266", lx:19, ly:37, wx:27, wy:57, wash:"#4d360f38"},
     {k:"ember", mult:1.15,    name:"THE EMBER SHELF",     c:"#ffd9a0", lx:5,  ly:3,  wx:15, wy:18, wash:"#4d2a0f40"},
     {k:"corsair", mult:1.3,  name:"CORSAIR EXPANSE",     c:"#ff8aa0", lx:36, ly:3,  wx:45, wy:21, wash:"#4d101e4d",
@@ -336,9 +336,12 @@
   // (ship-XX-damaged.png) that swaps in once hull falls below half.
   var PLAYER_SHIP = "ship-08";
   function shipImg(base, damaged) { return "assets/ships/"+base+(damaged?"-damaged":"")+".png"; }
+  // Parallax combat backdrops (drop-in JPGs; swap for your own at the same paths).
+  var COMBAT_BGS = ["assets/backgrounds/combat-1.jpg","assets/backgrounds/combat-2.jpg",
+                    "assets/backgrounds/combat-3.jpg","assets/backgrounds/combat-4.jpg"];
 
   var NODES = [
-    // — PALEWAKE REACH — the home zone
+    // — RESOLUTE REACH — the home zone
     {id:"haven",x:7,y:76,type:"home",z:"reach",sz:52,label:"HAVEN ANCHORAGE",
      desc:"Your fortified anchorage. Secure the Reach and its lanes stay patrol-free."},
     {id:"picket",x:13,y:62,type:"fight",z:"reach",enemy:0,sz:34,label:"PICKET LINE",
@@ -413,7 +416,7 @@
     {id:"famine",x:70,y:62,type:"repair",z:"marches",enemy:4,sz:34,label:"FAMINE RELIEF STATION",
      desc:"A relief hulk patching Pact hulls under duress. Its crews will patch yours gladly, once the overseers are ash."},
     {id:"locust",x:72,y:84,type:"elite",z:"marches",enemy:7,sz:38,label:"LOCUST SWARM",
-     desc:"A strip-fleet that eats convoys down to the frame. It has noticed the Palewake."},
+     desc:"A strip-fleet that eats convoys down to the frame. It has noticed the Resolute."},
     // — AUGUR'S VEIL — sealed: veil chart
     {id:"veilambush",x:82,y:24,type:"elite",z:"veil",enemy:8,sz:38,label:"VEIL AMBUSH",
      desc:"Corsairs hide inside the Veil's sensor shadow — wakes cold, guns warm."},
@@ -630,7 +633,7 @@
     // The flagship: a battleship, the last capital hull still flying the flag.
     // S.player IS S.fleet[0] — map-level code (fuel, refits, repair) reads the
     // flagship directly, while combat runs over the whole fleet.
-    var flag = this.mkShip({ id:"flag", name:"ISV Palewake", cls:"BATTLESHIP · FLAGSHIP", img:PLAYER_SHIP,
+    var flag = this.mkShip({ id:"flag", name:"ISV Resolute", cls:"BATTLESHIP · FLAGSHIP", img:PLAYER_SHIP,
       hull:80, crew:10, power:3, shieldCap:24, hangarCap:2, regen:3, handSize:5,
       deck: COMMISSIONS[0].deck.slice(), flagship:true });
     Object.assign(flag, { fuel:5, fuelMax:5, ups:{} });
@@ -761,7 +764,7 @@
     var group=this.enemyGroup(node);
     S.battle = {
       node:node, turn:1, busy:false, over:false, aiming:null, active:0, detailUid:null,
-      tokens:[],
+      tokens:[], swapUsed:false, bg:COMBAT_BGS[this.ri(0,COMBAT_BGS.length-1)],
       pShips: S.fleet.map(function(sh){ return self.initCombatShip(sh); }),
       eShips: group.map(function(g,i){ return self.initEnemyShip(g.d, g.m, i); }),
       logs:[], floats:[], beams:[], played:null
@@ -837,12 +840,26 @@
       while (pS.hand.length<sh.handSize && (pS.draw.length||pS.disc.length)) self.drawCards(pS,1);
     });
     if (!this.pAlive(B.active)) { var a=this.alivePIdx(); if (a.length) B.active=a[0]; }
+    B.swapUsed=false;   // one lane manoeuvre per turn
     this.maybeBattleBeat();
   };
   Game.prototype.setActiveShip = function (i) {
     var B=this.state.battle; if (!B||B.over||B.aiming) return;
     if (!this.pAlive(i)) return;
     B.active=i; this.forceUpdate();
+  };
+  // Reposition: once per turn, swap a capital with the adjacent friendly hull,
+  // changing which enemy lane screens it. Lane = index in pShips.
+  Game.prototype.swapLane = function (i, dir) {
+    var B=this.state.battle; if (!B||B.over||B.busy||B.aiming||B.swapUsed) return;
+    var j=i+dir; if (j<0||j>=B.pShips.length) return;
+    if (!this.pAlive(i)||!this.pAlive(j)) return;
+    var t=B.pShips[i]; B.pShips[i]=B.pShips[j]; B.pShips[j]=t;
+    if (B.active===i) B.active=j; else if (B.active===j) B.active=i;
+    this.playerImgEls=[];   // positions changed — re-capture refs
+    B.swapUsed=true;
+    this.log("#9fdcff", B.pShips[j].ship.name+" and "+B.pShips[i].ship.name+" trade lanes.");
+    this.forceUpdate();
   };
   // One-time in-battle story beats, checked at a safe point (the player's turn).
   Game.prototype.maybeBattleBeat = function () {
@@ -1344,7 +1361,7 @@
     if (flag.hull<=0 || flag.crew<=0) {
       B.over=true;
       if (flag.hull<=0) { this.spawnExplosion(this.shipCenter("p",0), "red", 300); sfx("ship_destroyed", 1); }
-      var why = flag.hull<=0 ? "Hull integrity gone. ISV Palewake is lost with all hands." : "Boarders overrun your decks. Your flagship is taken.";
+      var why = flag.hull<=0 ? "Hull integrity gone. ISV Resolute is lost with all hands." : "Boarders overrun your decks. Your flagship is taken.";
       this.setMusicScene("ambient", true);
       this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"FLAGSHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },700); return true;
     }
@@ -1522,7 +1539,7 @@
     var S=this.state;
     if (S.current!=="gate" || !S.taken.verdict) return;
     S.end={ kick:"SECTOR BROKEN", title:"THE GATE IS OPEN",
-      body:"The Iron Verdict is ash and the Blackstar Gate spins up for the first time in a decade. The Verge is yours behind you — anchorages lit, lanes patrolled by crews flying your flag. The Palewake threads the ring and jumps: the first gate on the long road home. New charts are being surveyed — the next sector arrives with the coming update." };
+      body:"The Iron Verdict is ash and the Blackstar Gate spins up for the first time in a decade. The Verge is yours behind you — anchorages lit, lanes patrolled by crews flying your flag. The Resolute threads the ring and jumps: the first gate on the long road home. New charts are being surveyed — the next sector arrives with the coming update." };
     S.overlay="end"; this.forceUpdate();
   };
   Game.prototype.evResolve = function (mode) {
@@ -1807,7 +1824,7 @@
     var musicOn = this.music.on;
     return html`
     <div class="hf-starfield bv-title">
-      <img class="bv-ship" src=${shipImg(PLAYER_SHIP,false)} alt="ISV Palewake" />
+      <img class="bv-ship" src=${shipImg(PLAYER_SHIP,false)} alt="ISV Resolute" />
       <div class="bv-fade"></div>
       <div class="bv-wrap">
         <div class="bv-kicker">A ROGUELIKE DECK-BUILDER OF VOID COMBAT</div>
@@ -1827,7 +1844,7 @@
           </button>
         </div>
       </div>
-      <div class="bv-footer">ISV PALEWAKE · BATTLESHIP · FLEET COMMAND — GOOD HUNTING, CAPTAIN</div>
+      <div class="bv-footer">ISV RESOLUTE · BATTLESHIP · FLEET COMMAND — GOOD HUNTING, CAPTAIN</div>
       ${this.state.overlay==="howto" ? this.renderTitleHowTo() : null}
     </div>`;
   };
@@ -1838,10 +1855,10 @@
     <div class="bv-modal" onClick=${function(){ self.closeHowTo(); }}>
       <div class="bv-modal-panel hf-overlay-panel" onClick=${function(e){ e.stopPropagation(); }}>
         <div class="bv-kicker" style="text-align:left">BRIEFING · HOW IT PLAYS</div>
-        <h2 class="bv-modal-h2">Command the ISV Palewake</h2>
+        <h2 class="bv-modal-h2">Command the ISV Resolute</h2>
         <p class="hf-lore" style="text-align:left;max-width:none;margin:0">
           The war is over, and the navy that fought it is gone. You command the battleship${" "}
-          <b>ISV Palewake</b> — the last hull still flying its flag — holding one
+          <b>ISV Resolute</b> — the last hull still flying its flag — holding one
           anchorage in the <b>Blackstar Verge</b>, a sector the Corsair Pact now calls
           its own. Their enforcers tax every lane, and <b>Ironwall Command</b> keeps the
           jump gate sealed with the dreadnought <b>HMS Iron Verdict</b> anchored on it.
@@ -1920,7 +1937,11 @@
           <span style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.06em;color:#eaf2ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>${cell.intent.txt}</span>
         </div>` : null}
       ${!isE && !cell.dead ? html`
-        <div style=${"margin-top:7px;font-family:"+MONO+";font-size:10px;letter-spacing:.1em;color:"+(cell.active?"#5fd8ff":"#4d6288")+";text-align:center"}>${cell.active?"◈ COMMANDING — HAND BELOW":"CLICK TO COMMAND · HAND "+cell.handN}</div>` : null}
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:7px">
+          ${cell.swapL ? html`<button onClick=${cell.swapL} title="Trade lanes with the ship on the left (once per turn)" style=${"font-family:"+MONO+";font-size:12px;color:#8deaff;background:#0a101c;border:1px solid #2c4066;border-radius:4px;padding:1px 7px;cursor:pointer;line-height:1.4"}>◄</button>` : null}
+          <span style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.1em;color:"+(cell.active?"#5fd8ff":"#4d6288")}>${cell.active?"◈ COMMANDING":"CLICK TO COMMAND · HAND "+cell.handN}</span>
+          ${cell.swapR ? html`<button onClick=${cell.swapR} title="Trade lanes with the ship on the right (once per turn)" style=${"font-family:"+MONO+";font-size:12px;color:#8deaff;background:#0a101c;border:1px solid #2c4066;border-radius:4px;padding:1px 7px;cursor:pointer;line-height:1.4"}>►</button>` : null}
+        </div>` : null}
     </div>`;
   };
   // A strike-craft token chip in the strip between the fleets.
@@ -1941,6 +1962,12 @@
       onMouseDown=${function(e){ self.onViewDown(e); }}
       onMouseMove=${function(e){ self.onViewMove(e); }}
       onDblClick=${function(){ self.resetView(); }}>
+      <!-- parallax starfield backdrop (drifts a fraction of the camera) -->
+      ${v.bgSrc ? html`
+      <div style="position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none">
+        <img src=${v.bgSrc} alt="" style=${"position:absolute;left:-12%;top:-12%;width:124%;height:124%;object-fit:cover;transform:"+v.bgTransform+";will-change:transform"} />
+        <div style="position:absolute;inset:0;background:radial-gradient(130% 100% at 50% 42%, transparent 45%, #04060de6)"></div>
+      </div>` : null}
       <!-- central battle line (mouse-wheel zoom · middle-drag pan) -->
       <div style=${"position:absolute;left:50%;top:0;bottom:190px;width:"+v.colW+"px;margin-left:-"+(v.colW/2)+"px"}>
       <div style=${"position:absolute;left:0;top:50%;width:"+v.colW+"px;display:flex;flex-direction:column;gap:18px;transform:"+v.combatTransform+";transform-origin:center center;will-change:transform"}>
@@ -2003,7 +2030,8 @@
       <div style="position:absolute;left:0;right:0;bottom:0;height:190px;border-top:1px solid #1b2a45;background:linear-gradient(180deg,#0b101df0,#04070ff8);display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr) minmax(150px,200px);grid-template-rows:minmax(0,100%);align-items:center;z-index:10">
         <div style="padding:0 20px">
           <div style="letter-spacing:.14em;font-size:11px;font-weight:600;color:#5fd8ff;text-transform:uppercase;margin-bottom:2px">Commanding</div>
-          <div style=${"font-family:"+MONO+";font-size:12.5px;color:#eaf2ff;letter-spacing:.04em;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>${v.activeName||""}${v.fleetTabs?html` <span style="color:#5f7396">· CLICK SHIPS TO SWITCH</span>`:null}</div>
+          <div style=${"font-family:"+MONO+";font-size:12.5px;color:#eaf2ff;letter-spacing:.04em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>${v.activeName||""}</div>
+          ${v.fleetTabs?html`<div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.04em;margin-bottom:7px;color:"+(v.canManoeuvre?"#8deaff":"#5f7396")}>${v.canManoeuvre?"⇄ MANOEUVRE READY · ◄► TO SWAP LANES":(v.swapUsed?"⇄ MANOEUVRE USED THIS TURN":"CLICK A SHIP TO COMMAND IT")}</div>`:null}
           <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
             <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
               ${v.pips.map(function(p,i){
@@ -2223,7 +2251,7 @@
               </div>`;
             })}
           </div>
-          <img src=${m.shipSrc} alt="ISV Palewake"
+          <img src=${m.shipSrc} alt="ISV Resolute"
             style=${"position:absolute;left:"+m.shipX+";top:"+m.shipY+";transform:translate(-145%,-75%);width:64px;z-index:4;pointer-events:none;transition:left 1.4s ease-in-out,top 1.4s ease-in-out;filter:drop-shadow(0 8px 16px #000000cc)"} />
         </div>
       </div>
@@ -2235,8 +2263,8 @@
       <div style="position:absolute;left:20px;top:18px;bottom:20px;width:216px;display:flex;flex-direction:column;gap:14px;z-index:5">
         <div style="border:1px solid #1b2a45;border-radius:6px;background:#070b14d9;padding:14px 16px">
           <div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.24em;color:#5f7396"}>HOME BASE</div>
-          <div style="font-weight:700;font-size:17px;letter-spacing:.06em;color:#ffffff;margin-top:4px">ISV PALEWAKE</div>
-          <img src=${m.shipSrc} alt="ISV Palewake" style="width:100%;height:74px;object-fit:contain;margin:10px 0 6px;filter:drop-shadow(0 8px 16px #000000cc)" />
+          <div style="font-weight:700;font-size:17px;letter-spacing:.06em;color:#ffffff;margin-top:4px">ISV RESOLUTE</div>
+          <img src=${m.shipSrc} alt="ISV Resolute" style="width:100%;height:74px;object-fit:contain;margin:10px 0 6px;filter:drop-shadow(0 8px 16px #000000cc)" />
           <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:10px;font-weight:600;letter-spacing:.18em;color:#7d92b5">HULL</span><span style=${"font-family:"+MONO+";font-size:12px"}>${m.hullTxt}</span></div>
           <div style="height:9px;border:1px solid #2c4066;border-radius:2px;background:#000000;overflow:hidden;margin:4px 0 8px"><div style=${"height:100%;width:"+m.hullPct+"%;background:linear-gradient(180deg,#8df2c8,#2aa878)"}></div></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px">
@@ -2316,8 +2344,8 @@
           <div style="display:flex;flex-direction:column;gap:20px">
             <div style="border:1px solid #1b2a45;border-radius:6px;background:#0a0f1ad9;padding:16px 18px">
               <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#ffffff;text-transform:uppercase">Dry Dock</div>
-              <div style="font-size:13.5px;color:#8fa3c4;margin:3px 0 10px">The Palewake, in the cradle.</div>
-              <img src=${y.shipSrc} alt="ISV Palewake in dry dock" style="width:100%;height:130px;object-fit:contain;filter:drop-shadow(0 12px 24px #000000cc)" />
+              <div style="font-size:13.5px;color:#8fa3c4;margin:3px 0 10px">The Resolute, in the cradle.</div>
+              <img src=${y.shipSrc} alt="ISV Resolute in dry dock" style="width:100%;height:130px;object-fit:contain;filter:drop-shadow(0 12px 24px #000000cc)" />
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
                 ${y.stats.map(function(s,i){
                   return html`<div key=${i} style="border:1px solid #1b2a45;border-radius:4px;background:#070b14;padding:8px 10px"><div style="font-size:10px;font-weight:600;letter-spacing:.18em;color:#7d92b5">${s.k}</div><div style=${"font-family:"+MONO+";font-size:14px;color:#eaf2ff;margin-top:2px"}>${s.v}</div></div>`;
@@ -2606,7 +2634,7 @@
       <div style="max-width:920px;width:100%">
         <div style="text-align:center;margin-bottom:20px">
           <div style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.26em;color:#5f7396"}>CHOOSE YOUR COMMISSION</div>
-          <div style="font-weight:700;letter-spacing:.06em;font-size:30px;color:#ffffff;margin-top:4px">How does the Palewake fight?</div>
+          <div style="font-weight:700;letter-spacing:.06em;font-size:30px;color:#ffffff;margin-top:4px">How does the Resolute fight?</div>
           <div style="font-size:14px;color:#8fa3c4;margin-top:8px">Your doctrine sets your opening ten-card deck. You can reshape it at any liberated dock.</div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px">
@@ -2649,7 +2677,7 @@
           </div>
         </div>
         <div style="padding:22px 26px">
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> owns the Blackstar Verge — every station, shipyard and dock beyond your anchorage is occupied territory, and the jump gate is sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one flagship: the battleship <b style="color:#eaf2ff">ISV Palewake</b>. Build a line of up to three capitals around her — bought from dry docks or taken as prizes. Every system you liberate is yours. Liberate enough, and the sector follows.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> owns the Blackstar Verge — every station, shipyard and dock beyond your anchorage is occupied territory, and the jump gate is sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one flagship: the battleship <b style="color:#eaf2ff">ISV Resolute</b>. Build a line of up to three capitals around her — bought from dry docks or taken as prizes. Every system you liberate is yours. Liberate enough, and the sector follows.</p>
           <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> — <b style="color:#eaf2ff">liberated</b> docks refill them free; run dry and you burn hull to keep moving. Fight the garrison off a port and its armory, yard or repair bay works for you. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
           <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, up to <b style="color:#eaf2ff">three capitals a side</b> form a line — each of yours with its own deck and reactor; click a ship to command it. Guns are <b style="color:#eaf2ff">screened</b> to the lane opposite until that ship breaks. <b style="color:#eaf2ff">Fighters and bombers</b> launch from hangars onto the board, dogfight, and torpedo capitals; <b style="color:#eaf2ff">WEAPONS</b>, <b style="color:#eaf2ff">REACTOR</b> and <b style="color:#eaf2ff">ENGINES</b> can each be crippled. Win by gutting hulls — or board and take them <b style="color:#eaf2ff">as prizes for your line</b>.</p>
           <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">80</b></span><span>CREW <b style="color:#ffffff;font-weight:500">10</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">24</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span><span>FUEL <b style="color:#ffffff;font-weight:500">5</b> CELLS</span><span>FLEET <b style="color:#ffffff;font-weight:500">UP TO 3</b> CAPITALS</span></div>
@@ -2839,7 +2867,7 @@
     var isPort=(sn.type==="station"||sn.type==="shipyard"||sn.type==="repair");
     var desc=sn.desc;
     if (taken && sn.id!=="haven") {
-      if (isPort) desc="Liberated and flying your flag — docks, services and shops are open to the Palewake.";
+      if (isPort) desc="Liberated and flying your flag — docks, services and shops are open to the Resolute.";
       else if (sn.type==="anomaly") desc="Swept and salvaged. Whatever moved in the dark here is quiet now.";
       else if (sn.enemy!=null) desc="Cleared and held. The wrecks are picked over and the lane runs quiet under your flag.";
     }
@@ -2975,6 +3003,9 @@
       var zoom=baseFit*this.view.zoom;
       v.colW=colW;
       v.combatTransform="translate("+Math.round(this.view.panX)+"px, calc(-50% + "+Math.round(this.view.panY)+"px)) scale("+zoom.toFixed(3)+")";
+      // Parallax backdrop: drifts a fraction of the camera pan and a touch of zoom.
+      v.bgSrc=B.bg;
+      v.bgTransform="translate("+(this.view.panX*0.28).toFixed(1)+"px,"+(this.view.panY*0.28).toFixed(1)+"px) scale("+(1.12*(0.97+this.view.zoom*0.03)).toFixed(3)+")";
       var pw=Math.floor(vw/2-(colW/2)*baseFit-40);
       v.panelW=Math.max(0,Math.min(300,pw))+"px";
       v.sideBlock=pw>=150?"block":"none";
@@ -3012,6 +3043,7 @@
         };
       });
       // ---- player line cells ----
+      var canManoeuvre=!B.swapUsed&&!B.busy&&!B.over&&!B.aiming;
       v.pCells=B.pShips.map(function(pS,i){
         var sh=pS.ship, php=sh.hull/sh.hullMax*100;
         return {
@@ -3024,9 +3056,12 @@
           powTxt:sh.power+"/"+self.rp(sh), handN:pS.hand.length,
           hangarTxt:sh.hangarCap?(self.hangarUsed(sh)+"/"+sh.hangarCap+" BAYS"):null,
           refIdx:i,
+          swapL: (canManoeuvre&&self.pAlive(i)&&self.pAlive(i-1)) ? function(e){ if(e&&e.stopPropagation)e.stopPropagation(); self.swapLane(i,-1); } : null,
+          swapR: (canManoeuvre&&self.pAlive(i)&&self.pAlive(i+1)) ? function(e){ if(e&&e.stopPropagation)e.stopPropagation(); self.swapLane(i,1); } : null,
           click:function(){ self.setActiveShip(i); }
         };
       });
+      v.swapUsed=B.swapUsed; v.canManoeuvre=canManoeuvre&&B.pShips.length>1;
       // ---- strike-craft token strip ----
       v.tokens=B.tokens.map(function(t){
         return { ico:t.kind==="fighter"?"⟡":"⏦",
@@ -3056,7 +3091,7 @@
       v.aiming=null;
       v.eCells=[]; v.pCells=[]; v.tokens=[]; v.pTokens=[]; v.eTokens=[];
       v.hand=[]; v.pips=[]; v.logs=[]; v.floats=[]; v.beams=[]; v.plShow=false; v.handEmpty=false;
-      v.combatTransform="translateY(-50%)"; v.colW=760;
+      v.combatTransform="translateY(-50%)"; v.colW=760; v.bgSrc=null;
     }
 
     if (S.base) {
