@@ -254,7 +254,7 @@
     {k:"bulwark", name:"Bulwark Doctrine", glyph:"⛨", c:"#5fd8ff",
       blurb:"Outlast and board. Shields soak the storm while your marines cross over and take the ship out from the inside.",
       tags:"DEFENSIVE · BOARDING",
-      deck:["laser","laser","divert","divert","brace","capacitor","angle","boarding","overcharge","patch"]},
+      deck:["laser","laser","broadside","divert","brace","capacitor","angle","boarding","overcharge","patch"]},
     {k:"saboteur", name:"Saboteur Doctrine", glyph:"⚡", c:"#b48aff",
       blurb:"Cripple and dismantle. Knock out their systems, keep your hand flowing, and take a ship that can no longer fight back.",
       tags:"TEMPO · SUBSYSTEMS",
@@ -803,8 +803,12 @@
   Game.prototype.enemyGroup = function (node) {
     var d=ENEMIES[node.enemy];
     var zm=(node.z&&ZBYK[node.z]&&ZBYK[node.z].mult)||1;
-    var m=this.diffMult()*((node.type==="elite"||node.type==="bounty")?1.3:1)*(node.type==="boss"?1:zm);
-    if (node.type==="boss") return [ {d:ENEMIES[6],m:this.diffMult()*.6}, {d:d,m:this.diffMult()}, {d:ENEMIES[8],m:this.diffMult()*.6} ];
+    // Multi-ship fights already carry their own difficulty, so the elite/bounty
+    // bump is lighter than the old single-ship 1.3; the boss line, by contrast,
+    // is a genuine wall — a heavier core flanked by two full-strength wings.
+    // (Tuned against tools/combat-sim.js; see docs/IMPROVEMENT_PLAN.md.)
+    var m=this.diffMult()*((node.type==="elite"||node.type==="bounty")?1.15:1)*(node.type==="boss"?1:zm);
+    if (node.type==="boss") return [ {d:ENEMIES[6],m:this.diffMult()*.82}, {d:d,m:this.diffMult()*1.15}, {d:ENEMIES[8],m:this.diffMult()*.82} ];
     if (node.type==="elite")  return [ {d:d,m:m}, {d:ENEMIES[0],m:m*.5} ];
     if (node.type==="bounty") return [ {d:d,m:m}, {d:ENEMIES[3],m:m*.45} ];
     return [ {d:d,m:m} ];
@@ -1451,7 +1455,9 @@
   // Threat readout for the intel panel: zone multiplier x elite/bounty bump.
   Game.prototype.threatLabel = function (n) {
     var zm=(ZBYK[n.z]&&ZBYK[n.z].mult)||1;
-    var lvl=zm*((n.type==="elite"||n.type==="bounty")?1.3:1);
+    // elites/bounties field a two-ship line — its real danger is above the raw
+    // stat bump, so the threat word weights the escort in.
+    var lvl=zm*((n.type==="elite"||n.type==="bounty")?1.4:1);
     var word = lvl<1.15?"LOW": lvl<1.4?"MEDIUM": lvl<1.75?"HIGH":"SEVERE";
     var role = ENEMIES[n.enemy] ? ENEMIES[n.enemy].role : "UNKNOWN";
     return { v: word+" — "+role, c: lvl<1.4?"#ffc266":"#ff8aa0" };

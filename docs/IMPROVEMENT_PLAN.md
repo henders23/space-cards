@@ -103,7 +103,31 @@ squadron, not a lone hull.
 - **Portraits everywhere**: every speaker (the player included, as Adm. Vale)
   now shows a face; dialogue rewritten to read like real bridge chatter.
 
+## Phase 8 — Fleet-era balance pass (instrumented)
+
+Tuned against `tools/combat-sim.js`, a headless model of the combat engine that
+runs ~800 auto-battles per matchup with a competent player heuristic and reports
+win rate / turns / hull-retained / ships-lost. Findings and fixes:
+
+- **Difficulty curve was inverted** — far elites were brutal (≈34% win) while the
+  boss was a cakewalk with a full fleet (≈98%, ~95% hull kept). The old elite/
+  bounty ×1.3 stat bump stacked on top of the escort *and* the zone multiplier,
+  over-inflating multi-ship fights, and the boss took no zone multiplier.
+  - Elite/bounty stat bump **1.3 → 1.15** (the extra ship is its own difficulty).
+  - Boss line rebuilt into a real wall: core **×1.0 → ×1.15**, wings
+    **×0.6 → ×0.82** (full-strength escorts).
+- **Bulwark commission stalled** (~70% on early skirmishes) — only three weapon
+  cards, so it sometimes couldn't close and timed out. Swapped one *Divert to
+  Shields* for a *Full Broadside* (its closer), lifting it to ~85%.
+
+Resulting bands (standard difficulty, un-upgraded sim fleets — real fleets are
+stronger): skirmishes ~100% (reliable speed-bumps); elites with a two-ship
+fleet ~80–90%, with the flagship alone ~26% (bring help); the far reaches ~72%
+but costly; the **boss ~82% with a full fleet but bruising** (loses ~1.4
+escorts), and a genuine coin-flip on Hard (~45%, ~2 escorts lost). Brutal stays
+punishing by design.
+
 ## Sequencing
 
-Phases are built in order (1 → 7) and shipped together. Each phase is
+Phases are built in order (1 → 8) and shipped together. Each phase is
 self-contained and leaves the game playable.
