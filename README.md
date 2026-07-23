@@ -1,7 +1,7 @@
 # Blackstar Verge
 
 A single-player **roguelike deck-builder of card-driven ship combat** — FTL meets
-Slay the Spire. You command the corvette **ISV Palewake** across a scrollable,
+Slay the Spire. You command the battleship **ISV Palewake** across a scrollable,
 zone-based galactic sector chart, fighting card-based ship battles, docking at
 stations and shipyards to refit your deck and ship, securing zones to unseal the
 **Blackstar Gate** — the road to the next sector — past the dreadnought
@@ -65,6 +65,15 @@ choice is remembered).
    hits before they reach hull; your **weapons / reactor / engines** subsystems can
    each be crippled. Read the enemy's telegraphed intent and answer it. Win by
    gutting the enemy hull — or boarding and taking the ship.
+   - **Line of battle (fleets)**: up to **3 capital ships per side**, each with
+     its own deck, hand and reactor — click a ship to command it. Guns and
+     boarders are **screened** to the enemy capital in their own lane until that
+     ship is destroyed or struck; strike craft ignore lanes. Buy escorts (Gun
+     Frigate, Light Carrier) at shipyard dry docks, or **capture** enemy hulls
+     (crew 0 + a free slot) as prizes that join your line with class decks.
+     Elites and bounties field a light escort; the Iron Verdict anchors the
+     center of a three-ship line. Losing an escort is permanent; losing the
+     flagship ends the run.
    - **Enemy behaviour archetypes**: every hull now fights to a personality —
      *raiders* board, *gunlines* telegraph a **charged main-gun salvo** a turn
      before it fires (break their weapons or reactor to spoil it), *carriers*
@@ -74,10 +83,13 @@ choice is remembered).
      every weapon then chips that system's integrity as well as dealing damage.
      Crippling their reactor stops them charging or launching; crippling weapons
      softens every shot they land.
-   - **Strike craft**: launch **fighter wings** (sustained per-turn strafing) and
-     **bomber wings** (a delayed, shield-piercing subsystem strike) from your
-     **hangar bays**, and **interceptors** to sweep enemy craft. A shipyard
-     **Flight Deck** refit adds a bay.
+   - **Strike craft**: fighters and bombers are **board tokens** (MtG-style) —
+     launched from hangar ships, no decks of their own, persisting between the
+     fleets and acting every round. Fighters (2/2 ×2) dogfight enemy craft —
+     bombers first — then strafe capitals; bombers (5/2) torpedo capitals
+     through shields and chew the focused subsystem. Interceptor Screen sweeps
+     3 damage across all enemy craft, and each fleet fires one flak burst per
+     round (needs ENGINES ≥ 60). A shipyard **Flight Deck** refit adds a bay.
    - **Manual gunnery**: playing a weapon card raises a **crosshair** — aim with the
      mouse and click where on the enemy hull to fire. Your bolt streaks from the
      Palewake to the point you chose and detonates on impact. Right-click or

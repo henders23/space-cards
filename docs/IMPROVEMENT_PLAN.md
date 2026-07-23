@@ -59,7 +59,40 @@ portrait cast. Everything stays inside the no-build single-file architecture
 | Pact antagonists | Capt. Thomas Grey, RAdm. Julian Ashford, RAdm. Isabella Corelli |
 | Iron Verdict (final) | RAdm. Alexander Vale |
 
+## Phase 6 — Fleet combat ("Line of Battle" rework)
+
+The Palewake is re-classed from corvette to **battleship**, and combat becomes
+**up to 3 capital ships per side**, each with its own deck — the player runs a
+squadron, not a lone hull.
+
+### Rules
+
+- **Lanes & screening.** Ships form a line of up to three lanes. A capital's
+  weapons and boarding actions are locked to the enemy capital in its own lane
+  while that ship still fights; once the opposing lane is broken (destroyed or
+  struck), it may target anyone. The same rule binds the enemy AI — escorts
+  screen flagships on both sides. *Flanking Burn* lets one weapon ignore the
+  screen; **strike craft always ignore lanes** (they fly).
+- **Per-ship decks.** Every capital has its own deck, hand and reactor. The
+  flagship draws 5, escorts draw 3. Click a ship to command it; its cards spend
+  its power and its effects come from / apply to that hull.
+- **Strike craft are board tokens** (MtG-style): launched from hangar ships, no
+  decks, persist between the fleets and act every round. Fighters (2/2 ×2 per
+  card) dogfight enemy craft — bombers first — and strafe capitals when the sky
+  is clear. Bombers (5/2) ignore dogfights and torpedo capitals through
+  shields, chewing the focused subsystem. Interceptor Screen sweeps 3 damage
+  across all enemy craft. Each fleet fires one 2-damage flak shot per round
+  (needs a ship with ENGINES ≥ 60). Hangar bays cap fielded tokens per ship.
+- **Fleet building.** Escorts are bought at shipyard dry docks (Gun Frigate,
+  Light Carrier) or **captured**: reduce an enemy crew to 0 and, with a free
+  fleet slot, the prize joins your line after the battle at half hull with a
+  deck matching how she fought. Fleet cap: 3. Destroyed escorts are permanent
+  losses; losing the flagship ends the run.
+- **Enemy fleets.** Skirmishes and garrisons field one ship; elites and
+  bounties bring a light escort; the Iron Verdict anchors the center lane of a
+  three-ship battle line.
+
 ## Sequencing
 
-Phases are built in order (1 → 5) and shipped together. Each phase is
+Phases are built in order (1 → 6) and shipped together. Each phase is
 self-contained and leaves the game playable.
