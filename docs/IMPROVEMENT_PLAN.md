@@ -97,9 +97,15 @@ squadron, not a lone hull.
 
 - **Lane manoeuvre**: one reposition per turn — a player capital may swap lanes
   with an adjacent friendly hull, changing who screens whom mid-battle.
-- **Parallax starfields**: each combat is set against one of several large
-  starfield backdrops that drift a fraction of the camera pan/zoom, giving depth
-  behind the battle line. Drop-in images at `assets/backgrounds/combat-N.jpg`.
+- **Ships in space**: capitals are drawn free-floating against the starfield
+  (no card chrome), each with a single deflector **shield arc** on the side
+  facing the enemy and a compact smoked nameplate (hull / subsystems / crew).
+  Strike craft launch into the **no-man's-land** between the lines as small
+  ship sprites, nose pointed at the enemy capital.
+- **Parallax starfields**: each combat is set against one of four large
+  photographic starfields that drift a fraction of the camera pan/zoom, giving
+  depth behind the battle line. Drop-in images at
+  `assets/backgrounds/combat-N.jpg`.
 - **Portraits everywhere**: every speaker (the player included, as Adm. Vale)
   now shows a face; dialogue rewritten to read like real bridge chatter.
 

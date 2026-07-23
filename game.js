@@ -339,6 +339,8 @@
   // Parallax combat backdrops (drop-in JPGs; swap for your own at the same paths).
   var COMBAT_BGS = ["assets/backgrounds/combat-1.jpg","assets/backgrounds/combat-2.jpg",
                     "assets/backgrounds/combat-3.jpg","assets/backgrounds/combat-4.jpg"];
+  // Strike craft are drawn as small ship sprites in the gap between the fleets.
+  var CRAFT_SPRITE = { fighter:"ship-09", bomber:"ship-13" };
 
   var NODES = [
     // — RESOLUTE REACH — the home zone
@@ -1896,68 +1898,96 @@
   };
 
   // ------------------------------ BATTLE -----------------------------------
-  // One capital-ship cell in a battle line (either side). Enemy cells show the
-  // telegraphed intent and clickable focus chips; player cells select the
-  // active ship whose hand the hand-bar shows.
-  Game.prototype.renderCapitalCell = function (cell, side) {
-    var self=this, isE=side==="e";
-    var border = cell.dead ? "#1b2a45"
-      : cell.struck ? "#7cf0c0"
-      : cell.aimable ? "#ff5470"
-      : cell.active ? "#5fd8ff"
-      : "#1b2a45";
-    var glow = cell.aimable ? "0 0 24px #ff547066" : cell.active ? "0 0 20px #4fd8ff44" : "none";
-    var imgFilter = (cell.dead||cell.struck) ? "grayscale(1) brightness(.55)" : "none";
-    var imgOp = cell.dead ? .28 : cell.struck ? .55 : 1;
+  // A single capital, drawn free-floating in space with a deflector arc on the
+  // side facing the enemy line. No card chrome — just the ship, a thin hull
+  // bar, tiny subsystem readouts, and (for the enemy) its telegraphed intent.
+  Game.prototype.shieldArc = function (pct, side, col) {
+    // arc hugs the ship on the gap-facing side: player = over the top, enemy =
+    // under the belly. pathLength normalises so the dash = shield %.
+    var sweep = side==="p" ? 0 : 1;         // 0 bulges up, 1 bulges down
+    var d = "M 26,75 A 124,54 0 0 "+sweep+" 274,75";
+    var frac = Math.max(0, Math.min(100, pct));
+    return html`<svg viewBox="0 0 300 150" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none">
+      <path d=${d} fill="none" stroke=${col+"26"} stroke-width="2.5"></path>
+      <path d=${d} pathLength="100" fill="none" stroke=${col} stroke-width="3.2" stroke-linecap="round"
+        stroke-dasharray=${frac.toFixed(1)+" 100"} style=${"transition:stroke-dasharray .35s;filter:drop-shadow(0 0 5px "+col+"cc)"}></path>
+    </svg>`;
+  };
+  Game.prototype.renderSubMini = function (s) {
     return html`
-    <div key=${side+cell.refIdx} onClick=${(!isE&&!cell.dead)?cell.click:undefined}
-      style=${"width:336px;flex:0 0 336px;border:1.5px solid "+border+";border-radius:8px;background:#0a101cb8;padding:10px 12px;box-shadow:"+glow+";cursor:"+((!isE&&!cell.dead)?"pointer":"default")+";transition:border-color .2s;animation:"+cell.anim+";position:relative"}>
-      <div style="display:flex;align-items:baseline;gap:7px;min-width:0">
-        <span style=${"font-family:"+MONO+";font-size:9px;color:"+(isE?"#ff8aa0":"#5fd8ff")+";border:1px solid "+(isE?"#7a3244":"#1e4d66")+";border-radius:3px;padding:1px 5px;letter-spacing:.1em;flex:0 0 auto"}>${isE?"HOSTILE":(cell.active?"ACTIVE":"FRIENDLY")}</span>
-        <span style="font-weight:600;font-size:14.5px;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cell.name}</span>
-      </div>
-      <div style=${"font-family:"+MONO+";font-size:9.5px;color:#7d92b5;letter-spacing:.1em;margin:2px 0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>${cell.cls||cell.role}</div>
-      <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:7px">
-        ${cell.subs.map(function(s){ return self.renderSub(s); })}
-      </div>
-      <div style="position:relative;height:150px;display:flex;justify-content:center">
-        <img src=${cell.img} alt=${isE?"Hostile ship":cell.name}
-          ref=${function(el){ var arr=isE?self.enemyImgEls:self.playerImgEls; if (arr) arr[cell.refIdx]=el; }}
-          style=${"height:100%;object-fit:contain;display:block;filter:drop-shadow(0 8px 20px #000000cc) "+imgFilter+";opacity:"+imgOp} />
-        ${cell.dead ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:12px;letter-spacing:.22em;color:#ff5470"}>DESTROYED</div>` : null}
-        ${cell.struck ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:11px;letter-spacing:.18em;color:#7cf0c0;text-align:center"}>STRUCK —<br/>PRIZE CREW ABOARD</div>` : null}
-        ${cell.screened ? html`<div style=${"position:absolute;left:50%;top:4px;transform:translateX(-50%);font-family:"+MONO+";font-size:10px;letter-spacing:.18em;color:#5f7396;background:#070b14cc;border:1px solid #1b2a45;border-radius:3px;padding:2px 8px"}>SCREENED</div>` : null}
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px">
-        <span style="font-size:10px;font-weight:600;letter-spacing:.16em;color:#7d92b5">HULL</span>
-        <span style=${"font-family:"+MONO+";font-size:12px"}>${cell.hullTxt}</span>
-      </div>
-      <div style="height:9px;border:1px solid #2c4066;border-radius:2px;background:#000;overflow:hidden;margin:3px 0 6px"><div style=${"height:100%;width:"+cell.hullPct+"%;background:"+cell.hullBg+";transition:width .35s"}></div></div>
-      <div style=${"display:flex;justify-content:space-between;font-family:"+MONO+";font-size:10.5px;color:#8fa3c4"}>
-        <span>⛨ ${cell.shTxt}</span><span>CREW ${cell.crewTxt}</span>
-        ${!isE ? html`<span>${cell.hangarTxt?("⟡ "+cell.hangarTxt):("⚡ "+cell.powTxt)}</span>` : null}
-      </div>
-      ${isE && cell.intent ? html`
-        <div style=${"margin-top:7px;border:1px solid #1b2a45;border-left:3px solid "+cell.intent.bd+";background:#070b14d9;border-radius:4px;padding:5px 9px;display:flex;align-items:center;gap:8px"}>
-          <span style=${"font-size:14px;color:"+cell.intent.bd}>${cell.intent.ico}</span>
-          <span style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.06em;color:#eaf2ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>${cell.intent.txt}</span>
-        </div>` : null}
-      ${!isE && !cell.dead ? html`
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:7px">
-          ${cell.swapL ? html`<button onClick=${cell.swapL} title="Trade lanes with the ship on the left (once per turn)" style=${"font-family:"+MONO+";font-size:12px;color:#8deaff;background:#0a101c;border:1px solid #2c4066;border-radius:4px;padding:1px 7px;cursor:pointer;line-height:1.4"}>◄</button>` : null}
-          <span style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.1em;color:"+(cell.active?"#5fd8ff":"#4d6288")}>${cell.active?"◈ COMMANDING":"CLICK TO COMMAND · HAND "+cell.handN}</span>
-          ${cell.swapR ? html`<button onClick=${cell.swapR} title="Trade lanes with the ship on the right (once per turn)" style=${"font-family:"+MONO+";font-size:12px;color:#8deaff;background:#0a101c;border:1px solid #2c4066;border-radius:4px;padding:1px 7px;cursor:pointer;line-height:1.4"}>►</button>` : null}
-        </div>` : null}
+    <div onClick=${s.click} title=${s.focusable?(s.focused?"Focused — click to release":"Click to focus gunnery on "+s.lab):undefined}
+      style=${"flex:1;text-align:center;cursor:"+(s.focusable?"pointer":"default")}>
+      <div style=${"font-family:"+MONO+";font-size:8px;letter-spacing:.06em;color:"+(s.focused?"#ffd24a":s.col)+";margin-bottom:2px"}>${(s.focused?"◎":"")+s.lab}</div>
+      <div style="height:3px;border-radius:2px;background:#00000099;overflow:hidden"><div style=${"height:100%;width:"+s.val+"%;background:"+(s.focused?"#ffd24a":s.col)+";transition:width .3s"}></div></div>
     </div>`;
   };
-  // A strike-craft token chip in the strip between the fleets.
-  Game.prototype.renderToken = function (t, i) {
+  Game.prototype.renderShipUnit = function (cell, side) {
+    var self=this, isE=side==="e";
+    var accent = cell.dead?"#5a6a82" : cell.struck?"#7cf0c0" : cell.aimable?"#ff5470" : cell.active?"#5fd8ff" : (isE?"#ff8aa0":"#9fb8dc");
+    var shipGlow = cell.aimable?"drop-shadow(0 0 18px #ff5470dd)" : cell.active?"drop-shadow(0 0 15px #4fd8ffbb)" : "drop-shadow(0 8px 20px #000000cc)";
+    var imgFilter = cell.dead?"grayscale(1) brightness(.35)" : cell.struck?"grayscale(.6) brightness(.6)" : "none";
+    var imgOp = cell.dead?.32:cell.struck?.6:1;
+    var stat = isE ? ("CREW "+cell.crewTxt)
+      : ("CREW "+cell.crewTxt+" · PWR "+cell.powTxt+(cell.hangarTxt?" · BAY "+cell.hangarTxt.replace(" BAYS",""):""));
+    // compact nameplate — a faint smoked panel so text stays legible over stars
+    var nameplate = html`
+      <div style="display:flex;flex-direction:column;gap:4px;padding:6px 9px;border-radius:7px;background:linear-gradient(180deg,#070b1466,#070b14b0);backdrop-filter:blur(2px);border:1px solid #ffffff10">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;min-width:0">
+          <span style=${"width:6px;height:6px;border-radius:50%;background:"+accent+";box-shadow:0 0 6px "+accent+";flex:0 0 auto"}></span>
+          <span style="font-weight:600;font-size:13px;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cell.name}</span>
+          ${cell.active?html`<span style=${"font-family:"+MONO+";font-size:8px;letter-spacing:.14em;color:#5fd8ff;flex:0 0 auto"}>CMD</span>`:null}
+        </div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="flex:1;height:7px;border:1px solid #2c4066;border-radius:2px;background:#00000099;overflow:hidden"><div style=${"height:100%;width:"+cell.hullPct+"%;background:"+cell.hullBg+";transition:width .35s"}></div></div>
+          <span style=${"font-family:"+MONO+";font-size:10px;color:#c4d2ea;white-space:nowrap"}>${cell.hullTxt}</span>
+        </div>
+        <div style="display:flex;gap:9px">${cell.subs.map(function(s){ return self.renderSubMini(s); })}</div>
+        <div style=${"font-family:"+MONO+";font-size:8.5px;letter-spacing:.06em;color:#7d92b5;text-align:center"}>${stat}</div>
+      </div>`;
+    var shipBlock = html`
+      <div style=${"position:relative;width:300px;height:146px;animation:"+cell.anim}>
+        ${this.shieldArc(cell.shPct, side, "#7ce7ff")}
+        <div style="position:absolute;inset:0;display:flex;justify-content:center;align-items:center">
+          <img src=${cell.img} alt=${isE?"Hostile ship":cell.name}
+            ref=${function(el){ var arr=isE?self.enemyImgEls:self.playerImgEls; if (arr) arr[cell.refIdx]=el; }}
+            style=${"height:116px;object-fit:contain;display:block;filter:"+shipGlow+" "+imgFilter+";opacity:"+imgOp} />
+        </div>
+        ${cell.dead ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:12px;letter-spacing:.22em;color:#ff5470;text-shadow:0 0 8px #000"}>DESTROYED</div>` : null}
+        ${cell.struck ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:10px;letter-spacing:.16em;color:#7cf0c0;text-align:center;text-shadow:0 0 8px #000"}>STRUCK ·<br/>PRIZE CREW</div>` : null}
+        ${cell.screened ? html`<div style=${"position:absolute;left:50%;"+(isE?"bottom":"top")+":0;transform:translateX(-50%);font-family:"+MONO+";font-size:9.5px;letter-spacing:.16em;color:#a9bcda;background:#070b14cc;border:1px solid #33465f;border-radius:3px;padding:1px 7px;white-space:nowrap"}>SCREENED</div>` : null}
+      </div>`;
+    var intentTag = (isE&&cell.intent) ? html`
+      <div style="display:flex;justify-content:center">
+        <div style=${"border:1px solid "+cell.intent.bd+"66;border-radius:14px;background:#070b14e0;padding:3px 12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 0 16px "+cell.intent.bd+"44"}>
+          <span style=${"font-size:12px;color:"+cell.intent.bd}>${cell.intent.ico}</span>
+          <span style=${"font-family:"+MONO+";font-size:10.5px;letter-spacing:.04em;color:#eaf2ff;white-space:nowrap"}>${cell.intent.txt}</span>
+        </div>
+      </div>` : (isE ? html`<div style="height:24px"></div>` : null);
+    var swapRow = (!isE && !cell.dead) ? html`
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+        ${cell.swapL ? html`<button onClick=${cell.swapL} title="Trade lanes left (once per turn)" style=${"font-family:"+MONO+";font-size:11px;color:#8deaff;background:#0a101ccc;border:1px solid #2c4066;border-radius:4px;padding:0 7px;cursor:pointer;line-height:1.5"}>◄</button>` : null}
+        <span style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.1em;color:"+(cell.active?"#5fd8ff":"#4d6288")}>${cell.active?"COMMANDING":"CLICK TO COMMAND"}</span>
+        ${cell.swapR ? html`<button onClick=${cell.swapR} title="Trade lanes right (once per turn)" style=${"font-family:"+MONO+";font-size:11px;color:#8deaff;background:#0a101ccc;border:1px solid #2c4066;border-radius:4px;padding:0 7px;cursor:pointer;line-height:1.5"}>►</button>` : null}
+      </div>` : null;
+    // ships hug the no-man's-land: enemy ship at the bottom of its unit, player
+    // ship at the top of its unit, HUD on the outer side.
+    var stack = isE ? [intentTag, nameplate, shipBlock] : [shipBlock, nameplate, swapRow];
     return html`
-    <span key=${i} title=${t.kind+" — "+t.stat}
-      style=${"display:inline-flex;align-items:center;gap:5px;border:1px solid "+t.col+"66;border-radius:4px;background:#0c1626;padding:3px 8px"}>
-      <span style=${"font-size:13px;color:"+t.col}>${t.ico}</span>
-      <span style=${"font-family:"+MONO+";font-size:10px;color:"+t.col+";letter-spacing:.06em"}>${t.stat}</span>
-    </span>`;
+    <div key=${side+cell.refIdx} onClick=${(!isE&&!cell.dead)?cell.click:undefined}
+      style=${"width:300px;flex:0 0 300px;display:flex;flex-direction:column;gap:6px;cursor:"+((!isE&&!cell.dead)?"pointer":"default")}>
+      ${stack}
+    </div>`;
+  };
+  // A strike-craft token: a small ship sprite in the gap, nose toward the enemy.
+  Game.prototype.renderCraft = function (t, i) {
+    var isP=t.side==="p", rot=isP?"rotate(-90deg)":"rotate(90deg)";
+    return html`
+    <div key=${t.side+i} title=${t.kind+" "+t.stat} style="display:flex;flex-direction:column;align-items:center;gap:1px">
+      <div style="width:52px;height:52px;display:grid;place-items:center">
+        <img src=${t.img} alt=${t.kind} style=${"width:58px;height:auto;object-fit:contain;transform:"+rot+";filter:drop-shadow(0 0 7px "+t.col+"cc) drop-shadow(0 2px 4px #000)"} />
+      </div>
+      <span style=${"font-family:"+MONO+";font-size:8.5px;letter-spacing:.04em;color:"+t.col}>${t.raw==="bomber"?"◆":"▸"} ${t.stat}</span>
+    </div>`;
   };
 
   Game.prototype.renderBattle = function (v) {
@@ -1984,28 +2014,25 @@
           })}
         </div>
 
-        <!-- ENEMY LINE -->
-        <div style="display:flex;justify-content:center;gap:14px">
-          ${v.eCells.map(function(cell){ return self.renderCapitalCell(cell, "e"); })}
+        <!-- ENEMY LINE (free-floating in space) -->
+        <div style="display:flex;justify-content:center;gap:26px">
+          ${v.eCells.map(function(cell){ return self.renderShipUnit(cell, "e"); })}
         </div>
 
-        <!-- STRIKE-CRAFT STRIP (tokens live here between the fleets) -->
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;min-height:52px;border:1px dashed #1b2a45;border-radius:6px;background:#070b1477;padding:6px 14px">
-          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-            <span style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.2em;color:#4d6288"}>YOUR CRAFT</span>
-            ${v.pTokens.length ? v.pTokens.map(function(t,i){ return self.renderToken(t,i); })
-              : html`<span style=${"font-family:"+MONO+";font-size:10px;color:#33465f"}>— none aloft —</span>`}
+        <!-- NO MAN'S LAND — strike craft launch here, nose toward the enemy -->
+        <div style="position:relative;min-height:132px;display:flex;align-items:center;justify-content:center">
+          <div style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.34em;color:#2c3d58"}>· · ·</div>
+          <div style="position:absolute;top:2px;left:0;right:0;display:flex;justify-content:center;gap:22px">
+            ${v.eTokens.map(function(t,i){ return self.renderCraft(t,i); })}
           </div>
-          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-            ${v.eTokens.length ? v.eTokens.map(function(t,i){ return self.renderToken(t,i); })
-              : html`<span style=${"font-family:"+MONO+";font-size:10px;color:#33465f"}>— none aloft —</span>`}
-            <span style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.2em;color:#4d6288"}>ENEMY CRAFT</span>
+          <div style="position:absolute;bottom:2px;left:0;right:0;display:flex;justify-content:center;gap:22px">
+            ${v.pTokens.map(function(t,i){ return self.renderCraft(t,i); })}
           </div>
         </div>
 
         <!-- YOUR LINE (click a ship to command it) -->
-        <div style="display:flex;justify-content:center;gap:14px">
-          ${v.pCells.map(function(cell){ return self.renderCapitalCell(cell, "p"); })}
+        <div style="display:flex;justify-content:center;gap:26px">
+          ${v.pCells.map(function(cell){ return self.renderShipUnit(cell, "p"); })}
         </div>
 
         <div style="position:absolute;inset:0;pointer-events:none;z-index:6">
@@ -3040,7 +3067,7 @@
           name:en.name, role:en.role, dead:!en.alive, struck:en.struck,
           img:shipImg(en.img, en.hull<en.hullMax*.5), anim:self.shipAnim(en.shake),
           subs:self.subsView(en,"e",en.focus,i),
-          shTxt:Math.round(en.shield)+"/"+en.shieldCap,
+          shTxt:Math.round(en.shield)+"/"+en.shieldCap, shPct:self.cl(en.shield/en.shieldCap*100,0,100),
           hullTxt:Math.round(en.hull)+"/"+en.hullMax, hullPct:self.cl(ehp,0,100), hullBg:self.hullBg(ehp),
           crewTxt:en.crew+"/"+en.crewMax, intent:iv,
           aimable:!!B.aiming && validAim.indexOf(i)>=0,
@@ -3056,7 +3083,7 @@
           name:sh.name, cls:sh.cls, dead:pS.lost||sh.hull<=0, active:i===B.active,
           img:shipImg(sh.img, sh.hull<sh.hullMax*.5), anim:self.shipAnim(sh.shake),
           subs:self.subsView(sh,"p"),
-          shTxt:Math.round(sh.shield)+"/"+sh.shieldCap,
+          shTxt:Math.round(sh.shield)+"/"+sh.shieldCap, shPct:self.cl(sh.shield/sh.shieldCap*100,0,100),
           hullTxt:Math.round(sh.hull)+"/"+sh.hullMax, hullPct:self.cl(php,0,100), hullBg:self.hullBg(php),
           crewTxt:sh.crew+"/"+sh.crewMax,
           powTxt:sh.power+"/"+self.rp(sh), handN:pS.hand.length,
@@ -3068,11 +3095,10 @@
         };
       });
       v.swapUsed=B.swapUsed; v.canManoeuvre=canManoeuvre&&B.pShips.length>1;
-      // ---- strike-craft token strip ----
+      // ---- strike craft (drawn as small sprites in the gap) ----
       v.tokens=B.tokens.map(function(t){
-        return { ico:t.kind==="fighter"?"⟡":"⏦",
-          col:t.side==="p"?(t.kind==="fighter"?"#8deaff":"#ffc266"):"#ff8aa0",
-          side:t.side, stat:t.atk+"/"+t.hp, kind:t.kind.toUpperCase() };
+        return { raw:t.kind, side:t.side, stat:t.atk+"/"+t.hp, kind:t.kind.toUpperCase(),
+          col:t.side==="p"?"#5fd8ff":"#ff5470", img:shipImg(CRAFT_SPRITE[t.kind]||"ship-09",false) };
       });
       v.pTokens=v.tokens.filter(function(t){return t.side==="p";});
       v.eTokens=v.tokens.filter(function(t){return t.side==="e";});
