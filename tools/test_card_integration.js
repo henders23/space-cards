@@ -25,52 +25,78 @@ game.log = function () {};
 game.reportDamage = function () {};
 
 const keys = Object.keys(game.LIB);
-assert.equal(keys.length, 50, "The runtime library must contain exactly 50 cards");
+assert.equal(keys.length, 53, "The runtime library must contain exactly 53 cards");
 for (const key of keys) {
   assert.ok(game.LIB[key].summary, `${key} needs a compact summary`);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "cards", `${key}.png`)), `${key} needs runtime art`);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "cards", "full", `${key}.png`)), `${key} needs a full card face`);
 }
+assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "audio", "boarding_action.wav")),
+  "boarding actions need their dedicated sound");
 
 function resetBattle() {
-  game.state.player = {
-    hullMax: 64, hull: 64, crew: 8, crewMax: 8, powerBase: 3, shieldCap: 22, shield: 0,
+  const ship = {
+    id: "test-flag", name: "Test Flagship", hullMax: 64, hull: 64, crew: 8, crewMax: 8,
+    powerBase: 3, shieldCap: 22, shield: 0, hangarCap: 3,
     subs: { weapons: 100, reactor: 50, engines: 50 }, ups: {}, power: 3
   };
-  game.state.battle = {
-    enemy: { hullMax: 60, hull: 60, shieldCap: 20, shield: 10, crew: 3, crewMax: 7,
-      subs: { weapons: 100, reactor: 100, engines: 100 } },
-    lock: 0, armour: 0, reflect: 0, blind: 0, overwatch: 0, flank: 0,
-    sealCrew: false, nextPower: 0, nextPowerPenalty: 0, mines: [],
-    draw: [], hand: [], disc: [], logs: [], floats: [], beams: []
+  const player = {
+    ship, lost: false, draw: [], hand: [], disc: [],
+    fx: { lock: 0, brace: false, evade: false, armour: 0, reflect: 0, overwatch: 0,
+      flank: 0, sealCrew: false, blind: 0, nextPower: 0, nextPowerPenalty: 0 }
   };
+  const enemy = {
+    name: "Test Enemy", hullMax: 60, hull: 60, shieldCap: 20, shield: 10,
+    crew: 3, crewMax: 7, alive: true, struck: false, focus: null, mines: [],
+    subs: { weapons: 100, reactor: 100, engines: 100 }
+  };
+  game.state.player = ship;
+  game.state.fleet = [ship];
+  game.state.battle = {
+    pShips: [player], eShips: [enemy], tokens: [], active: 0,
+    logs: [], floats: [], beams: [], busy: false, over: false
+  };
+  return { player, enemy };
 }
 
-resetBattle();
-game.resolveCard(game.LIB["plasma-lance"]);
-assert.equal(game.state.battle.enemy.shield, 0, "Plasma Lance should strip then damage shields");
-assert.equal(game.state.battle.enemy.hull, 56, "Plasma Lance overflow should reach hull");
+let battle = resetBattle();
+game.resolveCard(game.LIB["plasma-lance"], battle.player);
+assert.equal(battle.enemy.shield, 0, "Plasma Lance should strip then damage shields");
+assert.equal(battle.enemy.hull, 56, "Plasma Lance overflow should reach hull");
 
-resetBattle();
-game.state.player.subs = { weapons: 20, reactor: 30, engines: 40 };
-game.resolveCard(game.LIB["nanite-swarm"]);
-assert.deepEqual(game.state.player.subs, { weapons: 32, reactor: 42, engines: 52 });
+battle = resetBattle();
+battle.player.ship.subs = { weapons: 20, reactor: 30, engines: 40 };
+game.resolveCard(game.LIB["nanite-swarm"], battle.player);
+assert.deepEqual(battle.player.ship.subs, { weapons: 32, reactor: 42, engines: 52 });
 
-resetBattle();
-game.resolveCard(game.LIB["layered-plating"]);
-game.dealDamage("p", 10, true);
-assert.equal(game.state.player.hull, 60, "Armour should absorb six hull damage");
+battle = resetBattle();
+game.resolveCard(game.LIB["layered-plating"], battle.player);
+game.dealDamage("p", 0, 10, true);
+assert.equal(battle.player.ship.hull, 60, "Armour should absorb six hull damage");
 
-resetBattle();
-game.resolveCard(game.LIB["aux-battery"]);
-assert.equal(game.state.battle.nextPower, 2, "Auxiliary Battery should queue next-turn power");
+battle = resetBattle();
+game.resolveCard(game.LIB["aux-battery"], battle.player);
+assert.equal(battle.player.fx.nextPower, 2, "Auxiliary Battery should queue next-turn power");
 
-resetBattle();
-game.resolveCard(game.LIB["command-seizure"]);
-assert.equal(game.state.battle.enemy.crew, 0, "Command Seizure should capture low-crew enemies");
+battle = resetBattle();
+let boardingFx = 0;
+game.spawnBoardingAction = function () { boardingFx++; };
+game.resolveCard(game.LIB["command-seizure"], battle.player);
+assert.equal(battle.enemy.crew, 0, "Command Seizure should capture low-crew enemies");
+assert.equal(boardingFx, 1, "Boarding cards should trigger the boarding-action visual and sound path");
 
-resetBattle();
-game.resolveCard(game.LIB["mine-layer"]);
-assert.deepEqual(game.state.battle.mines, [12], "Mine Layer should queue delayed damage");
+battle = resetBattle();
+game.resolveCard(game.LIB["mine-layer"], battle.player);
+assert.deepEqual(battle.enemy.mines, [12], "Mine Layer should queue delayed damage");
 
-console.log(`Verified ${keys.length} integrated cards and representative mechanics.`);
+battle = resetBattle();
+game.resolveCard(game.LIB["fighter-wing"], battle.player);
+assert.equal(game.state.battle.tokens.length, 2, "Fighter Wing should launch two persistent board tokens");
+assert.ok(game.state.battle.tokens.every((token) => token.side === "p" && token.kind === "fighter"),
+  "launched fighters should live in the player battle-space token row");
+
+for (const key of ["fighter-wing", "bomber-wing", "interceptors"]) {
+  assert.equal(game.hasArt(game.LIB[key]), true, `${key} should use its full card asset`);
+}
+
+console.log(`Verified ${keys.length} integrated cards, strike-craft assets/tokens, and boarding FX.`);

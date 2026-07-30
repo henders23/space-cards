@@ -91,20 +91,20 @@
     "command-seizure":{key:"command-seizure",name:"Command Seizure",cost:3,type:"boarding",summary:"CAPTURE",text:"Capture if enemy crew is 3 or less; otherwise enemy crew -3. Needs 3 crew.",capture:3,eCrew:3,needCrew:3}
   });
   // ---- strike craft (Phase 4/6): persistent board tokens --------------------
-  // These have no bespoke PNG face, so they render through the procedural card
-  // face (art:false). Tokens live on the board between the fleets, have no
+  // The card art shows launch systems and defensive fire without ship
+  // silhouettes. Launched craft live on the board between the fleets, have no
   // decks of their own, and act automatically every round: fighters dogfight
   // enemy craft (bombers first) and strafe capitals when the sky is clear;
-  // bombers torpedo capitals straight through shields. Strike craft ignore
-  // the lane screen — they fly.
+  // bombers torpedo capitals straight through shields. Strike craft ignore the
+  // lane screen — they fly.
   Object.assign(LIB, {
-    "fighter-wing":{key:"fighter-wing",name:"Fighter Wing",cost:2,type:"strike",art:false,glyph:"⟡",summary:"2× FIGHTER 2/2",
+    "fighter-wing":{key:"fighter-wing",name:"Fighter Wing",cost:2,type:"strike",summary:"2× FIGHTER 2/2",
       text:"Launch two fighters (2 ATK / 2 HP) from this ship's hangar. Fighters dogfight enemy strike craft first — bombers before fighters — and strafe enemy capitals when the sky is clear.",
       strike:{kind:"fighter",n:2,atk:2,hp:2}},
-    "bomber-wing":{key:"bomber-wing",name:"Bomber Wing",cost:3,type:"strike",art:false,glyph:"⏦",summary:"BOMBER 5/2 PIERCE",
+    "bomber-wing":{key:"bomber-wing",name:"Bomber Wing",cost:3,type:"strike",summary:"BOMBER 5/2 PIERCE",
       text:"Launch a bomber (5 ATK / 2 HP) from this ship's hangar. Every round it torpedoes an enemy capital straight through shields and chews that ship's focused subsystem (-10). Enemy fighters hunt it first.",
       strike:{kind:"bomber",n:1,atk:5,hp:2,pierce:true,sab:10}},
-    "interceptors":{key:"interceptors",name:"Interceptor Screen",cost:1,type:"strike",art:false,glyph:"✳",summary:"3 DMG ALL CRAFT",
+    "interceptors":{key:"interceptors",name:"Interceptor Screen",cost:1,type:"strike",summary:"3 DMG ALL CRAFT",
       text:"Point-defense sweep: deal 3 damage to every enemy strike craft, raise 5 shields on this ship, and draw a card.",
       draw:1, strike:{kind:"defense",sweep:3,shield:5}}
   });
@@ -486,16 +486,18 @@
   // Short SFX from the sounds pack. new/cloned Audio per call so shots overlap.
   var AUDIO_KEYS = ["enemy_sighted_m","enemy_sighted_f","reporting_damage","reporting_damage_1",
     "laser_beam","laser_cannon","blaster","small_explosion","medium_explosion","torpedo_explosion",
-    "enemy_destroyed","ship_destroyed"];
+    "enemy_destroyed","ship_destroyed","boarding_action"];
+  var AUDIO_FILES = { boarding_action:"boarding_action.wav" };
   var AUDIO = {};
+  function audioSrc(name){ return "assets/audio/"+(AUDIO_FILES[name]||name+".mp3"); }
   function preloadAudio(){
     if (AUDIO._done) return; AUDIO._done = true;
-    AUDIO_KEYS.forEach(function(n){ try{ var a=new Audio("assets/audio/"+n+".mp3"); a.preload="auto"; AUDIO[n]=a; }catch(e){} });
+    AUDIO_KEYS.forEach(function(n){ try{ var a=new Audio(audioSrc(n)); a.preload="auto"; AUDIO[n]=a; }catch(e){} });
   }
   function sfx(name, vol){
     try{
       var base=AUDIO[name];
-      var a=base ? base.cloneNode(true) : new Audio("assets/audio/"+name+".mp3");
+      var a=base ? base.cloneNode(true) : new Audio(audioSrc(name));
       a.volume=(vol==null?1:vol); var pr=a.play(); if(pr&&pr.catch) pr.catch(function(){});
     }catch(e){}
   }
@@ -942,8 +944,9 @@
     } else if (it.type==="shield") { e.shield=this.cl(e.shield+it.value,0,e.shieldCap); this.log("#ff8aa0",e.name+" reinforces its shields (+"+it.value+")."); }
     else if (it.type==="board") {
       if (!t) return;
+      this.spawnBoardingAction(this.shipCenter("e",i), this.shipCenter("p",ti), true);
       if (fx.sealCrew) { fx.sealCrew=false; this.log("#9fdcff",t.name+"'s sealed bulkheads stop the boarding assault."); }
-      else { t.crew=this.cl(t.crew-it.value,0,t.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtSub(t,nm2,10,true); t.shake++; this.log("#ff8aa0","Boarders from "+e.name+" storm "+t.name+" — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
+      else { t.crew=this.cl(t.crew-it.value,0,t.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtSub(t,nm2,10,true); t.shake++; this.addFloat("p",ti,"-"+it.value+" CREW","#ff8aa0"); this.log("#ff8aa0","Boarders from "+e.name+" storm "+t.name+" — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
     }
     else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
   };
@@ -1122,10 +1125,12 @@
     if (c.flank) { fx.flank=c.flank; this.log("#9fdcff","Flanking solution ready — "+sh.name+"'s next weapon slips the screen."); }
     if (c.overwatch) { fx.overwatch=c.overwatch; this.log("#9fdcff","Overwatch armed on "+sh.name+" for "+c.overwatch+" counter-damage."); }
     if (c.eCrew && e) {
+      this.spawnBoardingAction(this.shipCenter("p",pIdx), this.shipCenter("e",eIdx), false);
       if (c.capture && e.crew<=c.capture) e.crew=0; else e.crew=this.cl(e.crew-c.eCrew,0,e.crewMax);
       sh.crew=this.cl(sh.crew-(c.sCrew||0),0,sh.crewMax);
       if (c.sabRand) { var nm=this.pk(["weapons","reactor","engines"]); e.subs[nm]=this.cl(e.subs[nm]-c.sabRand,0,100); }
       if (c.sabWorst) { var ew=this.worstSub(e.subs); e.subs[ew]=this.cl(e.subs[ew]-c.sabWorst,0,100); this.log("#c4d2ea",ew.toUpperCase()+" sabotaged (-"+c.sabWorst+")."); }
+      this.addFloat("e",eIdx,"-"+c.eCrew+" CREW","#ffb0c0");
       this.log("#c4d2ea", c.name+" boards "+e.name+" — enemy crew -"+c.eCrew+", yours -"+(c.sCrew||0)+".");
     } else if (c.eCrew && !e) { this.log("#b3c4de","No enemy in reach of a boarding action."); }
     if (c.strike) this.launchStrike(c.strike, sh);
@@ -1294,6 +1299,13 @@
   Game.prototype.spawnExplosion = function (pt, which, size) {
     var cfg=EXPL[which]||EXPL.orange;
     this.addFx({ kind:"explosion", cfg:cfg, x:pt.x, y:pt.y, size:size||150, frameMs:30 });
+  };
+  Game.prototype.spawnBoardingAction = function (from, to, hostile) {
+    var item={ kind:"boarding", x0:from.x, y0:from.y, x1:to.x, y1:to.y,
+      dur:1050, hostile:!!hostile };
+    var id=this.addFx(item), self=this;
+    sfx("boarding_action", .88);
+    setTimeout(function(){ self.removeFx(id); }, item.dur+180);
   };
   Game.prototype.playerFireSound = function (c) {
     if (c.key==="railgun"||c.key==="execution-beam"||c.key==="plasma-lance") return "laser_cannon";
@@ -2168,6 +2180,19 @@
     if (it.kind==="explosion") {
       return html`<div key=${it.id} ref=${function(el){ self.runExplosion(el,it); }}
         style=${"position:fixed;left:"+it.x+"px;top:"+it.y+"px;width:"+it.size+"px;height:"+it.size+"px;transform:translate(-50%,-50%)"}></div>`;
+    }
+    if (it.kind==="boarding") {
+      var dx=it.x1-it.x0, dy=it.y1-it.y0, dist=Math.sqrt(dx*dx+dy*dy);
+      var ang=Math.atan2(dy,dx)*180/Math.PI, col=it.hostile?"#ff5470":"#8deaff";
+      return html`<div key=${it.id} style="position:fixed;inset:0">
+        <div style=${"position:fixed;left:"+it.x0+"px;top:"+it.y0+"px;width:"+dist+"px;height:2px;transform-origin:0 50%;transform:rotate("+ang+"deg);color:"+col}>
+          <div class="hf-boarding-tether" style=${"position:absolute;left:0;top:0;width:100%;height:2px;background:repeating-linear-gradient(90deg,"+col+" 0 9px,transparent 9px 16px);box-shadow:0 0 8px "+col+";transform-origin:0 50%;animation-duration:"+it.dur+"ms"}></div>
+          ${[0,1,2].map(function(n){ return html`<span class="hf-boarding-pod" style=${"position:absolute;left:0;top:-5px;width:11px;height:11px;border:2px solid "+col+";background:#07101d;box-shadow:0 0 10px "+col+";--board-run:"+Math.max(0,dist-12)+"px;animation-duration:"+it.dur+"ms;animation-delay:"+(n*105)+"ms"}></span>`; })}
+        </div>
+        <div class="hf-boarding-breach" style=${"position:fixed;left:"+it.x1+"px;top:"+it.y1+"px;width:84px;height:84px;border:2px dashed "+col+";border-radius:50%;box-shadow:0 0 20px "+col+";color:"+col+";animation-duration:"+it.dur+"ms"}>
+          <span style="position:absolute;left:50%;top:50%;width:22px;height:22px;border:3px solid currentColor;transform:translate(-50%,-50%) rotate(45deg)"></span>
+        </div>
+      </div>`;
     }
     return null;
   };

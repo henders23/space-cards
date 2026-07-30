@@ -116,13 +116,13 @@ choice is remembered).
 | `index.html` | Page shell; loads the vendored libs, styles, and game |
 | `game.js` | The whole game — rules engine + UI, one Preact component |
 | `styles.css` | Global reset, starfield, keyframes, hover/title styles |
-| `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/`. Strike-craft cards render through a procedural card face (no PNG needed) |
+| `assets/cards/` | Upgraded card art (one PNG per card key) plus complete card faces in `full/`, including silhouette-free launch-system art for all three strike-craft cards |
 | `assets/crew/` | Galactic Navy portrait cast for the dialogue system, keyed by name, with a `manifest.csv` |
 | `assets/backgrounds/` | Parallax combat starfields (`combat-1..4.jpg`) — drop in your own at the same paths to replace them |
 | `docs/IMPROVEMENT_PLAN.md` | The five-phase design plan this build implements |
 | `assets/ships/` | Chroma-keyed fleet pack: player ship + one hull per enemy class, each with a damaged twin that swaps in below half hull |
 | `assets/fx/` | Projectiles, muzzle flashes, impact sparks, explosion spritesheets |
-| `assets/audio/` | Ambient + combat music, weapon, "enemy sighted", "reporting damage" and destruction SFX |
+| `assets/audio/` | Ambient + combat music, weapon, boarding-action, "enemy sighted", "reporting damage" and destruction SFX |
 | `vendor/` | Preact + htm UMD builds (vendored, no CDN at runtime) |
 | `Game layout and features planning.zip` | Original design handoff (reference) |
 
@@ -138,8 +138,9 @@ an accompanying sounds pack (both licensed for use with no attribution required)
   both vendored as UMD globals — no JSX, no transpile. The game is a single class
   component whose imperative state mirrors the design spec's logic class.
 - **Expanded card library**: the original 19 cards are joined by 31 new cards
-  plus 3 strike-craft cards, for 53 total. Painted cards have distinct artwork;
-  strike-craft cards render through a procedural card face. Each has a compact
+  plus 3 strike-craft cards, for 53 total. Every card has distinct artwork;
+  strike-craft faces use launch systems and defensive fire rather than ship
+  silhouettes, while launched craft remain floating battle-space tokens. Each has a compact
   hand summary, a full detail view, shop/reward availability, and implemented
   combat behaviour.
 - **Narrative layer**: a data-driven dialogue engine (`SCENES` / `CAST` /

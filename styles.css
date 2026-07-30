@@ -59,11 +59,31 @@ a:hover { color: #ffffff; }
 @keyframes crosshairspin {0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 @keyframes titlein {0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
 @keyframes driftin {0%{opacity:0;transform:translateY(24px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes boardingtether {
+  0% { opacity: 0; transform: scaleX(0); }
+  14%, 72% { opacity: .9; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+@keyframes boardingpod {
+  0%, 8% { opacity: 0; transform: translateX(0) rotate(45deg) scale(.55); }
+  18% { opacity: 1; }
+  72% { opacity: 1; transform: translateX(var(--board-run)) rotate(405deg) scale(1); }
+  100% { opacity: 0; transform: translateX(var(--board-run)) rotate(405deg) scale(.25); }
+}
+@keyframes boardingbreach {
+  0%, 50% { opacity: 0; transform: translate(-50%,-50%) rotate(-18deg) scale(.4); }
+  66% { opacity: 1; transform: translate(-50%,-50%) rotate(0deg) scale(1.16); }
+  100% { opacity: 0; transform: translate(-50%,-50%) rotate(22deg) scale(.75); }
+}
 
 @keyframes ringpulseO {0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.45);opacity:.12}}
 @keyframes hoverfade {0%{opacity:0}100%{opacity:1}}
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+.hf-boarding-tether { animation: boardingtether 1050ms ease-out forwards; }
+.hf-boarding-pod { animation: boardingpod 1050ms cubic-bezier(.2,.7,.25,1) forwards; opacity: 0; }
+.hf-boarding-breach { animation: boardingbreach 1050ms ease-out forwards; opacity: 0; }
 
 /* ---- zone-based sector map (free-travel redesign) ---- */
 .hf-mapscroll { scrollbar-width: none; -ms-overflow-style: none; }
