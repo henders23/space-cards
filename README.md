@@ -38,10 +38,7 @@ automatically duck the score briefly.
 
 ## How it plays
 
-1. **Title, commission & briefing** — pick a difficulty (Standard / Hard /
-   Brutal), then choose a **commission** that sets your opening ten-card deck —
-   *Gunline* (aggressive weapons), *Bulwark* (shields & boarding), or *Saboteur*
-   (subsystem warfare) — read the situation, and launch the sortie. Your bridge
+1. **Title & briefing** — pick a difficulty (Standard / Hard / Brutal), then launch with the aggressive Gunline opening deck already fitted. Your bridge
    crew and Fleet Command speak to you at key beats over an in-game **dialogue**
    system driven by the Galactic Navy portrait cast.
    A visible, editable **run seed** makes sector generation reproducible.
@@ -49,7 +46,7 @@ automatically duck the score briefly.
    and can be resumed from the title screen.
 2. **The chart** — a free-travel, zone-based sector map (from the
    `design_handoff_sector_map` bundle): 39 systems in 10 zones on a
-   3400×2100 scrollable chart. Drag to pan, click a system for intel, double-click (or SET
+   3400×2100 zoomable chart. Use the mouse wheel to zoom, drag to pan, click a system for intel, double-click (or SET
    COURSE / ENGAGE) to travel along charted lanes — revisiting friendly ports is
    allowed. Every system beyond Haven Anchorage starts the run occupied — even
    stations, shipyards, and repair depots have Pact garrisons, and their
@@ -61,7 +58,7 @@ automatically duck the score briefly.
    Tether, Hollow Yard) sell the permanent refits — including Extended Fuel
    Racks and the Salvage Rig — while stations keep the card armory.
    The chart uses reusable high-resolution planet and facility art, a dedicated
-   deep-space backdrop, a gold ring around the selected target, and a fixed gold
+   deep-space backdrop, an enormous pulsating gold ring around the selected target, and a fixed gold
    vector arrow that points from the Resolute toward that target. Selecting a
    destination highlights the full route in gold and previews jump, fuel, and
    reserve-hull costs before travel.
@@ -187,3 +184,7 @@ an accompanying sounds pack (both licensed for use with no attribution required)
 - **Added for this build**: the title/intro screen with story context and an
   in-game difficulty selector, ahead of the original tactical briefing overlay.
 - **Motion** respects `prefers-reduced-motion`.
+
+## Faction portrait mockups
+
+Open `docs/portrait-mockups/index.html` for three side-by-side naval portrait directions covering Lyr Command, the Unbound, and the Pirate Pact.

@@ -160,9 +160,10 @@ a:hover { color: #ffffff; }
   letter-spacing: .18em; color: #a9bcda;
 }
 .hf-target-ring {
-  position: absolute; inset: -13px; border: 3px solid #f3c969; border-radius: 50%;
-  box-shadow: 0 0 12px #f3c969, 0 0 28px #f3c96988, inset 0 0 12px #f3c96955;
-  animation: targetpulse 1.35s ease-in-out infinite;
+  position: absolute; inset: -42px; border: 8px solid #ffe45c; border-radius: 50%;
+  box-shadow: 0 0 20px #fff27a, 0 0 60px #ffe45ccc, 0 0 110px #f3c96988, inset 0 0 24px #ffe45c88;
+  animation: targetpulse .9s ease-in-out infinite;
+  z-index: 5; pointer-events:none;
 }
 .hf-nav-arrow {
   position: absolute; left: 50%; bottom: 72px; z-index: 8;
@@ -342,3 +343,16 @@ a:hover { color: #ffffff; }
 @media (max-width: 560px) { .hf-primer { grid-template-columns: 1fr; } }
 
 .hf-overlay-panel { animation: driftin .35s ease-out both; }
+
+/* Capital deaths: white-hot core, expanding shockwave, embers and radial hull debris. */
+.hf-shipburst { position:fixed;width:1px;height:1px;z-index:45;filter:drop-shadow(0 0 26px #ff9b42); }
+.hf-destruction-core { position:absolute;width:180px;height:88px;left:-90px;top:-44px;border-radius:50%;background:#fff8d6;box-shadow:0 0 35px 18px #fff,0 0 80px 36px #ff8a24;animation:destructioncore .52s ease-out forwards; }
+.hf-destruction-wave { position:absolute;width:120px;height:120px;left:-60px;top:-60px;border:8px solid #ffe4a0;border-radius:50%;box-shadow:0 0 22px #fff,0 0 54px #ff932e,inset 0 0 34px #ff6b22;animation:destructionwave 1.25s cubic-bezier(.1,.55,.2,1) forwards; }
+.hf-destruction-smoke { position:absolute;width:400px;height:150px;left:-200px;top:-75px;border-radius:50%;background:radial-gradient(ellipse,#ff8b323d 0 18%,#44201888 38%,#11131aa8 64%,transparent 72%);filter:blur(12px);animation:destructionsmoke 1.5s ease-out forwards; }
+.hf-shipburst i { position:absolute;left:-3px;top:-2px;width:18px;height:5px;border-radius:40% 2px 2px 40%;background:linear-gradient(90deg,#fff3b0,#ff8b32 42%,#34232a 45%);box-shadow:0 0 7px #ffad4d;transform:rotate(var(--a)) translateX(15px);animation:destructiondebris 1.15s cubic-bezier(.15,.55,.25,1) both; }
+.hf-shipburst.player { filter:drop-shadow(0 0 30px #ff526d); }
+@keyframes destructioncore { from{transform:scale(.2);opacity:1} 45%{transform:scale(1.25);opacity:1} to{transform:scale(1.8);opacity:0} }
+@keyframes destructionwave { from{transform:scale(.2);opacity:1} to{transform:scale(4.8);opacity:0} }
+@keyframes destructionsmoke { from{transform:scale(.35);opacity:0} 35%{opacity:.9} to{transform:scale(1.55);opacity:0} }
+@keyframes destructiondebris { from{transform:rotate(var(--a)) translateX(15px) rotate(0);opacity:1} to{transform:rotate(var(--a)) translateX(var(--d)) rotate(var(--r));opacity:0} }
+@media (prefers-reduced-motion:reduce) { .hf-shipburst i,.hf-destruction-wave,.hf-destruction-smoke{display:none}.hf-destruction-core{animation:none;opacity:.72;transform:scale(1.1)} }
