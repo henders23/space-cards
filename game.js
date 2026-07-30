@@ -165,7 +165,7 @@
   // The player is Adm. Alexander Vale, commanding the ISV Resolute.
   var CAST = {
     you:     {name:"Adm. Vale",                role:"COMMANDING · ISV RESOLUTE", img:"alexander_vale", c:"#5fd8ff"},
-    halloway:{name:"V.Adm. Halloway",          role:"FLEET COMMAND",        img:"margaret_halloway", c:"#8deaff"},
+    voss:    {name:"V.Adm. Mara Voss",         role:"LYR FLEET COMMAND",    img:"mara_voss", c:"#8deaff"},
     novak:   {name:"V.Adm. Novak",             role:"FLEET LOGISTICS",      img:"peter_novak",       c:"#8deaff"},
     solan:   {name:"Cdr. Solan",               role:"EXECUTIVE OFFICER",    img:"mira_solan",        c:"#7cf0c0"},
     drake:   {name:"Lt.Cdr. Drake",            role:"TACTICAL",             img:"ethan_drake",       c:"#7cf0c0"},
@@ -182,10 +182,12 @@
   // short, direct and operational.
   var SCENES = {
     intro: [
-      {who:"halloway", line:"Fleet Command is gone. The Pact controls the Verge. Every dock. Every lane."},
-      {who:"halloway", line:"The Iron Verdict holds the gate. Break their control. Kill the Verdict. Get home."},
-      {who:"solan", line:"Crew ready. Reactor ready. Orders?"},
-      {who:"you", line:"Leave Haven."}
+      {who:"voss", line:"Vale, thank the stars. The Lyr line broke at the gate, and the pirate packs swept into every dock behind us."},
+      {who:"solan", line:"We have one battleship, a tired crew, and enough fuel to reach the first occupied system. Not much of a fleet."},
+      {who:"ndala", line:"I'm also hearing Unbound signals beneath the pirate traffic. They're scattered, but they may still answer a Lyr ship."},
+      {who:"voss", line:"Then give them something to rally around. Free the ports, rebuild your line, and open the Blackstar Gate before the pirates seal it for good."},
+      {who:"park", line:"Resolute is bruised, Admiral, but she's ready. Say the word and I'll bring the reactor up."},
+      {who:"you", line:"Bring her up. We leave Haven together."}
     ],
     firstFight: [
       {who:"ndala", line:"Pact contact ahead. Weapons live. No hail."},
@@ -213,7 +215,7 @@
     ],
     zoneSecured: [
       {who:"solan", line:"Zone clear. All systems secured."},
-      {who:"halloway", line:"Confirmed. Keep moving. The gate seal is weakening."}
+      {who:"voss", line:"Confirmed, Resolute. That gives the Lyr and the Unbound one more safe harbor. Keep moving; the gate seal is weakening."}
     ],
     firstVictory: [
       {who:"park", line:"Engineering stable."},
@@ -245,7 +247,7 @@
     // ---- other beats ----
     gateUnsealed: [
       {who:"ndala", line:"Gate active. Seal broken."},
-      {who:"halloway", line:"Iron Verdict is the last obstruction. Remove it."}
+      {who:"voss", line:"The Iron Verdict is all that remains between our people and the gate. Bring everyone home, Vale."}
     ],
     firstDock: [
       {who:"park", line:"Dock secure. Fuel transfer started."},
@@ -938,6 +940,7 @@
   Game.prototype.resumeAutosave = function () {
     var save=this.readAutosave(); if (!save) return;
     var st=save.state;
+    if (st.overlay==="commission") st.overlay="brief";
     if (!st.fleet||!st.fleet.length) return;
     st.player=st.fleet[0]; st.dialogue=null; st.cardDetail=null;
     if (st.battle&&st.battle.pShips) {
@@ -1701,6 +1704,23 @@
     var cfg=EXPL[which]||EXPL.orange;
     this.addFx({ kind:"explosion", cfg:cfg, x:pt.x, y:pt.y, size:size||150, frameMs:30 });
   };
+  Game.prototype.spawnShipDestruction = function (pt, hostile) {
+    var self=this, battle=this.state.battle;
+    this.hitStop(130);
+    var burstDur=(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)?350:1500;
+    var burstId=this.addFx({kind:"shipburst",x:pt.x,y:pt.y,dur:burstDur,hostile:hostile,
+      debris:Array.apply(null,{length:16}).map(function(_,i){return {a:i*22.5+self.ri(-8,8),d:self.ri(150,330),r:self.ri(90,520),delay:self.ri(40,220)};})});
+    setTimeout(function(){ self.removeFx(burstId); },burstDur+50);
+    this.addFx({kind:"explosion",cfg:EXPL.capital,x:pt.x,y:pt.y,size:520,frameMs:46});
+    this.spawnFlash(pt,hostile?FX.impactEnemy:FX.impactPlayer,330);
+    [[-126,-18,100,"red"],[-72,28,190,"orange"],[18,-32,290,"red"],[82,22,410,"orange"],[138,-10,560,"red"],[-24,38,680,"orange"]].forEach(function(burst){
+      setTimeout(function(){
+        if (self.state.battle!==battle) return;
+        self.spawnExplosion({x:pt.x+burst[0],y:pt.y+burst[1]},burst[3],240);
+        self.spawnFlash({x:pt.x+burst[0],y:pt.y+burst[1]},hostile?FX.impactEnemy:FX.impactPlayer,150);
+      },burst[2]);
+    });
+  };
   Game.prototype.spawnBoardingAction = function (from, to, hostile) {
     var item={ kind:"boarding", x0:from.x, y0:from.y, x1:to.x, y1:to.y,
       dur:1050, hostile:!!hostile };
@@ -1768,23 +1788,23 @@
     // sweep the enemy line: gutted hulls break up, crewless hulls are struck
     B.eShips.forEach(function(e,i){
       if (!e.alive||e.struck) return;
-      if (e.hull<=0) { e.alive=false; e.intent=null; self.spawnExplosion(self.shipCenter("e",i), "capital", 260); sfx("enemy_destroyed", 1); self.log("#9fdcff",e.name+" breaks apart under your guns."); }
+      if (e.hull<=0) { e.alive=false; e.intent=null; self.spawnShipDestruction(self.shipCenter("e",i), true); sfx("enemy_destroyed", 1); self.log("#9fdcff",e.name+" breaks apart under your guns."); }
       else if (e.crew<=0) { e.struck=true; e.intent=null; self.log("#9fdcff",e.name+" is struck - your prize crew holds her bridge."); }
     });
     // sweep your escorts (the flagship decides the run below)
     B.pShips.forEach(function(pS,i){
       var sh=pS.ship; if (pS.lost||sh.flagship) return;
-      if (sh.hull<=0) { pS.lost=true; sh._lost=true; self.spawnExplosion(self.shipCenter("p",i), "red", 260); sfx("ship_destroyed", .9); self.log("#ff8aa0",sh.name+" is lost with all hands."); }
+      if (sh.hull<=0) { pS.lost=true; sh._lost=true; self.spawnShipDestruction(self.shipCenter("p",i), false); sfx("ship_destroyed", .9); self.log("#ff8aa0",sh.name+" is lost with all hands."); }
       else if (sh.crew<=0) { pS.lost=true; sh._lost=true; self.log("#ff8aa0",sh.name+" is overrun and struck from your line."); }
     });
     this.syncEngineAudio(false);
     var flag=S.player;
     if (flag.hull<=0 || flag.crew<=0) {
       B.over=true;
-      if (flag.hull<=0) { this.spawnExplosion(this.shipCenter("p",0), "red", 300); sfx("ship_destroyed", 1); }
+      if (flag.hull<=0) { this.spawnShipDestruction(this.shipCenter("p",0), false); sfx("ship_destroyed", 1); }
       var why = flag.hull<=0 ? "Hull integrity gone. ISV Resolute is lost with all hands." : "Boarders overrun your decks. Your flagship is taken.";
       this.setMusicScene("ambient", true);
-      this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"FLAGSHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },700); return true;
+      this.forceUpdate(); setTimeout(function(){ S.end={kick:"ENGAGEMENT LOST",title:"FLAGSHIP LOST",body:why}; S.overlay="end"; self.forceUpdate(); },1250); return true;
     }
     if (this.aliveEIdx().length===0) {
       B.over=true;
@@ -1793,7 +1813,7 @@
         ? "Your boarders hold every enemy bridge - the line is struck and taken."
         : struck.length ? "The enemy line is broken - part gutted by your guns, part struck by your boarders."
         : (B.eShips.length>1 ? "The enemy line breaks apart under your guns." : B.eShips[0].name+" breaks apart under your guns.");
-      this.forceUpdate(); setTimeout(function(){ self.victory(how); },700); return true;
+      this.forceUpdate(); setTimeout(function(){ self.victory(how); },1250); return true;
     }
     return false;
   };
@@ -2021,6 +2041,17 @@
     this._mdrag=null; var self=this;
     setTimeout(function(){ self._didPan=false; }, 0);
   };
+  Game.prototype.mapWheel = function (e) {
+    if (!this.mapScrollEl) return;
+    e.preventDefault();
+    var el=this.mapScrollEl, old=this._mapZoom||1;
+    var next=this.cl(old*(e.deltaY<0?1.12:.89),.65,1.8);
+    if (Math.abs(next-old)<.001) return;
+    var rect=el.getBoundingClientRect(), px=e.clientX-rect.left, py=e.clientY-rect.top;
+    var worldX=(el.scrollLeft+px)/old, worldY=(el.scrollTop+py)/old;
+    this._mapZoom=next; this.forceUpdate();
+    requestAnimationFrame(function(){ el.scrollLeft=worldX*next-px; el.scrollTop=worldY*next-py; });
+  };
 
   // ---- station / shipyard -------------------------------------------------
   Game.prototype.openBase = function (n) {
@@ -2125,11 +2156,10 @@
   Game.prototype.toggleScanlines = function () { this.config.scanlines = !this.config.scanlines; this.forceUpdate(); };
   Game.prototype.beginRun = function () {
     // Fresh run seeded with the chosen config, then drop the player onto the
-    // sector chart with the commission picker raised (deck chosen there),
-    // followed by the tactical briefing and the opening dialogue.
+    // sector chart with the default left-hand Gunline deck already fitted.
     this.setRunSeed(this.config.seed||this.makeSeed());
     var run = this.freshRun();
-    run.screen = "map"; run.overlay = "commission";
+    run.screen = "map"; run.commission = COMMISSIONS[0].k; run.overlay = "brief";
     this.setState(run);
   };
 
@@ -2255,7 +2285,6 @@
       ${S.overlay==="deckview" ? this.renderDeckView() : null}
       ${S.overlay==="shipview" ? this.renderShipView() : null}
       ${S.overlay==="codex" ? this.renderCodex() : null}
-      ${S.overlay==="commission" ? this.renderCommission() : null}
       ${S.overlay==="settings" ? this.renderSettings() : null}
       ${S.overlay==="combatHistory" ? this.renderCombatHistory() : null}
       ${this.hoverCard ? this.renderHoverPanel(this.hoverCard) : null}
@@ -2426,7 +2455,7 @@
     var accent = cell.dead?"#5a6a82" : cell.struck?"#7cf0c0" : cell.aimable?"#ff5470" : cell.active?"#5fd8ff" : (isE?"#ff8aa0":"#9fb8dc");
     var shipGlow = cell.aimable?"drop-shadow(0 0 18px #ff5470dd)" : cell.active?"drop-shadow(0 0 15px #4fd8ffbb)" : "drop-shadow(0 8px 20px #000000cc)";
     var imgFilter = cell.dead?"grayscale(1) brightness(.35)" : cell.struck?"grayscale(.6) brightness(.6)" : "none";
-    var imgOp = cell.dead?.32:cell.struck?.6:1;
+    var imgOp = cell.dead?0:cell.struck?.6:1;
     var stat = isE ? ("CREW "+cell.crewTxt)
       : ("CREW "+cell.crewTxt+" · PWR "+cell.powTxt+(cell.hangarTxt?" · BAY "+cell.hangarTxt.replace(" BAYS",""):""));
     // compact nameplate - a faint smoked panel so text stays legible over stars
@@ -2453,7 +2482,6 @@
             ref=${function(el){ var arr=isE?self.enemyImgEls:self.playerImgEls; if (arr) arr[cell.refIdx]=el; }}
             style=${"filter:"+shipGlow+" "+imgFilter+";opacity:"+imgOp} />
         </div>
-        ${cell.dead ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:12px;letter-spacing:.22em;color:#ff5470;text-shadow:0 0 8px #000"}>DESTROYED</div>` : null}
         ${cell.struck ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:10px;letter-spacing:.16em;color:#7cf0c0;text-align:center;text-shadow:0 0 8px #000"}>STRUCK ·<br/>PRIZE CREW</div>` : null}
         ${cell.screened ? html`<div class="hf-tactical-label" style=${"position:absolute;left:50%;"+(isE?"bottom":"top")+":0;transform:translateX(-50%) scale("+cell.labelScale+");font-family:"+MONO+";font-size:9.5px;letter-spacing:.16em;color:#a9bcda;background:#070b14cc;border:1px solid #33465f;border-radius:3px;padding:1px 7px;white-space:nowrap"}>SCREENED</div>` : null}
       </div>`;
@@ -2731,6 +2759,12 @@
       return html`<div key=${it.id} ref=${function(el){ self.runExplosion(el,it); }}
         style=${"position:fixed;left:"+it.x+"px;top:"+it.y+"px;width:"+it.size+"px;height:"+it.size+"px;transform:translate(-50%,-50%)"}></div>`;
     }
+    if (it.kind==="shipburst") {
+      return html`<div key=${it.id} class=${"hf-shipburst "+(it.hostile?"enemy":"player")} style=${"left:"+it.x+"px;top:"+it.y+"px;--burst-dur:"+it.dur+"ms"}>
+        <div class="hf-destruction-core"></div><div class="hf-destruction-wave"></div><div class="hf-destruction-smoke"></div>
+        ${it.debris.map(function(p,i){return html`<i key=${i} style=${"--a:"+p.a+"deg;--d:"+p.d+"px;--r:"+p.r+"deg;animation-delay:"+p.delay+"ms"}></i>`;})}
+      </div>`;
+    }
     if (it.kind==="boarding") {
       var dx=it.x1-it.x0, dy=it.y1-it.y0, dist=Math.sqrt(dx*dx+dy*dy);
       var ang=Math.atan2(dy,dx)*180/Math.PI, col=it.hostile?"#ff5470":"#8deaff";
@@ -2821,8 +2855,10 @@
         ref=${function(el){ var fresh=el&&el!==self.mapScrollEl; self.mapScrollEl=el; if (fresh) self.scrollToNode(self.state.current,false); }}
         onMouseDown=${function(e){ self.mapDown(e); }}
         onMouseMove=${function(e){ self.mapMove(e); }}
+        onWheel=${function(e){ self.mapWheel(e); }}
         style=${"position:absolute;inset:18px 380px 84px 258px;overflow:auto;cursor:"+(this._mdrag&&this._didPan?"grabbing":"grab")}>
-        <div class="hf-mapfield" style=${"position:relative;width:"+WORLD.w+"px;height:"+WORLD.h+"px"}>
+        <div style=${"position:relative;width:"+(WORLD.w*(self._mapZoom||1))+"px;height:"+(WORLD.h*(self._mapZoom||1))+"px"}>
+        <div class="hf-mapfield" style=${"position:relative;width:"+WORLD.w+"px;height:"+WORLD.h+"px;transform:scale("+(self._mapZoom||1)+");transform-origin:0 0"}>
           <div style=${"position:absolute;inset:0;background:"+WASH_BG}></div>
           ${m.zones.map(function(z){
             return html`
@@ -2864,10 +2900,11 @@
           </div>
           <img src=${m.shipSrc} alt="ISV Resolute"
             style=${"position:absolute;left:"+m.shipX+";top:"+m.shipY+";transform:translate(-145%,-75%);width:64px;z-index:4;pointer-events:none;transition:left 1.4s ease-in-out,top 1.4s ease-in-out;filter:drop-shadow(0 8px 16px #000000cc)"} />
+          </div>
         </div>
       </div>
       <div style=${"position:absolute;left:258px;right:380px;top:26px;text-align:center;z-index:6;pointer-events:none"}>
-        <span style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.14em;color:#8fa3c4;background:#070b14d0;border:1px solid #1b2a45;border-radius:4px;padding:5px 12px;animation:hintfade 8s ease-out forwards"}>DRAG TO PAN · CLICK FOR INTEL · DOUBLE-CLICK TO TRAVEL</span>
+        <span style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.14em;color:#8fa3c4;background:#070b14d0;border:1px solid #1b2a45;border-radius:4px;padding:5px 12px;animation:hintfade 8s ease-out forwards"}>WHEEL TO ZOOM · DRAG TO PAN · CLICK FOR INTEL · DOUBLE-CLICK TO TRAVEL</span>
       </div>
 
       <!-- left rail: home base + sector control -->
@@ -3295,9 +3332,7 @@
           </div>
         </div>
         <div style="padding:22px 26px">
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> owns the Blackstar Verge - every station, shipyard and dock beyond your anchorage is occupied territory, and the jump gate is sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one flagship: the battleship <b style="color:#eaf2ff">ISV Resolute</b>. Build a line of up to three capitals around her - bought from dry docks or taken as prizes. Every system you liberate is yours. Liberate enough, and the sector follows.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> - <b style="color:#eaf2ff">liberated</b> docks refill them free; run dry and you burn hull to keep moving. Fight the garrison off a port and its armory, yard or repair bay works for you. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, up to <b style="color:#eaf2ff">three capitals a side</b> form a line - each of yours with its own deck and reactor; click a ship to command it. Guns are <b style="color:#eaf2ff">screened</b> to the lane opposite until that ship breaks. <b style="color:#eaf2ff">Fighters and bombers</b> launch from hangars onto the board, dogfight, and torpedo capitals; <b style="color:#eaf2ff">WEAPONS</b>, <b style="color:#eaf2ff">REACTOR</b> and <b style="color:#eaf2ff">ENGINES</b> can each be crippled. Win by gutting hulls - or board and take them <b style="color:#eaf2ff">as prizes for your line</b>.</p>
+          <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#8fa3c4">The Blackstar Gate is sealed and the Verge is occupied. Follow charted lanes, free friendly ports to refuel and refit, and secure four zones to reach the gate. Your bridge crew will brief you as the situation develops.</p>
           <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">80</b></span><span>CREW <b style="color:#ffffff;font-weight:500">10</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">24</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span><span>FUEL <b style="color:#ffffff;font-weight:500">5</b> CELLS</span><span>FLEET <b style="color:#ffffff;font-weight:500">UP TO 3</b> CAPITALS</span></div>
           <button class="hf-btn" onClick=${function(){ self.closeBrief(); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:16px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:13px 30px;cursor:pointer;box-shadow:0 4px 0 #14506b">Plot the Course ▸</button>
         </div>
@@ -3421,7 +3456,7 @@
       });
       var hostile=isEnemy(n)&&!taken;
       return {
-        id:n.id, x:n.x, y:n.y, sz:Math.round(n.sz*1.18+4), glyph:t.g, label:n.label,
+        id:n.id, x:n.x, y:n.y, sz:Math.round(n.sz*1.55+12), glyph:t.g, label:n.label,
         artSrc:systemArt(n),
         disc:DISC[n.disc||n.type],
         ringCol: cur?"#ffffff": taken?"#7cf0c0": locked?"#243350": hostile?"#ff8aa0":"#4fd8ff",

@@ -55,7 +55,7 @@ portrait cast. Everything stays inside the no-build single-file architecture
 | Role | Characters |
 | --- | --- |
 | The player | Adm. Alexander Vale, commanding the ISV Resolute |
-| Fleet Command | VAdm. Margaret Halloway, VAdm. Peter Novak |
+| Fleet Command | VAdm. Mara Voss, VAdm. Peter Novak |
 | Bridge crew | Cdr. Mira Solan (XO), Lt.Cdr. Ethan Drake (tactical), Lt. Insu Park (engineering), Lt. Kiara N'Dala (comms), Lt. Sloane Katz (gunnery) |
 | Pact antagonists | Thomas Grey, Julian Ashford, Isabella Corelli, the Red Augur |
 | Iron Verdict (final) | Fleet Adm. Lena Mori |
