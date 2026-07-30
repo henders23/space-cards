@@ -15,6 +15,12 @@ global.preact = {
 global.htm = { bind() { return function template() { return null; }; } };
 global.document = { getElementById() { return {}; } };
 global.window = { innerWidth: 1280, innerHeight: 800 };
+const storage = new Map();
+global.localStorage = {
+  getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+  setItem(key, value) { storage.set(key, String(value)); },
+  removeItem(key) { storage.delete(key); }
+};
 
 require(path.join(__dirname, "..", "game.js"));
 const Game = renderedRoot.type;
@@ -33,6 +39,63 @@ for (const key of keys) {
 }
 assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "audio", "boarding_action.wav")),
   "boarding actions need their dedicated sound");
+assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "audio", "ui_click.wav")),
+  "page navigation needs its dedicated click sound");
+for (const background of ["title-defeat.webp", "map-starfield.webp"]) {
+  assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "backgrounds", background)),
+    `${background} must be packaged with the game`);
+}
+for (const art of ["terrestrial", "barren", "ice", "volcanic", "gas-giant", "station", "shipyard", "anomaly"]) {
+  assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "systems", `${art}.webp`)),
+    `${art} needs reusable system intel art`);
+}
+const gameSource = fs.readFileSync(path.join(__dirname, "..", "game.js"), "utf8");
+assert.ok(!gameSource.includes("—"), "game copy must not contain em dashes");
+assert.ok(gameSource.includes("var WORLD = { w: 3400, h: 2100 }"),
+  "the galaxy chart must use the expanded scrollable world");
+assert.ok(gameSource.includes("class=\"hf-target-ring\"") && gameSource.includes("class=\"hf-nav-arrow\""),
+  "the map must expose a gold target ring and direction arrow");
+assert.ok(!gameSource.includes('["▤ CODEX","codex"]'),
+  "the bottom map toolbar must not contain a Codex button");
+for (const feature of ["shieldImpactPoint", "spawnShieldRipple", "hf-hitstop", "toggleHDAssets",
+  "audioPanForPoint", "duckMusic", "recallStrikeCraft", "queueAutosave", "resumeAutosave",
+  "manualSave", "setEngineVolume", "mapRouteTo", "renderCombatTutorial",
+  "renderCombatHistory", "hf-tactical-label"]) {
+  assert.ok(gameSource.includes(feature), `${feature} must be wired into the runtime`);
+}
+for (const anomaly of ["glassreef", "deadrelay", "echovault"]) {
+  assert.ok(gameSource.includes(`id:"${anomaly}"`), `${anomaly} must add a new anomaly encounter`);
+}
+for (const ship of ["02", "03", "04", "06", "08", "09", "12", "13", "14", "15"]) {
+  for (const damaged of ["", "-damaged"]) {
+    assert.ok(fs.existsSync(path.join(__dirname, "..", "assets", "ships", "hd", `ship-${ship}${damaged}.webp`)),
+      `ship-${ship}${damaged} needs a 2x battle render`);
+  }
+}
+
+game.view.zoom = 0.55;
+const distantEngineGain = game.engineGainForZoom();
+game.view.zoom = 3.6;
+const closeEngineGain = game.engineGainForZoom();
+assert.ok(distantEngineGain > 0 && closeEngineGain > distantEngineGain,
+  "engine ambience should remain quiet but rise as the battle camera zooms in");
+game.view.zoom = 1;
+game.setEngineVolume(0.31);
+assert.equal(storage.get("hf_engine_volume"), "0.31",
+  "engine ambience must persist independently from music and SFX");
+
+game.setRunSeed("VERGE-TEST");
+const seededA = [game.rand(), game.rand(), game.ri(1, 100)];
+game.setRunSeed("VERGE-TEST");
+const seededB = [game.rand(), game.rand(), game.ri(1, 100)];
+assert.deepEqual(seededA, seededB, "the same run seed must reproduce the RNG sequence");
+
+game.enemyImgEls = [{ getBoundingClientRect() {
+  return { left: 300, right: 600, top: 120, bottom: 260, width: 300, height: 140 };
+} }];
+const barrierHit = game.shieldImpactPoint("e", 0, { x: 520, y: 180 });
+assert.equal(barrierHit.y, 284, "enemy-bound projectiles must terminate below the hull on its shield barrier");
+assert.equal(barrierHit.x, 520, "shield impacts should remain localized near the aimed horizontal point");
 
 function resetBattle() {
   const ship = {
@@ -94,9 +157,39 @@ game.resolveCard(game.LIB["fighter-wing"], battle.player);
 assert.equal(game.state.battle.tokens.length, 2, "Fighter Wing should launch two persistent board tokens");
 assert.ok(game.state.battle.tokens.every((token) => token.side === "p" && token.kind === "fighter"),
   "launched fighters should live in the player battle-space token row");
+game.state.battle.recallUsed = false;
+game.recallStrikeCraft();
+assert.ok(game.state.battle.tokens.every((token) => token.recalled && token.rearm === 1),
+  "recall should return every friendly craft to its bay for one rearm cycle");
+assert.ok(game.state.battle.tokens.every((token) => token.hp === token.hpMax),
+  "recalled strike craft should be repaired before redeployment");
 
 for (const key of ["fighter-wing", "bomber-wing", "interceptors"]) {
   assert.equal(game.hasArt(game.LIB[key]), true, `${key} should use its full card asset`);
 }
 
-console.log(`Verified ${keys.length} integrated cards, strike-craft assets/tokens, and boarding FX.`);
+game.state.screen = "map";
+game.state.seed = "VERGE-TEST";
+assert.deepEqual(game.mapRouteTo("k9"), ["haven", "k9"],
+  "route previews must expose the actual lane path to the selected system");
+game.saveRun();
+const autosave = JSON.parse(storage.get("hf_autosave_v1"));
+assert.equal(autosave.version, 1, "autosave format should be versioned");
+assert.equal(autosave.state.seed, "VERGE-TEST", "autosave must retain the visible run seed");
+assert.ok(Number.isInteger(autosave.state.rngState), "autosave must retain the deterministic RNG position");
+
+game.state.evNode = { id: "echovault" };
+game.state.salvage = 0;
+game.state.player.hull = 40;
+game.evResolve("breach");
+assert.equal(game.state.salvage, 38, "high-risk anomaly choices should grant their stated salvage");
+assert.equal(game.state.player.hull, 30, "high-risk anomaly choices should apply their stated hull cost");
+assert.equal(game.state.taken.echovault, true, "resolved anomaly encounters must secure their map system");
+
+game.state.seen = {};
+game.state.tutorial = { step: 0 };
+for (let i = 0; i < 4; i++) game.advanceCombatTutorial();
+assert.equal(game.state.tutorial, null, "the first-battle tutorial must complete after four concise steps");
+assert.equal(game.state.seen.combatTutorial, true, "completed combat guidance should not repeat");
+
+console.log(`Verified ${keys.length} cards, shield geometry, audiovisual settings, seeded autosave, map guidance, strike-craft recall, boarding FX, and engine ambience.`);

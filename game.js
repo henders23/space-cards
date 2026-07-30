@@ -6,7 +6,7 @@
  * authored in a design-tool templating dialect ({{ }} / sc-if / sc-for); this
  * is a real implementation on Preact (vendored locally, no build step). All
  * balance numbers, enemy stats, the map graph and the card library are ported
- * verbatim from the handoff — that logic is the authoritative rules spec.
+ * verbatim from the handoff - that logic is the authoritative rules spec.
  *
  * Added for this build: a title/intro screen with story context and an
  * in-game difficulty selector, ahead of the existing tactical briefing.
@@ -21,16 +21,38 @@
 
   // --- small style helpers -------------------------------------------------
   var MONO = "'IBM Plex Mono',monospace";
+  var ACTIVE_GAME = null;
+  var HD_ASSETS = true;
+  var MUSIC_VOLUME = 0.72;
+  var SFX_VOLUME = 0.78;
+  var ENGINE_VOLUME = 0.42;
 
   function Game(props) {
     Component.call(this, props);
-    this.config = { difficulty: "standard", startingSalvage: 40, scanlines: false };
+    var hdPref="auto", musicVol="0.72", sfxVol="0.78", engineVol="0.42";
+    try {
+      hdPref=localStorage.getItem("hf_hd_assets")||"auto";
+      musicVol=localStorage.getItem("hf_music_volume")||musicVol;
+      sfxVol=localStorage.getItem("hf_sfx_volume")||sfxVol;
+      engineVol=localStorage.getItem("hf_engine_volume")||engineVol;
+    } catch(e) {}
+    var lowPower=typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<=4;
+    HD_ASSETS=hdPref==="on"||(hdPref==="auto"&&!lowPower);
+    MUSIC_VOLUME=Math.max(0,Math.min(1,parseFloat(musicVol)||0));
+    SFX_VOLUME=Math.max(0,Math.min(1,parseFloat(sfxVol)||0));
+    ENGINE_VOLUME=Math.max(0,Math.min(1,parseFloat(engineVol)||0));
+    this.config = { difficulty: "standard", startingSalvage: 40, scanlines: false,
+      hdAssets:HD_ASSETS, seed:this.makeSeed() };
+    this.audio = { musicVolume:MUSIC_VOLUME, sfxVolume:SFX_VOLUME, engineVolume:ENGINE_VOLUME };
     this.fx = []; this._fxid = 0; this.aimPos = null; this.aimOrigin = null;
     this.view = { zoom: 1, panX: 0, panY: 0 };  // battle camera (mouse zoom/pan)
     this.hoverCard = null;                        // card shown in the dwell panel
     var pref = "on"; try { pref = localStorage.getItem("hf_music") || "on"; } catch (e) {}
     this.music = { on: pref !== "off" };          // looping start/background track
+    this.setRunSeed(this.config.seed);
+    ACTIVE_GAME=this;
     this.state = this.freshRun();
+    this.autosaveMeta=this.readAutosave();
   }
   Game.prototype = Object.create(Component.prototype);
   Game.prototype.constructor = Game;
@@ -38,7 +60,7 @@
   // ---- content data (verbatim from the handoff) ---------------------------
   var LIB = {
     laser:{key:"laser",name:"Laser Volley",cost:1,type:"weapon",text:"Deal 7 damage.",dmg:7},
-    flak:{key:"flak",name:"Flak Barrage",cost:1,type:"weapon",text:"Deal 5 damage — 5 more if their shields are down.",dmg:5,bonusNoShield:5},
+    flak:{key:"flak",name:"Flak Barrage",cost:1,type:"weapon",text:"Deal 5 damage - 5 more if their shields are down.",dmg:5,bonusNoShield:5},
     missile:{key:"missile",name:"Missile Salvo",cost:2,type:"weapon",text:"Deal 9 damage, ignoring shields.",dmg:9,pierce:true},
     railgun:{key:"railgun",name:"Railgun Slug",cost:3,type:"weapon",text:"Deal 13 damage and smash their REACTOR (-30).",dmg:13,sab:30},
     broadside:{key:"broadside",name:"Full Broadside",cost:2,type:"weapon",text:"Deal 5 damage three times.",dmg:5,hits:3},
@@ -96,10 +118,10 @@
   // decks of their own, and act automatically every round: fighters dogfight
   // enemy craft (bombers first) and strafe capitals when the sky is clear;
   // bombers torpedo capitals straight through shields. Strike craft ignore the
-  // lane screen — they fly.
+  // lane screen - they fly.
   Object.assign(LIB, {
     "fighter-wing":{key:"fighter-wing",name:"Fighter Wing",cost:2,type:"strike",summary:"2× FIGHTER 2/2",
-      text:"Launch two fighters (2 ATK / 2 HP) from this ship's hangar. Fighters dogfight enemy strike craft first — bombers before fighters — and strafe enemy capitals when the sky is clear.",
+      text:"Launch two fighters (2 ATK / 2 HP) from this ship's hangar. Fighters dogfight enemy strike craft first - bombers before fighters - and strafe enemy capitals when the sky is clear.",
       strike:{kind:"fighter",n:2,atk:2,hp:2}},
     "bomber-wing":{key:"bomber-wing",name:"Bomber Wing",cost:3,type:"strike",summary:"BOMBER 5/2 PIERCE",
       text:"Launch a bomber (5 ATK / 2 HP) from this ship's hangar. Every round it torpedoes an enemy capital straight through shields and chews that ship's focused subsystem (-10). Enemy fighters hunt it first.",
@@ -120,12 +142,12 @@
   // difficulty of any encounter is stats x difficulty x elite/bounty x zone mult.
   // Each hull carries an `ai` archetype that shapes how chooseIntent() weights
   // its options and whether it can charge a big shot or scramble fighters:
-  //   raider   — fast, high board chance, no charge
-  //   gunline  — telegraphs charged heavy shots
-  //   carrier  — scrambles enemy fighter craft you must clear
-  //   warden   — shields and repairs defensively
-  //   zealot   — escalates its fire as its hull falls
-  //   dread    — the flagship: charges AND launches, all of it heavier
+  //   raider   - fast, high board chance, no charge
+  //   gunline  - telegraphs charged heavy shots
+  //   carrier  - scrambles enemy fighter craft you must clear
+  //   warden   - shields and repairs defensively
+  //   zealot   - escalates its fire as its hull falls
+  //   dread    - the flagship: charges AND launches, all of it heavier
   var ENEMIES = [
     {name:"RSV Carrion Jackal",img:"ship-09",role:"CORSAIR RAIDER",ai:"raider",hull:44,shieldCap:12,regen:3,crew:5,atkLo:5,atkHi:9,sab:.15,boardN:2,boardCh:.15,shieldAmt:8,rep:0},
     {name:"PCS Ledger's Edge",img:"ship-12",role:"ENFORCEMENT FRIGATE",ai:"gunline",hull:60,shieldCap:16,regen:4,crew:7,atkLo:8,atkHi:12,sab:.25,boardN:2,boardCh:.2,shieldAmt:10,rep:.15},
@@ -156,85 +178,85 @@
     mori:    {name:"Fleet Adm. Mori",          role:"HMS IRON VERDICT",     img:"lena_mori",         c:"#ff5470"},
     augurcap:{name:"The Red Augur",            role:"SMUGGLER CAPTAIN",     img:"helen_morozova",    c:"#ffc266"}
   };
-  // A scene is a list of {who, line}. `who` keys into CAST. Written to sound
-  // like people on a bridge — short, plain, a little tired.
+  // A scene is a list of {who, line}. `who` keys into CAST. Bridge dialogue is
+  // short, direct and operational.
   var SCENES = {
     intro: [
-      {who:"halloway", line:"Resolute, it's Halloway. Fleet Command is down to me and a relay buoy, so I'll keep this quick. The Pact has the whole Verge — every dock, every lane."},
-      {who:"halloway", line:"The gate home is sealed, and the Iron Verdict is sitting on it. Take this sector back and the seal breaks. That's the war now. Just you."},
-      {who:"solan", line:"You've got the bridge, sir. Crew's aboard, reactor's warm. I'll bring the coffee and the bad news."},
-      {who:"you", line:"Bad news both ways, then. Take us out of Haven."}
+      {who:"halloway", line:"Fleet Command is gone. The Pact controls the Verge. Every dock. Every lane."},
+      {who:"halloway", line:"The Iron Verdict holds the gate. Break their control. Kill the Verdict. Get home."},
+      {who:"solan", line:"Crew ready. Reactor ready. Orders?"},
+      {who:"you", line:"Leave Haven."}
     ],
     firstFight: [
-      {who:"ndala", line:"Contact ahead. Pact colours, guns already live. They're not hailing — they've decided we're easy."},
-      {who:"katz", line:"Gunnery's up. Watch what they line up on the plate and answer it — shields when they wind up, guns when they don't. Point, I'll shoot."},
-      {who:"solan", line:"First one, sir. Let's make it count."}
+      {who:"ndala", line:"Pact contact ahead. Weapons live. No hail."},
+      {who:"katz", line:"Read intent. Spend power. Raise shields before heavy fire. Then end the turn."},
+      {who:"solan", line:"Target confirmed."}
     ],
     elite: [
-      {who:"drake", line:"This isn't a picket. Heavier hull, and it'll hit back hard. My advice — pick a system and break it before it finds a rhythm."},
-      {who:"grey", line:"A warship still flying a dead flag. Thomas Grey. Cut your engines and I'll only take the hull, not the crew."},
-      {who:"you", line:"Generous. We'll pass."}
+      {who:"drake", line:"Heavy contact. Pick one system and disable it fast."},
+      {who:"grey", line:"Cut engines. Surrender the hull. Your crew lives."},
+      {who:"you", line:"No."}
     ],
     bounty: [
-      {who:"ndala", line:"That's the bounty. The Pact wants this one gone as badly as we do — they just won't say so out loud."},
-      {who:"solan", line:"Take the captain, take the hold. Could be something in there we can't get any other way."}
+      {who:"ndala", line:"Bounty target confirmed. The Pact wants this ship removed too."},
+      {who:"solan", line:"Take the captain and search the hold."}
     ],
     carrier: [
-      {who:"drake", line:"Flight deck's opening. It's a carrier — it'll throw craft at us and sit back while they work."},
-      {who:"park", line:"Interceptors or just shoot the wings down, sir. Let them pile up and it's a slow bleed."}
+      {who:"drake", line:"Carrier. Flight deck opening."},
+      {who:"park", line:"Clear its wings or disable the deck. Do it early."}
     ],
     boss: [
-      {who:"solan", line:"There she is. Iron Verdict, parked right on the gate, with an escort either side. Big hull, siege guns, and her own flight deck."},
-      {who:"mori", line:"So it's you. Mori, Ironwall. That gate stays shut — my orders, and I don't argue with them. You came a long way to die at a door."},
-      {who:"mori", line:"When the main gun charges, mind it. It doesn't miss twice."},
-      {who:"you", line:"Then it won't get a second shot. All hands — this is the one that opens the road home."}
+      {who:"solan", line:"Iron Verdict. Two escorts. Siege gun and active flight deck."},
+      {who:"mori", line:"The gate stays shut. Turn away or die here."},
+      {who:"mori", line:"Main gun charging."},
+      {who:"you", line:"All hands. Break the line."}
     ],
     zoneSecured: [
-      {who:"solan", line:"Zone's clear, sir. Everything in it is ours now, or it's scrap. That's a real piece of the Verge back."},
-      {who:"halloway", line:"We see it, Resolute. Keep it up and the gate opens. You're doing what a whole fleet couldn't."}
+      {who:"solan", line:"Zone clear. All systems secured."},
+      {who:"halloway", line:"Confirmed. Keep moving. The gate seal is weakening."}
     ],
     firstVictory: [
-      {who:"park", line:"Engineering's holding. Good shooting up there — genuinely."},
-      {who:"solan", line:"Salvage's aboard. Any dock we've freed, we can refit at — patch up, buy schematics, add hulls to the line. Pick the next fight well."}
+      {who:"park", line:"Engineering stable."},
+      {who:"solan", line:"Salvage aboard. Liberated docks can repair, refit and expand the line."}
     ],
     // ---- per-zone antagonist cameos ----
     greyCorsair: [
-      {who:"grey", line:"You again. You cost me two prize crews at the Tollgate. I don't forget that kind of thing."},
-      {who:"solan", line:"He's pulling the whole Expanse in behind him, sir. Break him and the rest lose their nerve."},
-      {who:"you", line:"Let's settle up, then."}
+      {who:"grey", line:"You cost me two prize crews. I am taking them back."},
+      {who:"solan", line:"His whole pack is here. Kill the lead ship and the rest scatter."},
+      {who:"you", line:"Fire."}
     ],
     redAugur: [
-      {who:"augurcap", line:"So you're the ghost everyone's whispering about. I'm the Augur. I sell secrets — I don't give them away. The cipher you want? Come and take it off the wreck."},
-      {who:"ndala", line:"She's running hot, sir. Whatever's in that hold, the Pact wanted it locked away. That cipher opens Smuggler's Run — take her."}
+      {who:"augurcap", line:"You want the cipher. Take it from the wreck."},
+      {who:"ndala", line:"Cipher confirmed aboard. It opens Smuggler's Run. Disable her."}
     ],
     corelliWall: [
-      {who:"corelli", line:"This is the Ironwall, and I'm Corelli. Nothing's crossed it in ten years. You won't be first."},
-      {who:"drake", line:"Heavy frigates, a siege gun bolted to an asteroid. This is where the sector keeps its teeth."},
-      {who:"you", line:"Walls come down. Let's start with hers."}
+      {who:"corelli", line:"This is the Ironwall. Nothing crosses."},
+      {who:"drake", line:"Heavy frigates. Fixed siege gun. Straight through is the only route."},
+      {who:"you", line:"Proceed."}
     ],
     ashfordVeil: [
-      {who:"ashford", line:"Ashford, Ironwall. You chased shadows all the way into the Veil. No one out here will even log how you died."},
-      {who:"park", line:"Sensors are lying to us in this murk, sir. Trust the plate, not the stars."}
+      {who:"ashford", line:"You entered the Veil blind. You will die blind."},
+      {who:"park", line:"Sensors unreliable. Use tactical returns only."}
     ],
     locustSwarm: [
-      {who:"drake", line:"That's the Locust — a strip-fleet tender. It'll launch everything it has and pick us apart while it runs."},
-      {who:"solan", line:"Kill the flight deck or clear the swarm fast. Don't let it nickel-and-dime us, sir."}
+      {who:"drake", line:"Locust tender. It will launch everything and keep distance."},
+      {who:"solan", line:"Disable the deck or clear the swarm."}
     ],
     // ---- other beats ----
     gateUnsealed: [
-      {who:"ndala", line:"Sir — the gate just lit up. Four zones, all ours. The seal's broken."},
-      {who:"halloway", line:"You did it, Resolute. We're marking the gate open. Only the Iron Verdict left between you and home. Go finish it."}
+      {who:"ndala", line:"Gate active. Seal broken."},
+      {who:"halloway", line:"Iron Verdict is the last obstruction. Remove it."}
     ],
     firstDock: [
-      {who:"park", line:"Clamps are good, tanks are filling. First real dock in a while. Almost forgot what quiet sounds like."},
-      {who:"solan", line:"Refit while we can, sir — hull, schematics, crew, more hulls for the line. It won't stay this quiet out east."}
+      {who:"park", line:"Dock secure. Fuel transfer started."},
+      {who:"solan", line:"Repair, refit and replace crew before departure."}
     ],
     lowHull: [
-      {who:"park", line:"Sir, the hull's going — we're venting air on three decks. She can't take much more of this."},
-      {who:"you", line:"Then we end it now. Everything we've got — put it into them."}
+      {who:"park", line:"Hull failure close. Three decks venting."},
+      {who:"you", line:"End the fight now."}
     ],
     subCrippled: [
-      {who:"park", line:"Lost a system, sir. It's dark. Damage control's on it, but we're fighting hurt — watch what you lean on."}
+      {who:"park", line:"Subsystem offline. Damage control responding."}
     ]
   };
   // Node-specific antagonist cameos: node id -> scene key (each fires once).
@@ -248,7 +270,7 @@
   // ---- commissions (Phase 1): choose your opening doctrine & 10-card deck ---
   var COMMISSIONS = [
     {k:"gunline", name:"Gunline Doctrine", glyph:"🜂", c:"#ff8aa0",
-      blurb:"Overwhelming fire. You open fights fast and end them faster — but a thin defense means every trade has to count.",
+      blurb:"Overwhelming fire. You open fights fast and end them faster - but a thin defense means every trade has to count.",
       tags:"AGGRESSIVE · WEAPONS",
       deck:["laser","laser","laser","flak","missile","broadside","lock","divert","divert","patch"]},
     {k:"bulwark", name:"Bulwark Doctrine", glyph:"⛨", c:"#5fd8ff",
@@ -283,26 +305,26 @@
     zealot: ["laser","laser","overcharge","divert","lock","patch"]
   };
   // ---- sector data: zone-based free-travel galactic map --------------------
-  // From the "design_handoff_sector_map" bundle, scaled up 3x: 36 systems in
-  // 10 zones on a 2400x1400 scrollable chart. Travel is free along charted
+  // From the "design_handoff_sector_map" bundle: 36 systems in 10 zones on a
+  // large scrollable chart. Travel is free along charted
   // lanes; nodes inside a sealed zone are impassable until the zone's
   // requirement (a key item or N zones secured) is met. Securing every system
-  // in 4 zones unseals the Blackstar Gate — the road to the next sector.
-  var WORLD = { w: 2400, h: 1400 };
+  // in 4 zones unseals the Blackstar Gate - the road to the next sector.
+  var WORLD = { w: 3400, h: 2100 };
   var ZONES = [
     {k:"reach", mult:1.0,    name:"RESOLUTE REACH",      c:"#4fd8ff", lx:2,  ly:55, wx:9,  wy:78, wash:"#10294d66"},
     {k:"shoals", mult:1.0,   name:"THE SHOALS",          c:"#ffc266", lx:19, ly:37, wx:27, wy:57, wash:"#4d360f38"},
     {k:"ember", mult:1.15,    name:"THE EMBER SHELF",     c:"#ffd9a0", lx:5,  ly:3,  wx:15, wy:18, wash:"#4d2a0f40"},
     {k:"corsair", mult:1.3,  name:"CORSAIR EXPANSE",     c:"#ff8aa0", lx:36, ly:3,  wx:45, wy:21, wash:"#4d101e4d",
-      req:{key:"corsair", txt:"CORSAIR EXPANSE KEY — RUMORED ABOARD THE DERELICT HULK"}},
+      req:{key:"corsair", txt:"CORSAIR EXPANSE KEY - RUMORED ABOARD THE DERELICT HULK"}},
     {k:"hallowed", mult:1.3, name:"HALLOWED DRIFT",      c:"#b48aff", lx:38, ly:41, wx:47, wy:57, wash:"#23164d50"},
     {k:"smuggler", mult:1.3, name:"SMUGGLER'S RUN",      c:"#ffc266", lx:30, ly:75, wx:41, wy:87, wash:"#4d3a0f33",
-      req:{key:"smuggler", txt:"SMUGGLER'S CIPHER — CARRIED BY THE RED AUGUR"}},
+      req:{key:"smuggler", txt:"SMUGGLER'S CIPHER - CARRIED BY THE RED AUGUR"}},
     {k:"ironwall", mult:1.6, name:"THE IRONWALL",        c:"#ff5470", lx:58, ly:9,  wx:65, wy:27, wash:"#4d101e40",
       req:{zones:2, txt:"SECURE 2 ZONES"}},
     {k:"marches", mult:1.45,  name:"THE STARVED MARCHES", c:"#7cf0c0", lx:56, ly:49, wx:65, wy:71, wash:"#0f4d3a26"},
     {k:"veil", mult:1.6,     name:"AUGUR'S VEIL",        c:"#b48aff", lx:79, ly:3,  wx:87, wy:18, wash:"#23164d59",
-      req:{key:"veil", txt:"VEIL CHART — HELD IN THE RELIQUARY"}},
+      req:{key:"veil", txt:"VEIL CHART - HELD IN THE RELIQUARY"}},
     {k:"gate", mult:1.75,     name:"THE BLACKSTAR GATE",  c:"#b48aff", lx:79, ly:53, wx:88, wy:76, wash:"#23164d66",
       req:{zones:4, txt:"SECURE 4 ZONES"}}
   ];
@@ -330,12 +352,36 @@
   };
   var TYPE_LABEL = { home:"HOME BASE", station:"STATION", shipyard:"SHIPYARD", repair:"REPAIR DEPOT",
     fight:"SKIRMISH", elite:"ELITE", bounty:"BOUNTY", anomaly:"ANOMALY", gate:"JUMP GATE", boss:"FLAGSHIP" };
+  var SYSTEM_ART = {
+    terrestrial:"assets/systems/terrestrial.webp",
+    barren:"assets/systems/barren.webp",
+    ice:"assets/systems/ice.webp",
+    volcanic:"assets/systems/volcanic.webp",
+    gas:"assets/systems/gas-giant.webp",
+    station:"assets/systems/station.webp",
+    shipyard:"assets/systems/shipyard.webp",
+    anomaly:"assets/systems/anomaly.webp"
+  };
+  var ZONE_ART = {
+    reach:"terrestrial", shoals:"gas", ember:"volcanic", corsair:"barren",
+    hallowed:"ice", smuggler:"barren", ironwall:"volcanic", marches:"terrestrial",
+    veil:"ice", gate:"anomaly"
+  };
+  function systemArt(n) {
+    if (n.type==="home"||n.type==="station"||n.type==="repair") return SYSTEM_ART.station;
+    if (n.type==="shipyard") return SYSTEM_ART.shipyard;
+    if (n.type==="anomaly"||n.type==="gate"||n.type==="boss") return SYSTEM_ART.anomaly;
+    return SYSTEM_ART[ZONE_ART[n.z]||"barren"];
+  }
   // ---- ship sprite assets ---------------------------------------------------
-  // Chroma-keyed fleet pack: the player flies ship-08; each enemy class has
-  // its own hull (img on its ENEMIES entry). Every ship has a damaged twin
-  // (ship-XX-damaged.png) that swaps in once hull falls below half.
+  // High-resolution fleet pack: the player flies ship-08; each enemy class has
+  // its own hull (img on its ENEMIES entry). Every ship has a damaged twin that
+  // swaps in once hull falls below half.
   var PLAYER_SHIP = "ship-08";
-  function shipImg(base, damaged) { return "assets/ships/"+base+(damaged?"-damaged":"")+".png"; }
+  function shipImg(base, damaged) {
+    var suffix=base+(damaged?"-damaged":"");
+    return HD_ASSETS ? "assets/ships/hd/"+suffix+".webp" : "assets/ships/"+suffix+".png";
+  }
   // Parallax combat backdrops (drop-in JPGs; swap for your own at the same paths).
   var COMBAT_BGS = ["assets/backgrounds/combat-1.jpg","assets/backgrounds/combat-2.jpg",
                     "assets/backgrounds/combat-3.jpg","assets/backgrounds/combat-4.jpg"];
@@ -343,16 +389,16 @@
   var CRAFT_SPRITE = { fighter:"ship-09", bomber:"ship-13" };
 
   var NODES = [
-    // — RESOLUTE REACH — the home zone
+    // - RESOLUTE REACH - the home zone
     {id:"haven",x:7,y:76,type:"home",z:"reach",sz:52,label:"HAVEN ANCHORAGE",
      desc:"Your fortified anchorage. Secure the Reach and its lanes stay patrol-free."},
     {id:"picket",x:13,y:62,type:"fight",z:"reach",enemy:0,sz:34,label:"PICKET LINE",
      desc:"A corsair picket watches the anchorage's northern lane. Break it and the Reach breathes easier."},
     {id:"k9",x:15,y:80,type:"station",z:"reach",enemy:0,sz:40,label:"K-9 WAYPOINT",
-     desc:"A waystation with a full armory, held by a Pact toll crew. Liberate it and its shops open to you — revisitable any time after."},
+     desc:"A waystation with a full armory, held by a Pact toll crew. Liberate it and its shops open to you - revisitable any time after."},
     {id:"debris",x:7,y:92,type:"fight",z:"reach",enemy:0,sz:34,disc:"fight2",label:"DEBRIS FIELD",
      desc:"Raiders hunt salvage teams in the wreck-thick dark south of the anchorage."},
-    // — THE SHOALS —
+    // - THE SHOALS -
     {id:"forge",x:24,y:68,type:"shipyard",z:"shoals",enemy:3,sz:52,label:"FORGE TETHER",
      stock:["laser","missile","flak"],
      gossip:"“Red Augur came through two cycles back, running hot. Whatever she's hauling, the Pact wants it kept behind the Ironwall.”",
@@ -361,10 +407,13 @@
      desc:"A hospital hulk pressed into patching Pact raiders. Its tenders would rather work for you."},
     {id:"hulk",x:30,y:44,type:"anomaly",z:"shoals",key:"corsair",sz:44,label:"DERELICT HULK",
      desc:"A dead capital ship drifting at the zone's edge. Boarding parties report... movement.",
-     evd:"A dead capital ship, spine cracked, holds open to vacuum. Your teams find the Pact's lane cipher still warm in the navigation core. They can also strip the wreck fast — or sweep it for survivors sealed in the aft frames."},
+     evd:"A dead capital ship, spine cracked, holds open to vacuum. Your teams find the Pact's lane cipher still warm in the navigation core. They can also strip the wreck fast - or sweep it for survivors sealed in the aft frames."},
+    {id:"glassreef",x:34,y:73,type:"anomaly",z:"shoals",sz:44,label:"GLASS REEF",
+     desc:"A field of vitrified hulls turns slowly around a dead reactor core.",
+     evd:"Fused warships form a glass reef around a live reactor. The core can be siphoned safely, or cut loose before the wreck field closes."},
     {id:"shoalconvoy",x:31,y:60,type:"fight",z:"shoals",enemy:3,sz:36,label:"SHOAL CONVOY",
      desc:"A Pact tithe-convoy threads the shallows under light escort."},
-    // — THE EMBER SHELF —
+    // - THE EMBER SHELF -
     {id:"emberpicket",x:10,y:28,type:"fight",z:"ember",enemy:0,sz:34,disc:"fight2",label:"EMBER PICKET",
      desc:"Corsair lookouts squat in the cinder-glow where the Shelf burns closest to the lanes."},
     {id:"cinder",x:8,y:12,type:"station",z:"ember",enemy:4,sz:40,label:"CINDER YARDS",
@@ -373,8 +422,8 @@
      desc:"An enforcement supply run crosses the Shelf under frigate escort."},
     {id:"furnace",x:24,y:10,type:"anomaly",z:"ember",sz:44,label:"FURNACE ANOMALY",
      desc:"Something is alive inside the Shelf's oldest smelter hulk. Sensors disagree on what.",
-     evd:"The smelter hulk still burns after a century adrift. Deep in the slag your crew finds sealed cargo cells — and sealed crew berths."},
-    // — CORSAIR EXPANSE — sealed: Corsair Expanse key
+     evd:"The smelter hulk still burns after a century adrift. Deep in the slag your crew finds sealed cargo cells - and sealed crew berths."},
+    // - CORSAIR EXPANSE - sealed: Corsair Expanse key
     {id:"augur",x:38,y:24,type:"bounty",z:"corsair",enemy:5,key:"smuggler",sz:40,label:"BOUNTY: RED AUGUR",
      desc:"The Pact's best smuggler captain. Her ship carries the cipher that opens Smuggler's Run."},
     {id:"ambush",x:46,y:12,type:"elite",z:"corsair",enemy:3,sz:38,label:"CORSAIR AMBUSH",
@@ -382,56 +431,62 @@
     {id:"tollgate",x:46,y:30,type:"fight",z:"corsair",enemy:4,sz:36,disc:"fight2",label:"PACT TOLLGATE",
      desc:"Every hull that crosses the Expanse pays the Pact here. You won't."},
     {id:"anchorage",x:52,y:20,type:"elite",z:"corsair",enemy:3,sz:38,disc:"elite2",label:"PACT ANCHORAGE",
-     desc:"The corsairs' forward harbor — break it and the Expanse is yours."},
-    // — HALLOWED DRIFT —
+     desc:"The corsairs' forward harbor - break it and the Expanse is yours."},
+    // - HALLOWED DRIFT -
     {id:"chapel",x:42,y:50,type:"anomaly",z:"hallowed",sz:44,label:"CHAPEL HULK",
      desc:"A pilgrim ship gone silent mid-hymn. The congregation never disembarked.",
      evd:"The pilgrim ship drifts mid-hymn, reliquary lamps still lit. The hold is heavy with votive metal; the aft frames knock, slowly, from the inside."},
     {id:"hermitage",x:40,y:66,type:"repair",z:"hallowed",enemy:3,sz:34,label:"DRIFT HERMITAGE",
-     desc:"Anchorite tenders who patch hulls for any crew that keeps the silence — once the Pact watch-post welded to their spine is cut away."},
+     desc:"Anchorite tenders who patch hulls for any crew that keeps the silence - once the Pact watch-post welded to their spine is cut away."},
     {id:"choir",x:48,y:58,type:"fight",z:"hallowed",enemy:3,sz:36,label:"SILENT CHOIR",
      desc:"Wreckers broadcasting a false distress-hymn to bait salvage crews."},
     {id:"reliquary",x:54,y:48,type:"bounty",z:"hallowed",enemy:4,key:"veil",sz:40,label:"BOUNTY: RELIQUARY",
      desc:"An armored reliquary barge. Its vault holds the only chart through Augur's Veil."},
-    // — SMUGGLER'S RUN — sealed: smuggler's cipher
+    // - SMUGGLER'S RUN - sealed: smuggler's cipher
     {id:"harbor",x:34,y:88,type:"station",z:"smuggler",enemy:3,sz:40,label:"QUIET HARBOR",
-     desc:"A no-flag freeport paying protection to the Run's enforcers. Liberate it and everything's for sale — to you."},
+     desc:"A no-flag freeport paying protection to the Run's enforcers. Liberate it and everything's for sale - to you."},
     {id:"cache",x:42,y:82,type:"anomaly",z:"smuggler",sz:44,label:"CONTRABAND CACHE",
      desc:"A cold-drifting cargo train, transponders cut. Somebody's rainy-day fortune.",
      evd:"A kilometre of cold-drifting cargo pods, transponders cut. Stencilled on every hatch: PROPERTY OF THE RED AUGUR."},
     {id:"gauntlet",x:48,y:90,type:"fight",z:"smuggler",enemy:3,sz:36,disc:"fight2",label:"RUNNER'S GAUNTLET",
-     desc:"The Run's last leg — flown dark, fast, and shot at."},
-    // — THE IRONWALL — sealed: secure 2 zones
+     desc:"The Run's last leg - flown dark, fast, and shot at."},
+    // - THE IRONWALL - sealed: secure 2 zones
     {id:"watchline",x:60,y:34,type:"fight",z:"ironwall",enemy:1,sz:36,label:"WATCH LINE",
      desc:"Enforcement pickets strung wire-tight across the Ironwall's approach."},
     {id:"bastion",x:64,y:20,type:"elite",z:"ironwall",enemy:6,sz:38,label:"IRONWALL BASTION",
      desc:"The wall's anchor fortress. Frigates rotate through in pairs."},
     {id:"anvil",x:72,y:28,type:"elite",z:"ironwall",enemy:6,sz:38,disc:"elite2",label:"GUN PLATFORM ANVIL",
      desc:"A dreadnought-calibre gun bolted to an asteroid. It only has to hit you once."},
-    // — THE STARVED MARCHES —
+    // - THE STARVED MARCHES -
     {id:"marchespicket",x:58,y:60,type:"fight",z:"marches",enemy:4,sz:36,label:"MARCHES PICKET",
      desc:"Hungry ships guard hungrier lanes on the sector's long east road."},
     {id:"hollowyard",x:62,y:74,type:"shipyard",z:"marches",enemy:4,sz:52,label:"HOLLOW YARD",
      stock:["railgun","capacitor","scavenge"],
      gossip:"“Ironwall Command doubled the Gate watch. Four zones' worth of trouble, they reckon, before anyone sees that ring light up.”",
-     desc:"A half-starved yard drinking power from a cracked reactor barge, requisitioned by the Pact. Free it and its honest refits are yours — the prices still aren't."},
+     desc:"A half-starved yard drinking power from a cracked reactor barge, requisitioned by the Pact. Free it and its honest refits are yours - the prices still aren't."},
     {id:"famine",x:70,y:62,type:"repair",z:"marches",enemy:4,sz:34,label:"FAMINE RELIEF STATION",
      desc:"A relief hulk patching Pact hulls under duress. Its crews will patch yours gladly, once the overseers are ash."},
+    {id:"deadrelay",x:69,y:47,type:"anomaly",z:"marches",sz:44,label:"DEAD RELAY",
+     desc:"A military relay repeats the final thirty seconds of a battle nobody recorded.",
+     evd:"The relay carries a clean prewar navigation key beneath a lethal feedback loop. Engineering can isolate the drive data or use the stored charge to rebuild the Resolute's frame."},
     {id:"locust",x:72,y:84,type:"elite",z:"marches",enemy:7,sz:38,label:"LOCUST SWARM",
      desc:"A strip-fleet that eats convoys down to the frame. It has noticed the Resolute."},
-    // — AUGUR'S VEIL — sealed: veil chart
+    // - AUGUR'S VEIL - sealed: veil chart
     {id:"veilambush",x:82,y:24,type:"elite",z:"veil",enemy:8,sz:38,label:"VEIL AMBUSH",
-     desc:"Corsairs hide inside the Veil's sensor shadow — wakes cold, guns warm."},
+     desc:"Corsairs hide inside the Veil's sensor shadow - wakes cold, guns warm."},
     {id:"whisper",x:88,y:10,type:"bounty",z:"veil",enemy:8,sz:40,label:"BOUNTY: WHISPER RELAY",
      desc:"The Pact's listening post. Its captain is worth more than the hardware."},
     {id:"veilheart",x:92,y:22,type:"anomaly",z:"veil",sz:44,label:"THE VEIL",
      desc:"The anomaly the zone is named for. Charts refuse to agree on where it is.",
-     evd:"Inside the Veil the stars run like wet paint. Your instruments log salvage that isn't there yet — and a lifepod that is."},
-    // — THE BLACKSTAR GATE — sealed: secure 4 zones
+     evd:"Inside the Veil the stars run like wet paint. Your instruments log salvage that isn't there yet - and a lifepod that is."},
+    {id:"echovault",x:88,y:43,type:"anomaly",z:"veil",sz:44,label:"ECHO VAULT",
+     desc:"A sealed naval vault answers every scan with the Resolute's own transponder.",
+     evd:"The vault contains munitions from a battle that has not happened. Stabilising it could reinforce the hull. Breaking the seal would yield far more, if the ship survives the recoil."},
+    // - THE BLACKSTAR GATE - sealed: secure 4 zones
     {id:"approach",x:82,y:64,type:"fight",z:"gate",enemy:6,sz:36,label:"GATE APPROACH",
      desc:"The last freeway to the ring, held by the Verdict's escort screen."},
     {id:"gate",x:88,y:76,type:"gate",z:"gate",sz:44,label:"BLACKSTAR GATE",
-     desc:"The only way out of this sector — and the Iron Verdict is anchored on it."},
+     desc:"The only way out of this sector - and the Iron Verdict is anchored on it."},
     {id:"verdict",x:94,y:88,type:"boss",z:"gate",enemy:2,sz:48,label:"THE IRON VERDICT",
      desc:"The dreadnought. Break it, or the Verge keeps you."}
   ];
@@ -439,6 +494,7 @@
     ["haven","picket"],["haven","k9"],["haven","debris"],["picket","k9"],
     ["k9","forge"],["picket","mercy"],["debris","harbor"],
     ["forge","mercy"],["mercy","hulk"],["forge","shoalconvoy"],["shoalconvoy","hulk"],
+    ["forge","glassreef"],["glassreef","cache"],
     ["mercy","emberpicket"],
     ["emberpicket","cinder"],["emberpicket","ashconvoy"],["cinder","ashconvoy"],["ashconvoy","furnace"],
     ["furnace","augur"],["hulk","augur"],
@@ -452,20 +508,56 @@
     ["gauntlet","hollowyard"],
     ["reliquary","marchespicket"],
     ["marchespicket","hollowyard"],["marchespicket","famine"],["hollowyard","locust"],["famine","locust"],
+    ["marchespicket","deadrelay"],["deadrelay","famine"],
     ["marchespicket","watchline"],
     ["watchline","bastion"],["bastion","anvil"],["watchline","anvil"],
     ["anvil","veilambush"],
     ["veilambush","whisper"],["whisper","veilheart"],["veilambush","veilheart"],
+    ["veilheart","echovault"],["echovault","approach"],
     ["famine","approach"],["locust","approach"],["anvil","approach"],
     ["approach","gate"],["gate","verdict"]
   ];
+  var ANOMALY_CHOICES = {
+    hulk:[
+      {mode:"strip",label:"Strip navigation core",detail:"+18 salvage",salvage:18},
+      {mode:"rescue",label:"Cut open aft frames",detail:"+2 crew",crew:2}
+    ],
+    furnace:[
+      {mode:"cut",label:"Cut out the cargo cells",detail:"+28 salvage, -6 hull",salvage:28,hull:-6},
+      {mode:"berths",label:"Open the crew berths",detail:"+1 crew, +1 fuel",crew:1,fuel:1}
+    ],
+    chapel:[
+      {mode:"relics",label:"Take the votive metal",detail:"+22 salvage",salvage:22},
+      {mode:"frames",label:"Open the aft frames",detail:"+2 crew",crew:2}
+    ],
+    cache:[
+      {mode:"cargo",label:"Break the cargo seals",detail:"+26 salvage",salvage:26},
+      {mode:"cells",label:"Drain the fuel cells",detail:"+3 fuel",fuel:3}
+    ],
+    veilheart:[
+      {mode:"echo",label:"Follow the false salvage",detail:"+32 salvage, -8 hull",salvage:32,hull:-8},
+      {mode:"lifepod",label:"Recover the lifepod",detail:"+2 crew",crew:2}
+    ],
+    glassreef:[
+      {mode:"siphon",label:"Siphon the reactor",detail:"+2 fuel",fuel:2},
+      {mode:"cutcore",label:"Cut the core loose",detail:"+22 salvage, -4 hull",salvage:22,hull:-4}
+    ],
+    deadrelay:[
+      {mode:"decode",label:"Isolate drive data",detail:"+2 fuel, +8 salvage",fuel:2,salvage:8},
+      {mode:"rebuild",label:"Ground charge into the frame",detail:"+12 hull",hull:12}
+    ],
+    echovault:[
+      {mode:"stabilise",label:"Stabilise the vault",detail:"+14 hull",hull:14},
+      {mode:"breach",label:"Break the seal",detail:"+38 salvage, -10 hull",salvage:38,hull:-10}
+    ]
+  };
   var NBYID = {}; NODES.forEach(function(n){ NBYID[n.id]=n; });
   var ZBYK = {}; ZONES.forEach(function(z){ ZBYK[z.k]=z; });
   // One radial wash per zone, centered on the zone's cluster.
   var WASH_BG = ZONES.map(function(z){
     return "radial-gradient(560px 420px at "+z.wx+"% "+z.wy+"%, "+z.wash+", transparent 62%)";
   }).join(",");
-  // Permanent refits — sold only at shipyards now (stations keep the armory).
+  // Permanent refits - sold only at shipyards now (stations keep the armory).
   var YARD_REFITS = [
     {k:"plating", name:"Reinforced Plating",  desc:"+14 max hull, applied immediately", price:40},
     {k:"emitters",name:"Shield Emitters",     desc:"+8 shield capacity",                price:35},
@@ -486,19 +578,32 @@
   // Short SFX from the sounds pack. new/cloned Audio per call so shots overlap.
   var AUDIO_KEYS = ["enemy_sighted_m","enemy_sighted_f","reporting_damage","reporting_damage_1",
     "laser_beam","laser_cannon","blaster","small_explosion","medium_explosion","torpedo_explosion",
-    "enemy_destroyed","ship_destroyed","boarding_action"];
-  var AUDIO_FILES = { boarding_action:"boarding_action.wav" };
+    "enemy_destroyed","ship_destroyed","boarding_action","ui_click"];
+  var AUDIO_FILES = { boarding_action:"boarding_action.wav", ui_click:"ui_click.wav" };
   var AUDIO = {};
   function audioSrc(name){ return "assets/audio/"+(AUDIO_FILES[name]||name+".mp3"); }
   function preloadAudio(){
     if (AUDIO._done) return; AUDIO._done = true;
     AUDIO_KEYS.forEach(function(n){ try{ var a=new Audio(audioSrc(n)); a.preload="auto"; AUDIO[n]=a; }catch(e){} });
   }
-  function sfx(name, vol){
+  function sfx(name, vol, pan){
     try{
       var base=AUDIO[name];
       var a=base ? base.cloneNode(true) : new Audio(audioSrc(name));
-      a.volume=(vol==null?1:vol); var pr=a.play(); if(pr&&pr.catch) pr.catch(function(){});
+      var level=(vol==null?1:vol)*SFX_VOLUME;
+      if (ACTIVE_GAME && level>=0.42) ACTIVE_GAME.duckMusic(level>=0.7?680:420, level>=0.7?0.34:0.2);
+      var ctx=ACTIVE_GAME&&ACTIVE_GAME._sfxCtx;
+      if (ctx && pan!=null && ctx.createMediaElementSource) {
+        var src=ctx.createMediaElementSource(a), gain=ctx.createGain();
+        var panner=ctx.createStereoPanner?ctx.createStereoPanner():ctx.createGain();
+        gain.gain.value=level;
+        if (panner.pan) panner.pan.value=Math.max(-1,Math.min(1,pan));
+        src.connect(gain); gain.connect(panner); panner.connect(ctx.destination);
+        var clean=function(){ try{src.disconnect();gain.disconnect();panner.disconnect();}catch(e){} };
+        a.addEventListener("ended",clean,{once:true});
+        a.volume=1;
+      } else a.volume=Math.max(0,Math.min(1,level));
+      var pr=a.play(); if(pr&&pr.catch) pr.catch(function(){});
     }catch(e){}
   }
   function rndOf(a){ return a[Math.floor(Math.random()*a.length)]; }
@@ -527,7 +632,7 @@
     this.aimOrigin = null;   // player muzzle in client coords while aiming
     if (!this.view) this.view = { zoom:1, panX:0, panY:0 };
     preloadAudio();
-    // Background music — three tracks: the ambient theme for menus/map/station,
+    // Background music - three tracks: the ambient theme for menus/map/station,
     // a driving combat track during battles, and a one-shot victory fanfare.
     // Every scene change crossfades (~1s); the ambient theme restarts from the
     // top each time the player leaves combat. Browsers block autoplay until the
@@ -550,10 +655,15 @@
         if (self._scene === "victory") self.setMusicScene("ambient", true);
       });
     }
-    this._startMusic = function () { self.applyMusic(); };
+    this._startMusic = function () { self.ensureSfxAudio(); self.applyMusic(); self.syncEngineAudio(true); };
     this._onGesture = function () { self._startMusic(); window.removeEventListener("pointerdown", self._onGesture); window.removeEventListener("keydown", self._onGesture); };
+    this._onUiClick = function (e) {
+      var b=e.target&&e.target.closest ? e.target.closest("button") : null;
+      if (b && !b.disabled) sfx("ui_click", .24);
+    };
     this._startMusic();  // try immediately (works if the browser allows it)
     window.addEventListener("pointerdown", this._onGesture);
+    window.addEventListener("pointerdown", this._onUiClick, true);
     window.addEventListener("keydown", this._onGesture);
     this._onR = function () { self.forceUpdate(); };
     this._onKey = function (e) {
@@ -574,12 +684,22 @@
     window.removeEventListener("keydown", this._onKey);
     window.removeEventListener("mouseup", this._onUp);
     window.removeEventListener("pointerdown", this._onGesture);
+    window.removeEventListener("pointerdown", this._onUiClick, true);
     window.removeEventListener("keydown", this._onGesture);
     var T = this._tracks || {};
     for (var k in T) { if (T[k]) { try { T[k].pause(); } catch (e) {} if (T[k]._fadeTimer) clearInterval(T[k]._fadeTimer); } }
+    if (this._autosaveTimer) clearTimeout(this._autosaveTimer);
+    if (this._saveStatusTimer) clearTimeout(this._saveStatusTimer);
+    if (this._duckTimer) clearTimeout(this._duckTimer);
+    if (this._hitStopTimer) clearTimeout(this._hitStopTimer);
+    if (this._sfxCtx) try{this._sfxCtx.close();}catch(e){}
+    this.clearEngineAudio();
+  };
+  Game.prototype.componentDidUpdate = function () {
+    if (this.state&&this.state.screen!=="title") this.queueAutosave();
   };
   // Fade a track's volume toward `target` (~1s ramp); pause it when it lands
-  // at silence. Play() is attempted whenever the target is audible — rejected
+  // at silence. Play() is attempted whenever the target is audible - rejected
   // autoplay is retried by the first-gesture handler calling applyMusic again.
   Game.prototype.fadeTrack = function (a, target) {
     if (!a) return;
@@ -601,10 +721,12 @@
   // Fade the current scene's track in and every other track out.
   Game.prototype.applyMusic = function () {
     var T = this._tracks || {};
+    var duck=this._duckFactor==null?1:this._duckFactor;
     for (var k in T) {
       if (!T[k]) continue;
-      this.fadeTrack(T[k], (this.music.on && k === this._scene) ? T[k]._baseVol : 0);
+      this.fadeTrack(T[k], (this.music.on && k === this._scene) ? T[k]._baseVol*MUSIC_VOLUME*duck : 0);
     }
+    this.syncEngineAudio(false);
   };
   // Crossfade to a scene ("ambient" | "combat" | "victory"); restart=true
   // rewinds the incoming track so it starts from the top.
@@ -622,31 +744,231 @@
     this.music.on = !this.music.on;
     try { localStorage.setItem("hf_music", this.music.on ? "on" : "off"); } catch (e) {}
     this.applyMusic();
+    this.syncEngineAudio(true);
     this.forceUpdate();
+  };
+  Game.prototype.ensureSfxAudio = function () {
+    if (this._sfxCtx) {
+      if (this._sfxCtx.state==="suspended"&&this._sfxCtx.resume) {
+        var resume=this._sfxCtx.resume(); if(resume&&resume.catch)resume.catch(function(){});
+      }
+      return true;
+    }
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if (!AC) return false;
+    try { this._sfxCtx=new AC(); return true; } catch(e) { this._sfxCtx=null; return false; }
+  };
+  Game.prototype.audioPanForPoint = function (pt) {
+    var w=window.innerWidth||1280;
+    return this.cl(((pt&&pt.x!=null?pt.x:w/2)/w)*2-1,-0.92,0.92);
+  };
+  Game.prototype.duckMusic = function (ms, depth) {
+    if (!this.music.on) return;
+    var self=this;
+    this._duckFactor=Math.max(0.2,1-(depth||0.25));
+    this.applyMusic();
+    if (this._duckTimer) clearTimeout(this._duckTimer);
+    this._duckTimer=setTimeout(function(){ self._duckFactor=1; self.applyMusic(); },ms||500);
+  };
+  Game.prototype.setMusicVolume = function (v) {
+    MUSIC_VOLUME=this.cl(Number(v),0,1); this.audio.musicVolume=MUSIC_VOLUME;
+    try{localStorage.setItem("hf_music_volume",MUSIC_VOLUME.toFixed(2));}catch(e){}
+    this.applyMusic(); this.forceUpdate();
+  };
+  Game.prototype.setSfxVolume = function (v) {
+    SFX_VOLUME=this.cl(Number(v),0,1); this.audio.sfxVolume=SFX_VOLUME;
+    try{localStorage.setItem("hf_sfx_volume",SFX_VOLUME.toFixed(2));}catch(e){}
+    this.forceUpdate();
+  };
+  Game.prototype.setEngineVolume = function (v) {
+    ENGINE_VOLUME=this.cl(Number(v),0,1); this.audio.engineVolume=ENGINE_VOLUME;
+    try{localStorage.setItem("hf_engine_volume",ENGINE_VOLUME.toFixed(2));}catch(e){}
+    this.syncEngineAudio(true); this.forceUpdate();
+  };
+  Game.prototype.toggleHDAssets = function () {
+    HD_ASSETS=!HD_ASSETS; this.config.hdAssets=HD_ASSETS;
+    try{localStorage.setItem("hf_hd_assets",HD_ASSETS?"on":"off");}catch(e){}
+    this.forceUpdate();
+  };
+  // Each live capital contributes a low, slightly detuned engine voice. The
+  // master stays deliberately quiet under the score, rising only a little as
+  // the camera closes in.
+  Game.prototype.engineGainForZoom = function () {
+    var z=this.cl((this.view&&this.view.zoom)||1,0.55,3.6);
+    var t=(z-0.55)/(3.6-0.55);
+    return 0.035+t*0.04;
+  };
+  Game.prototype.clearEngineVoices = function () {
+    var voices=this._engineVoices||[];
+    voices.forEach(function(v){
+      [v.low,v.harm,v.lfo].forEach(function(o){ if(o) try{o.stop();}catch(e){} });
+      [v.low,v.harm,v.lfo,v.lowGain,v.harmGain,v.lfoGain,v.voiceGain,v.filter,v.pan].forEach(function(n){ if(n&&n.disconnect) try{n.disconnect();}catch(e){} });
+    });
+    this._engineVoices=[]; this._engineSig="";
+  };
+  Game.prototype.clearEngineAudio = function () {
+    this.clearEngineVoices();
+    if (this._engineCtx) { try{ this._engineCtx.close(); }catch(e){} }
+    this._engineCtx=null; this._engineMaster=null;
+  };
+  Game.prototype.ensureEngineAudio = function () {
+    if (this._engineCtx) return true;
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if (!AC) return false;
+    try {
+      this._engineCtx=new AC();
+      this._engineMaster=this._engineCtx.createGain();
+      this._engineMaster.gain.value=0;
+      this._engineMaster.connect(this._engineCtx.destination);
+      this._engineVoices=[]; this._engineSig="";
+      return true;
+    } catch(e) { this._engineCtx=null; this._engineMaster=null; return false; }
+  };
+  Game.prototype.syncEngineAudio = function (fromGesture) {
+    var B=this.state&&this.state.battle;
+    if (fromGesture && ENGINE_VOLUME>0 && B && !B.over) this.ensureEngineAudio();
+    var ctx=this._engineCtx, master=this._engineMaster;
+    if (!ctx||!master) return;
+    if (fromGesture && ctx.state==="suspended" && ctx.resume) {
+      var resume=ctx.resume(); if(resume&&resume.catch) resume.catch(function(){});
+    }
+    var ships=[];
+    if (B) {
+      B.pShips.forEach(function(p,i){ if(!p.lost&&p.ship.hull>0) ships.push({side:"p",lane:i}); });
+      B.eShips.forEach(function(e,i){ if(e.alive&&!e.struck&&e.hull>0) ships.push({side:"e",lane:i}); });
+    }
+    var sig=ships.map(function(s){return s.side+s.lane;}).join(",");
+    if (sig!==this._engineSig) {
+      this.clearEngineVoices(); this._engineSig=sig;
+      var lanes=B?Math.max(B.pShips.length,B.eShips.length):1;
+      for (var i=0;i<ships.length;i++) {
+        var s=ships[i], base=43+s.lane*3+(s.side==="e"?5:0)+(i%2)*1.4;
+        var low=ctx.createOscillator(), harm=ctx.createOscillator(), lfo=ctx.createOscillator();
+        var lowGain=ctx.createGain(), harmGain=ctx.createGain(), lfoGain=ctx.createGain();
+        var voiceGain=ctx.createGain(), filter=ctx.createBiquadFilter();
+        var pan=ctx.createStereoPanner?ctx.createStereoPanner():ctx.createGain();
+        low.type="sine"; low.frequency.value=base; low.detune.value=-4;
+        harm.type="triangle"; harm.frequency.value=base*2.01; harm.detune.value=3;
+        lfo.type="sine"; lfo.frequency.value=0.55+(i%3)*0.11;
+        lowGain.gain.value=0.82; harmGain.gain.value=0.18;
+        voiceGain.gain.value=0.045; lfoGain.gain.value=0.008;
+        filter.type="lowpass"; filter.frequency.value=175; filter.Q.value=0.7;
+        if (pan.pan) {
+          var lanePan=lanes>1?(s.lane/(lanes-1))*1.2-0.6:0;
+          pan.pan.value=this.cl(lanePan+(s.side==="e"?0.07:-0.07),-0.85,0.85);
+        }
+        low.connect(lowGain); harm.connect(harmGain);
+        lowGain.connect(filter); harmGain.connect(filter); filter.connect(voiceGain);
+        lfo.connect(lfoGain); lfoGain.connect(voiceGain.gain); voiceGain.connect(pan); pan.connect(master);
+        low.start(); harm.start(); lfo.start();
+        this._engineVoices.push({low:low,harm:harm,lfo:lfo,lowGain:lowGain,harmGain:harmGain,
+          lfoGain:lfoGain,voiceGain:voiceGain,filter:filter,pan:pan});
+      }
+    }
+    var audible=ENGINE_VOLUME>0&&this._scene==="combat"&&B&&!B.over;
+    var target=audible?this.engineGainForZoom()*ENGINE_VOLUME:0;
+    if (master.gain.setTargetAtTime) master.gain.setTargetAtTime(target,ctx.currentTime,0.18);
+    else master.gain.value=target;
   };
   Game.prototype.renderMusicBtn = function () {
     var self=this, on=this.music.on;
     return html`<button onClick=${function(e){ if(e&&e.stopPropagation)e.stopPropagation(); self.toggleMusic(); }}
-      title=${on?"Music on — click to mute":"Music muted — click to play"}
+      title=${on?"Music on - click to mute":"Music muted - click to play"}
       style=${"display:inline-flex;align-items:center;gap:6px;font-family:"+MONO+";font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;background:#0d1424;border:1px solid "+(on?"#2c4066":"#22345a")+";border-radius:4px;padding:6px 11px;color:"+(on?"#8deaff":"#5f7396")+";white-space:nowrap"}>
       <span style="font-size:13px;line-height:1">${on?"♪":"♪"}</span>${on?"Music":"Muted"}</button>`;
+  };
+  Game.prototype.makeSeed = function () {
+    var a=(Date.now().toString(36)+Math.floor(Math.random()*0xffffff).toString(36)).toUpperCase();
+    return a.slice(-10);
+  };
+  Game.prototype.hashSeed = function (seed) {
+    var h=2166136261, s=String(seed||"BLACKSTAR");
+    for (var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+    return (h>>>0)||0x6d2b79f5;
+  };
+  Game.prototype.setRunSeed = function (seed, state) {
+    var clean=String(seed||this.makeSeed()).toUpperCase().replace(/[^A-Z0-9_-]/g,"").slice(0,18)||"BLACKSTAR";
+    this.config.seed=clean;
+    this._rngState=(state>>>0)||this.hashSeed(clean);
+    return clean;
+  };
+  Game.prototype.rand = function () {
+    var x=this._rngState>>>0;
+    x^=x<<13; x^=x>>>17; x^=x<<5;
+    this._rngState=x>>>0;
+    return (this._rngState>>>0)/4294967296;
+  };
+  Game.prototype.setSeedText = function (value) {
+    this.config.seed=String(value||"").toUpperCase().replace(/[^A-Z0-9_-]/g,"").slice(0,18);
+    this.forceUpdate();
+  };
+  Game.prototype.randomizeSeed = function () { this.config.seed=this.makeSeed(); this.forceUpdate(); };
+  Game.prototype.readAutosave = function () {
+    try {
+      var raw=localStorage.getItem("hf_autosave_v1");
+      if (!raw) return null;
+      var save=JSON.parse(raw);
+      return save&&save.version===1&&save.state?save:null;
+    } catch(e) { return null; }
+  };
+  Game.prototype.saveRun = function () {
+    if (!this.state||this.state.screen==="title") return;
+    this.state.seed=this.config.seed;
+    this.state.rngState=this._rngState>>>0;
+    try {
+      var payload={version:1,savedAt:Date.now(),config:{difficulty:this.config.difficulty,
+        seed:this.config.seed},state:this.state};
+      localStorage.setItem("hf_autosave_v1",JSON.stringify(payload,function(k,v){ return typeof v==="function"?undefined:v; }));
+      this.autosaveMeta=payload;
+    } catch(e) {}
+  };
+  Game.prototype.manualSave = function () {
+    var self=this;
+    this.saveRun();
+    this._saveStatus="SAVED";
+    this.forceUpdate();
+    if (this._saveStatusTimer) clearTimeout(this._saveStatusTimer);
+    this._saveStatusTimer=setTimeout(function(){ self._saveStatus=""; self.forceUpdate(); },1600);
+  };
+  Game.prototype.queueAutosave = function () {
+    var self=this;
+    if (this._autosaveTimer) clearTimeout(this._autosaveTimer);
+    this._autosaveTimer=setTimeout(function(){ self._autosaveTimer=null; self.saveRun(); },220);
+  };
+  Game.prototype.resumeAutosave = function () {
+    var save=this.readAutosave(); if (!save) return;
+    var st=save.state;
+    if (!st.fleet||!st.fleet.length) return;
+    st.player=st.fleet[0]; st.dialogue=null; st.cardDetail=null;
+    if (st.battle&&st.battle.pShips) {
+      st.battle.pShips.forEach(function(p){
+        for (var i=0;i<st.fleet.length;i++) if (st.fleet[i].id===p.ship.id) { p.ship=st.fleet[i]; break; }
+      });
+      st.battle.aiming=null; st.battle.busy=false;
+    }
+    this.config.difficulty=(save.config&&save.config.difficulty)||this.config.difficulty;
+    this.setRunSeed((save.config&&save.config.seed)||st.seed,st.rngState);
+    this.state=st; this.view={zoom:1,panX:0,panY:0}; this.fx=[];
+    this.setMusicScene(st.screen==="battle"?"combat":"ambient",true);
+    this.forceUpdate();
   };
 
   // ---- a fresh run (starts on the title screen) ---------------------------
   Game.prototype.freshRun = function () {
     // The flagship: a battleship, the last capital hull still flying the flag.
-    // S.player IS S.fleet[0] — map-level code (fuel, refits, repair) reads the
+    // S.player IS S.fleet[0] - map-level code (fuel, refits, repair) reads the
     // flagship directly, while combat runs over the whole fleet.
     var flag = this.mkShip({ id:"flag", name:"ISV Resolute", cls:"BATTLESHIP · FLAGSHIP", img:PLAYER_SHIP,
       hull:80, crew:10, power:3, shieldCap:24, hangarCap:2, regen:3, handSize:5,
       deck: COMMISSIONS[0].deck.slice(), flagship:true });
     Object.assign(flag, { fuel:5, fuelMax:5, ups:{} });
     return {
-      screen: "title", overlay: null,
+      screen: "title", overlay: null, seed:this.config.seed, rngState:this._rngState>>>0,
       salvage: (this.config && this.config.startingSalvage != null) ? this.config.startingSalvage : 40,
       current: "haven", sel: null, taken: { haven: true }, gliding: false,
       zoneKeys: {}, yardBought: {}, stationStock: {}, escortsBought: {},
       seen: {}, securedCount: 0, dialogue: null, commission: null, outfit: 0,
+      tutorial:null,
       player: flag,
       fleet: [flag],
       battle:null, base:null, yard:null, evNode:null, end:null, reward:null, cardDetail:null, shakeP:0, shakeE:0
@@ -662,8 +984,8 @@
   };
 
   // ---- math / rng helpers -------------------------------------------------
-  Game.prototype.ri = function (a,b) { return Math.floor(Math.random()*(b-a+1))+a; };
-  Game.prototype.pk = function (a) { return a[Math.floor(Math.random()*a.length)]; };
+  Game.prototype.ri = function (a,b) { return Math.floor(this.rand()*(b-a+1))+a; };
+  Game.prototype.pk = function (a) { return a[Math.floor(this.rand()*a.length)]; };
   Game.prototype.cl = function (v,a,b) { return Math.max(a, Math.min(b, v)); };
   Game.prototype.sh = function (a) { for (var i=a.length-1;i>0;i--){ var j=this.ri(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; };
   Game.prototype.mk = function (k) { return Object.assign({ uid: ++_uid }, LIB[k]); };
@@ -683,8 +1005,12 @@
   // ---- combat log & transient FX -----------------------------------------
   Game.prototype.log = function (color,text,mark) {
     var B = this.state.battle; if (!B) return;
-    B.logs.push({ k:this.fid(), color:color, text:text, mark:!!mark });
+    var entry={ k:this.fid(), color:color, text:text, mark:!!mark, turn:B.turn||0 };
+    B.logs.push(entry);
     if (B.logs.length>40) B.logs.shift();
+    if (!B.history) B.history=[];
+    B.history.push(entry);
+    if (B.history.length>250) B.history.shift();
   };
   Game.prototype.addFloat = function (side,idx,text,color) {
     var B = this.state.battle; if (!B) return; var k = this.fid(); var self = this;
@@ -734,7 +1060,7 @@
     return best;
   };
   Game.prototype.boardTargetIdx = function (pIdx) { var v=this.validTargets(pIdx,null,false); return v.length?v[0]:null; };
-  Game.prototype.tokensOf = function (side) { var B=this.state.battle; return B.tokens.filter(function(t){ return t.side===side && t.hp>0; }); };
+  Game.prototype.tokensOf = function (side) { var B=this.state.battle; return B.tokens.filter(function(t){ return t.side===side && t.hp>0 && !t.recalled; }); };
   Game.prototype.hangarUsed = function (sh) { var B=this.state.battle; if (!B) return 0; return B.tokens.filter(function(t){ return t.side==="p" && t.hp>0 && t.carrier===sh.id; }).length; };
   Game.prototype.hurtSub = function (sh, nm, amt, report) {
     var before=sh.subs[nm];
@@ -768,21 +1094,37 @@
     var group=this.enemyGroup(node);
     S.battle = {
       node:node, turn:1, busy:false, over:false, aiming:null, active:0, detailUid:null,
-      tokens:[], swapUsed:false, bg:COMBAT_BGS[this.ri(0,COMBAT_BGS.length-1)],
+      tokens:[], swapUsed:false, recallUsed:false, bg:COMBAT_BGS[this.ri(0,COMBAT_BGS.length-1)],
       pShips: S.fleet.map(function(sh){ return self.initCombatShip(sh); }),
       eShips: group.map(function(g,i){ return self.initEnemyShip(g.d, g.m, i); }),
-      logs:[], floats:[], beams:[], played:null
+      logs:[], history:[], floats:[], beams:[], played:null
     };
     S.screen="battle"; S.overlay=null;
+    if (!S.seen.combatTutorial) S.tutorial={step:0};
     this.fx = []; this.aimPos = null;   // clear any stale FX from a prior battle
     this.playerImgEls=[]; this.enemyImgEls=[];
     this.view = { zoom:1, panX:0, panY:0 }; this.hideHover();   // reset camera & dwell panel
     this.chooseIntents();
     this.setMusicScene("combat");
+    this.syncEngineAudio(true);
     this.log("#5a6d8f", (group.length>1 ? group.length+" hostile capitals close" : group[0].d.name+" closes")+" to weapons range.", true);
     preloadAudio();
     sfx(rndOf(["enemy_sighted_m","enemy_sighted_f"]), .95);   // "enemy sighted" hail
     this.startPlayerTurn(); this.forceUpdate();
+  };
+  Game.prototype.advanceCombatTutorial = function () {
+    var S=this.state;
+    if (!S.tutorial) return;
+    if (S.tutorial.step>=3) {
+      S.tutorial=null;
+      S.seen.combatTutorial=true;
+    } else S.tutorial.step++;
+    this.forceUpdate();
+  };
+  Game.prototype.skipCombatTutorial = function () {
+    this.state.tutorial=null;
+    this.state.seen.combatTutorial=true;
+    this.forceUpdate();
   };
   Game.prototype.initCombatShip = function (sh) {
     sh.shield=0; sh.power=0; sh.shake=0;
@@ -809,7 +1151,7 @@
     var zm=(node.z&&ZBYK[node.z]&&ZBYK[node.z].mult)||1;
     // Multi-ship fights already carry their own difficulty, so the elite/bounty
     // bump is lighter than the old single-ship 1.3; the boss line, by contrast,
-    // is a genuine wall — a heavier core flanked by two full-strength wings.
+    // is a genuine wall - a heavier core flanked by two full-strength wings.
     // (Tuned against tools/combat-sim.js; see docs/IMPROVEMENT_PLAN.md.)
     var m=this.diffMult()*((node.type==="elite"||node.type==="bounty")?1.15:1)*(node.type==="boss"?1:zm);
     if (node.type==="boss") return [ {d:ENEMIES[6],m:this.diffMult()*.82}, {d:d,m:this.diffMult()*1.15}, {d:ENEMIES[8],m:this.diffMult()*.82} ];
@@ -838,6 +1180,12 @@
   };
   Game.prototype.startPlayerTurn = function () {
     var B=this.state.battle; var self=this;
+    B.tokens.forEach(function(t){
+      if (t.side==="p"&&t.recalled) {
+        t.rearm=Math.max(0,(t.rearm||0)-1);
+        if (t.rearm===0) { t.recalled=false; t.launchedAt=Date.now(); self.log("#9fdcff",t.kind+" wing rearmed and redeployed."); }
+      }
+    });
     B.pShips.forEach(function(pS,i){
       if (!self.pAlive(i)) return;
       var sh=pS.ship, fx=pS.fx;
@@ -848,7 +1196,7 @@
       while (pS.hand.length<sh.handSize && (pS.draw.length||pS.disc.length)) self.drawCards(pS,1);
     });
     if (!this.pAlive(B.active)) { var a=this.alivePIdx(); if (a.length) B.active=a[0]; }
-    B.swapUsed=false;   // one lane manoeuvre per turn
+    B.swapUsed=false; B.recallUsed=false;   // one lane manoeuvre / recall per turn
     this.maybeBattleBeat();
   };
   Game.prototype.setActiveShip = function (i) {
@@ -864,9 +1212,22 @@
     if (!this.pAlive(i)||!this.pAlive(j)) return;
     var t=B.pShips[i]; B.pShips[i]=B.pShips[j]; B.pShips[j]=t;
     if (B.active===i) B.active=j; else if (B.active===j) B.active=i;
-    this.playerImgEls=[];   // positions changed — re-capture refs
+    this.playerImgEls=[];   // positions changed - re-capture refs
     B.swapUsed=true;
     this.log("#9fdcff", B.pShips[j].ship.name+" and "+B.pShips[i].ship.name+" trade lanes.");
+    this.forceUpdate();
+  };
+  Game.prototype.recallStrikeCraft = function () {
+    var B=this.state.battle; if (!B||B.busy||B.over||B.aiming||B.recallUsed) return;
+    var recalled=0;
+    B.tokens.forEach(function(t){
+      if (t.side==="p"&&t.hp>0&&!t.recalled) {
+        t.recalled=true; t.rearm=1; t.hp=t.hpMax; t.launchedAt=0; recalled++;
+      }
+    });
+    if (!recalled) return;
+    B.recallUsed=true;
+    this.log("#9fdcff",recalled+" strike craft recalled. Crews repair, reload and redeploy next turn.");
     this.forceUpdate();
   };
   // One-time in-battle story beats, checked at a safe point (the player's turn).
@@ -887,8 +1248,8 @@
   };
   Game.prototype.enemyPhase = function () {
     var S=this.state, B=S.battle; if (!B||B.over) return; var self=this;
-    this.log("#5a6d8f","— the enemy line acts —",true);
-    // (1) your strike craft act — dogfights first, then runs on capitals
+    this.log("#5a6d8f","- the enemy line acts -",true);
+    // (1) your strike craft act - dogfights first, then runs on capitals
     this.resolveTokens("p");
     if (this.checkEnd()) return;
     // (2) enemy flak clips your weakest craft
@@ -922,31 +1283,31 @@
     if (reg>0) e.shield=this.cl(e.shield+reg,0,e.shieldCap);
     if (it.type==="attack" || it.type==="salvo") {
       if (!t) return;
-      if (fx.evade) { this.log("#9fdcff",t.name+" burns hard — "+e.name+"'s volley goes wide."); }
+      if (fx.evade) { this.log("#9fdcff",t.name+" burns hard - "+e.name+"'s volley goes wide."); }
       else {
         var d=Math.round(it.value*this.wm(e.subs));
         if (fx.blind) { d=Math.max(0,d-fx.blind); this.log("#9fdcff","Sensor ghost spoils their aim (-"+fx.blind+")."); fx.blind=0; }
         if (fx.brace) { d=Math.ceil(d/2); this.log("#9fdcff","Brace cuts the hit in half."); }
-        this.enemyFire(i,ti);
+        this.enemyFire(i,ti,it.type==="salvo"||d>=14);
         var r=this.dealDamage("p",ti,d,false);
-        this.log("#ff8aa0",(it.type==="salvo"?e.name+"'s charged salvo lands on ":e.name+" rakes ")+t.name+" — "+(r.abs?r.abs+" to shields, ":"")+(r.arm?r.arm+" to armour, ":"")+r.toHull+" to hull.");
+        this.log("#ff8aa0",(it.type==="salvo"?e.name+"'s charged salvo lands on ":e.name+" rakes ")+t.name+" - "+(r.abs?r.abs+" to shields, ":"")+(r.arm?r.arm+" to armour, ":"")+r.toHull+" to hull.");
         if (it.sab) { var nm=this.pk(["weapons","reactor","engines"]); this.hurtSub(t,nm,it.sab,true); this.log("#ff8aa0","Their gunners smash "+t.name+"'s "+nm.toUpperCase()+" (-"+it.sab+")."); }
         if (fx.reflect) { var ref=fx.reflect; fx.reflect=0; this.dealDamage("e",i,ref,true); this.log("#9fdcff","Reflective screen returns "+ref+" to "+e.name+"."); }
         if (fx.overwatch) { var ow=fx.overwatch; fx.overwatch=0; this.dealDamage("e",i,ow,false); this.log("#9fdcff",t.name+"'s overwatch counterfires for "+ow+"."); }
       }
     } else if (it.type==="charge") {
-      e.charged=it.value; this.log("#ff8aa0",e.name+" floods its main gun — a "+it.value+"-damage salvo fires next turn. Break its weapons or its reactor to spoil the shot.");
+      e.charged=it.value; this.log("#ff8aa0",e.name+" floods its main gun - a "+it.value+"-damage salvo fires next turn. Break its weapons or its reactor to spoil the shot.");
     } else if (it.type==="launch") {
       var fd=e.fighter||{atk:2,hp:2};
       var n=Math.max(0,Math.min(it.value||2, 4-this.tokensOf("e").length));
-      for (var k=0;k<n;k++) B.tokens.push({ id:this.fid(), side:"e", kind:"fighter", atk:fd.atk, hp:fd.hp, hpMax:fd.hp, carrier:i });
+      for (var k=0;k<n;k++) B.tokens.push({ id:this.fid(), side:"e", kind:"fighter", atk:fd.atk, hp:fd.hp, hpMax:fd.hp, carrier:i, rearm:0, recalled:false, launchedAt:Date.now() });
       if (n>0) this.log("#ff8aa0",e.name+" scrambles "+n+" fighter"+(n>1?"s":"")+". Clear them with interceptors, fighters or flak.");
     } else if (it.type==="shield") { e.shield=this.cl(e.shield+it.value,0,e.shieldCap); this.log("#ff8aa0",e.name+" reinforces its shields (+"+it.value+")."); }
     else if (it.type==="board") {
       if (!t) return;
       this.spawnBoardingAction(this.shipCenter("e",i), this.shipCenter("p",ti), true);
       if (fx.sealCrew) { fx.sealCrew=false; this.log("#9fdcff",t.name+"'s sealed bulkheads stop the boarding assault."); }
-      else { t.crew=this.cl(t.crew-it.value,0,t.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtSub(t,nm2,10,true); t.shake++; this.addFloat("p",ti,"-"+it.value+" CREW","#ff8aa0"); this.log("#ff8aa0","Boarders from "+e.name+" storm "+t.name+" — "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
+      else { t.crew=this.cl(t.crew-it.value,0,t.crewMax); var nm2=this.pk(["weapons","reactor","engines"]); this.hurtSub(t,nm2,10,true); t.shake++; this.addFloat("p",ti,"-"+it.value+" CREW","#ff8aa0"); this.log("#ff8aa0","Boarders from "+e.name+" storm "+t.name+" - "+it.value+" crew lost, "+nm2.toUpperCase()+" sabotaged."); }
     }
     else if (it.type==="repair") { e.hull=this.cl(e.hull+it.value,0,e.hullMax); var w=this.worstSub(e.subs); e.subs[w]=this.cl(e.subs[w]+25,0,100); this.log("#ff8aa0",e.name+" runs damage control (+"+it.value+" hull)."); }
   };
@@ -957,15 +1318,20 @@
     var foe = side==="p" ? "e" : "p";
     mine.slice().forEach(function(tk){
       if (tk.hp<=0) return;
+      if (tk.rearm>0) {
+        tk.rearm--;
+        self.log(side==="p"?"#7d92b5":"#a06f7c",(side==="p"?"Your ":"Enemy ")+tk.kind+" wing is rearming.");
+        return;
+      }
       var hostiles=self.tokensOf(foe);
       if (tk.kind==="fighter" && hostiles.length) {
-        // dogfight — bombers are priority targets; the loser burns off the board
+        // dogfight - bombers are priority targets; the loser burns off the board
         var tgt=null;
         for (var h=0;h<hostiles.length;h++) if (hostiles[h].kind==="bomber") { tgt=hostiles[h]; break; }
         tgt=tgt||hostiles[0];
         tgt.hp-=tk.atk;
         if (tgt.hp>0) tk.hp-=tgt.atk;   // survivor fights back
-        self.log(side==="p"?"#9fdcff":"#ff8aa0",(side==="p"?"Your fighter guns":"An enemy fighter guns")+" a hostile "+tgt.kind+(tgt.hp<=0?" down.":" — it fights back."));
+        self.log(side==="p"?"#9fdcff":"#ff8aa0",(side==="p"?"Your fighter guns":"An enemy fighter guns")+" a hostile "+tgt.kind+(tgt.hp<=0?" down.":" - it fights back."));
       } else if (tk.kind==="fighter") {
         var si = side==="p" ? self.pickStrafe("e") : self.pickStrafe("p");
         if (si==null) return;
@@ -977,14 +1343,15 @@
         if (side==="p") {
           var e=B.eShips[bi];
           self.dealDamage("e",bi,tk.atk,!!tk.pierce);
-          if (tk.sab && e.focus) { e.subs[e.focus]=self.cl(e.subs[e.focus]-tk.sab,0,100); self.log("#9fdcff","Bomber torpedoes "+e.name+" — "+tk.atk+" through shields, "+e.focus.toUpperCase()+" -"+tk.sab+"."); }
+          if (tk.sab && e.focus) { e.subs[e.focus]=self.cl(e.subs[e.focus]-tk.sab,0,100); self.log("#9fdcff","Bomber torpedoes "+e.name+" - "+tk.atk+" through shields, "+e.focus.toUpperCase()+" -"+tk.sab+"."); }
           else self.log("#9fdcff","Bomber torpedoes "+e.name+" for "+tk.atk+" through shields.");
         } else { self.dealDamage("p",bi,tk.atk,!!tk.pierce); self.log("#ff8aa0","An enemy bomber torpedoes "+B.pShips[bi].ship.name+" for "+tk.atk+"."); }
       }
+      tk.rearm=1;
     });
     B.tokens=B.tokens.filter(function(t){ return t.hp>0; });
   };
-  // Strike craft ignore the lane screen — they run on the weakest hull flying.
+  // Strike craft ignore the lane screen - they run on the weakest hull flying.
   Game.prototype.pickStrafe = function (side) {
     var B=this.state.battle;
     var a = side==="e" ? this.aliveEIdx() : this.alivePIdx();
@@ -997,7 +1364,7 @@
     }
     return best;
   };
-  // One flak burst per fleet per round — needs a capital with healthy engines.
+  // One flak burst per fleet per round - needs a capital with healthy engines.
   Game.prototype.fireFlak = function (side) {
     var B=this.state.battle, self=this;
     var can=false;
@@ -1008,7 +1375,7 @@
     var tgt=foes[0];
     for (var i=0;i<foes.length;i++) if (foes[i].hp<tgt.hp) tgt=foes[i];
     tgt.hp-=2;
-    this.log(side==="p"?"#9fdcff":"#ff8aa0",(side==="p"?"Your":"Their")+" flak screen clips a hostile "+tgt.kind+(tgt.hp<=0?" — splashed.":"."));
+    this.log(side==="p"?"#9fdcff":"#ff8aa0",(side==="p"?"Your":"Their")+" flak screen clips a hostile "+tgt.kind+(tgt.hp<=0?" - splashed.":"."));
     B.tokens=B.tokens.filter(function(t){ return t.hp>0; });
   };
   // Archetype-driven intent per enemy capital, telegraphed with its target.
@@ -1019,8 +1386,8 @@
   Game.prototype.chooseIntentFor = function (e, idx) {
     var B=this.state.battle, o=[]; var self=this;
     var tgt=this.enemyTargetIdx(idx);
-    // A charged main gun overrides everything — it fires this turn.
-    if (e.charged>0) { var v=e.charged; e.charged=0; e.intent={ type:"salvo", value:v, tgt:tgt, sab:Math.random()<e.sab?self.ri(10,18):0 }; return; }
+    // A charged main gun overrides everything - it fires this turn.
+    if (e.charged>0) { var v=e.charged; e.charged=0; e.intent={ type:"salvo", value:v, tgt:tgt, sab:this.rand()<e.sab?self.ri(10,18):0 }; return; }
     var ai=e.ai||"gunline";
     var lowHull=e.hull<e.hullMax*.5;
     var canPower=e.subs.reactor>=35;   // crippled reactor can't charge or launch
@@ -1030,7 +1397,7 @@
     o.push({ w:atkW, m:function(){
       var base=self.ri(e.atkLo,e.atkHi);
       if (ai==="zealot" && lowHull) base=Math.round(base*1.3);   // fights harder as it dies
-      return { type:"attack", value:base, tgt:tgt, sab:Math.random()<e.sab?self.ri(12,22):0 };
+      return { type:"attack", value:base, tgt:tgt, sab:self.rand()<e.sab?self.ri(12,22):0 };
     } });
     if ((ai==="gunline"||ai==="dread") && canPower) o.push({ w:ai==="dread"?5:4, m:function(){
       return { type:"charge", value:Math.round(self.ri(e.atkHi+3,e.atkHi+9)*(ai==="dread"?1.12:1)), tgt:tgt };
@@ -1041,7 +1408,7 @@
     if (e.boardCh && tCrew>0) o.push({ w:e.boardCh*10*(ai==="raider"?1.5:1), m:function(){ return { type:"board", value:e.boardN, tgt:tgt }; } });
     if (e.rep && (lowHull || Math.min(e.subs.weapons,e.subs.reactor,e.subs.engines)<50))
       o.push({ w:e.rep*10*(ai==="warden"?1.6:1), m:function(){ return { type:"repair", value:self.ri(8,14) }; } });
-    var tot=o.reduce(function(s,x){return s+x.w;},0); var r=Math.random()*tot, c=o[0];
+    var tot=o.reduce(function(s,x){return s+x.w;},0); var r=this.rand()*tot, c=o[0];
     for (var i=0;i<o.length;i++){ r-=o[i].w; if (r<=0){ c=o[i]; break; } }
     e.intent=c.m();
   };
@@ -1086,7 +1453,7 @@
         d=Math.round(d*this.wm(sh.subs));
         var r=this.dealDamage("e",eIdx,d,!!c.pierce); tot+=r.toHull; absTot+=r.abs;
       }
-      this.log("#9fdcff", c.name+" on "+e.name+" — "+(c.pierce?tot+" straight to hull.":(absTot?absTot+" to shields, "+tot+" to hull.":tot+" to hull.")));
+      this.log("#9fdcff", c.name+" on "+e.name+" - "+(c.pierce?tot+" straight to hull.":(absTot?absTot+" to shields, "+tot+" to hull.":tot+" to hull.")));
       if (c.sab) { e.subs.reactor=this.cl(e.subs.reactor-c.sab,0,100); this.log("#9fdcff","Their REACTOR loses "+c.sab+" integrity."); }
       if (c.sabEngine) { e.subs.engines=this.cl(e.subs.engines-c.sabEngine,0,100); this.log("#9fdcff","Their ENGINES lose "+c.sabEngine+" integrity."); }
       if (c.sabAll) { Object.keys(e.subs).forEach(function(k){e.subs[k]=Math.max(0,e.subs[k]-c.sabAll);}); this.log("#9fdcff","EMP shocks every subsystem on "+e.name+" (-"+c.sabAll+")."); }
@@ -1097,10 +1464,10 @@
         this.log("#9fdcff","Called shot chews "+e.name+"'s "+e.focus.toUpperCase()+" (-"+cs+").");
       }
     }
-    if (c.mine && e) { e.mines.push(c.mine); this.log("#9fdcff","Mine laid on "+e.name+" — "+c.mine+" damage after they act."); }
+    if (c.mine && e) { e.mines.push(c.mine); this.log("#9fdcff","Mine laid on "+e.name+" - "+c.mine+" damage after they act."); }
     if (c.selfHull) { sh.hull=this.cl(sh.hull-c.selfHull,0,sh.hullMax); this.addFloat("p",pIdx,"-"+c.selfHull,"#ff8aa0"); sh.shake++; this.log("#b3c4de","Ramming costs "+sh.name+" "+c.selfHull+" hull."); }
     if (c.retaliate && e && e.hull>0) { this.dealDamage("p",pIdx,c.retaliate,false); this.log("#ff8aa0","Point-blank return fire deals "+c.retaliate+" to "+sh.name+"."); }
-    if (c.shield) { sh.shield=this.cl(sh.shield+c.shield,0,sh.shieldCap); this.log("#9fdcff",c.name+" — +"+c.shield+" shields on "+sh.name+"."); }
+    if (c.shield) { sh.shield=this.cl(sh.shield+c.shield,0,sh.shieldCap); this.log("#9fdcff",c.name+" - +"+c.shield+" shields on "+sh.name+"."); }
     if (c.brace) fx.brace=true;
     if (c.repSub) { var w=this.worstSub(sh.subs); sh.subs[w]=this.cl(sh.subs[w]+c.repSub,0,100); this.log("#9fdcff","Damage control restores "+sh.name+"'s "+w.toUpperCase()+" (+"+c.repSub+")."); }
     if (c.repAll) { Object.keys(sh.subs).forEach(function(k){sh.subs[k]=Math.min(100,sh.subs[k]+c.repAll);}); this.log("#9fdcff","All subsystems on "+sh.name+" restored +"+c.repAll+"."); }
@@ -1108,21 +1475,21 @@
     if (c.repReactor) { sh.subs.reactor=this.cl(sh.subs.reactor+c.repReactor,0,100); this.log("#9fdcff","REACTOR restored +"+c.repReactor+"."); }
     if (c.reboot) { var rb=this.worstSub(sh.subs); sh.subs[rb]=Math.max(sh.subs[rb],c.reboot); this.log("#9fdcff",rb.toUpperCase()+" rebooted to "+sh.subs[rb]+"."); }
     if (c.heal) { sh.hull=this.cl(sh.hull+c.heal,0,sh.hullMax); this.log("#9fdcff",sh.name+"'s hull sealed +"+c.heal+"."); }
-    if (c.gainP) { sh.power+=c.gainP; this.log("#9fdcff",c.name+" — +"+c.gainP+" power."); }
+    if (c.gainP) { sh.power+=c.gainP; this.log("#9fdcff",c.name+" - +"+c.gainP+" power."); }
     if (c.selfSub) { this.hurtSub(sh,"reactor",c.selfSub,sh.flagship); this.log("#b3c4de","Reactor strained (-"+c.selfSub+")."); }
     if (c.hurtBest) { var best=this.bestSub(sh.subs); this.hurtSub(sh,best,c.hurtBest,sh.flagship); this.log("#b3c4de",best.toUpperCase()+" cannibalised (-"+c.hurtBest+")."); }
     if (c.draw) { this.drawCards(pS,c.draw); this.log("#9fdcff","Drew "+c.draw+"."); }
     if (c.drawType) this.drawType(pS,c.drawType,c.discount||0);
     if (c.discard) { for(var dc=0;dc<c.discard&&pS.hand.length;dc++){ var di=this.ri(0,pS.hand.length-1), gone=pS.hand.splice(di,1)[0]; this.restoreCardCost(gone); pS.disc.push(gone); this.log("#b3c4de","Discarded "+gone.name+"."); } }
-    if (c.lock) { fx.lock+=c.lock; this.log("#9fdcff","Target lock — "+sh.name+"'s next weapon +"+c.lock+"."); }
+    if (c.lock) { fx.lock+=c.lock; this.log("#9fdcff","Target lock - "+sh.name+"'s next weapon +"+c.lock+"."); }
     if (c.evade) { fx.evade=true; this.log("#9fdcff",sh.name+" arms an evasive burn."); }
     if (c.armour) { fx.armour+=c.armour; this.log("#9fdcff","Ablative armour +"+c.armour+" on "+sh.name+"."); }
     if (c.reflect) { fx.reflect=c.reflect; this.log("#9fdcff","Reflective screen armed on "+sh.name+"."); }
     if (c.sealCrew) { fx.sealCrew=true; this.log("#9fdcff",sh.name+"'s bulkheads sealed against crew loss."); }
     if (c.nextPower) { fx.nextPower+=c.nextPower; this.log("#9fdcff",sh.name+" next turn power +"+c.nextPower+"."); }
     if (c.nextPowerPenalty) fx.nextPowerPenalty+=c.nextPowerPenalty;
-    if (c.blind) { fx.blind=Math.max(fx.blind,c.blind); this.log("#9fdcff","Sensor ghost shields "+sh.name+" — next attack on her -"+c.blind+"."); }
-    if (c.flank) { fx.flank=c.flank; this.log("#9fdcff","Flanking solution ready — "+sh.name+"'s next weapon slips the screen."); }
+    if (c.blind) { fx.blind=Math.max(fx.blind,c.blind); this.log("#9fdcff","Sensor ghost shields "+sh.name+" - next attack on her -"+c.blind+"."); }
+    if (c.flank) { fx.flank=c.flank; this.log("#9fdcff","Flanking solution ready - "+sh.name+"'s next weapon slips the screen."); }
     if (c.overwatch) { fx.overwatch=c.overwatch; this.log("#9fdcff","Overwatch armed on "+sh.name+" for "+c.overwatch+" counter-damage."); }
     if (c.eCrew && e) {
       this.spawnBoardingAction(this.shipCenter("p",pIdx), this.shipCenter("e",eIdx), false);
@@ -1131,7 +1498,7 @@
       if (c.sabRand) { var nm=this.pk(["weapons","reactor","engines"]); e.subs[nm]=this.cl(e.subs[nm]-c.sabRand,0,100); }
       if (c.sabWorst) { var ew=this.worstSub(e.subs); e.subs[ew]=this.cl(e.subs[ew]-c.sabWorst,0,100); this.log("#c4d2ea",ew.toUpperCase()+" sabotaged (-"+c.sabWorst+")."); }
       this.addFloat("e",eIdx,"-"+c.eCrew+" CREW","#ffb0c0");
-      this.log("#c4d2ea", c.name+" boards "+e.name+" — enemy crew -"+c.eCrew+", yours -"+(c.sCrew||0)+".");
+      this.log("#c4d2ea", c.name+" boards "+e.name+" - enemy crew -"+c.eCrew+", yours -"+(c.sCrew||0)+".");
     } else if (c.eCrew && !e) { this.log("#b3c4de","No enemy in reach of a boarding action."); }
     if (c.strike) this.launchStrike(c.strike, sh);
     delete c._flank; delete c._flankBonus;
@@ -1142,7 +1509,8 @@
     if (st.kind==="fighter"||st.kind==="bomber") {
       var n=st.n||1, put=0;
       for (var i=0;i<n && this.hangarUsed(sh)<sh.hangarCap;i++){
-        B.tokens.push({ id:this.fid(), side:"p", kind:st.kind, atk:st.atk, hp:st.hp, hpMax:st.hp, pierce:!!st.pierce, sab:st.sab||0, carrier:sh.id });
+        B.tokens.push({ id:this.fid(), side:"p", kind:st.kind, atk:st.atk, hp:st.hp, hpMax:st.hp,
+          pierce:!!st.pierce, sab:st.sab||0, carrier:sh.id, rearm:0, recalled:false, launchedAt:Date.now() });
         put++;
       }
       if (put>0) this.log("#9fdcff", sh.name+" launches "+(st.kind==="fighter"?(put>1?put+" fighters":"a fighter"):"a bomber")+".");
@@ -1151,7 +1519,7 @@
         var foes=this.tokensOf("e"), killed=0;
         foes.forEach(function(t){ t.hp-=st.sweep; if (t.hp<=0) killed++; });
         B.tokens=B.tokens.filter(function(t){ return t.hp>0; });
-        this.log(killed?"#9fdcff":"#b3c4de", killed?("Interceptors sweep the sky — "+killed+" enemy craft splashed."):"Interceptors sweep — the sky is already clear.");
+        this.log(killed?"#9fdcff":"#b3c4de", killed?("Interceptors sweep the sky - "+killed+" enemy craft splashed."):"Interceptors sweep - the sky is already clear.");
       }
       if (st.shield) { sh.shield=this.cl(sh.shield+st.shield,0,sh.shieldCap); this.log("#9fdcff","Interceptor screen adds +"+st.shield+" shields to "+sh.name+"."); }
     }
@@ -1194,7 +1562,7 @@
     if (idx==null) return;   // must click a hostile capital
     var pS=B.pShips[B.aiming.from];
     var valid=this.validTargets(B.aiming.from, B.aiming.card, pS&&pS.fx.flank>0);
-    if (valid.indexOf(idx)<0) { this.log("#b3c4de",B.eShips[idx].name+" is screened — break the capital opposite your lane first."); this.forceUpdate(); return; }
+    if (valid.indexOf(idx)<0) { this.log("#b3c4de",B.eShips[idx].name+" is screened - break the capital opposite your lane first."); this.forceUpdate(); return; }
     var c=B.aiming.card; B.aiming=null;
     this.firePlayerWeapon(c, idx, { x:x, y:y });
   };
@@ -1209,14 +1577,18 @@
     B.busy=true; this.aimPos=null; this.forceUpdate();
     var origin=this.shipMuzzle("p",B.active); var self=this;
     this.spawnFlash(origin, FX.muzzlePlayer, 96);
-    sfx(this.playerFireSound(c), .85);
+    sfx(this.playerFireSound(c), .85, this.audioPanForPoint(origin));
+    var shielded=!!(B.eShips[tIdx]&&B.eShips[tIdx].shield>0&&!c.pierce);
+    var impact=this.projectileTarget("e",tIdx,origin,target,shielded);
     var hits=(c.hits||1)*(c._flank?2:1), landed=false;
     for (var k=0;k<hits;k++){
       (function(k){
-        var tgt={ x:target.x+self.jit(k), y:target.y+self.jit(k+5) };
+        var spread=shielded?12:26;
+        var tgt={ x:impact.x+(k===0?0:self.ri(-spread,spread)),
+          y:impact.y+(k===0?0:self.ri(-Math.round(spread*.45),Math.round(spread*.45))) };
         setTimeout(function(){
           self.fireProjectile(origin, tgt, "player", function(){
-            self.spawnImpactFor(c, tgt, "e", tIdx);
+            self.spawnImpactFor(c, tgt, "e", tIdx, shielded);
             if (!landed) { landed=true; self.resolvePlayerWeapon(c, pS, tIdx); }
           });
         }, k*120);
@@ -1228,15 +1600,21 @@
     this.resolveCard(c, pS, tIdx); this.forceUpdate();
     if (!this.checkEnd()) { if (B) B.busy=false; this.forceUpdate(); }
   };
-  Game.prototype.enemyFire = function (eIdx, tIdx) {
-    var self=this, origin=this.shipMuzzle("e",eIdx), tgt=this.shipCenter("p",tIdx);
+  Game.prototype.enemyFire = function (eIdx, tIdx, heavy) {
+    var self=this, B=this.state.battle, origin=this.shipMuzzle("e",eIdx);
+    var sh=B&&B.pShips[tIdx]?B.pShips[tIdx].ship:null, shielded=!!(sh&&sh.shield>0);
+    var tgt=this.projectileTarget("p",tIdx,origin,this.shipCenter("p",tIdx),shielded);
     this.spawnFlash(origin, FX.muzzleEnemy, 96);
-    sfx("laser_cannon", .8);
+    sfx("laser_cannon", .8, this.audioPanForPoint(origin));
     this.fireProjectile(origin, tgt, "enemy", function(){
-      // damage was applied synchronously; a surviving screen reads as a shield flash
-      var B=self.state.battle, sh=B&&B.pShips[tIdx]?B.pShips[tIdx].ship:null;
-      if (sh&&sh.shield>0) { self.spawnFlash(tgt, FX.shieldHitPlayer, 150); sfx("small_explosion", .5); }
-      else { self.spawnExplosion(tgt, "red", 140); self.spawnFlash(tgt, FX.impactPlayer, 120); sfx("small_explosion", .7); }
+      if (shielded) {
+        self.spawnFlash(tgt,FX.shieldHitPlayer,150); self.spawnShieldRipple(tgt,"p",heavy);
+        sfx("small_explosion",.5,self.audioPanForPoint(tgt));
+      } else {
+        self.spawnExplosion(tgt,"red",140); self.spawnFlash(tgt,FX.impactPlayer,120);
+        sfx("small_explosion",.7,self.audioPanForPoint(tgt));
+      }
+      if (heavy) self.hitStop(82);
     });
   };
 
@@ -1254,6 +1632,14 @@
   Game.prototype.shipCenter = function (side, idx) {
     var r=this.shipRect(side,idx); if (!r) return this.fallbackPt(side,idx);
     return { x:r.left+r.width*0.5, y:r.top+r.height*0.5 };
+  };
+  Game.prototype.shieldImpactPoint = function (side, idx, aim) {
+    var r=this.shipRect(side,idx); if (!r) return this.fallbackPt(side,idx);
+    var wanted=aim&&aim.x!=null?aim.x:r.left+r.width*.5;
+    return {x:this.cl(wanted,r.left+r.width*.18,r.right-r.width*.18),y:side==="e"?r.bottom+24:r.top-24};
+  };
+  Game.prototype.projectileTarget = function (side,idx,from,aim,shielded) {
+    return shielded?this.shieldImpactPoint(side,idx,aim):(aim||this.shipCenter(side,idx));
   };
   Game.prototype.fallbackPt = function (side, idx) {
     var w=window.innerWidth||1280, h=window.innerHeight||800;
@@ -1281,20 +1667,35 @@
   Game.prototype.spawnFlash = function (pt, img, size) {
     this.addFx({ kind:"flash", img:img, x:pt.x, y:pt.y, size:size||90, dur:300 });
   };
-  Game.prototype.spawnImpactFor = function (c, pt, side, idx) {
+  Game.prototype.spawnImpactFor = function (c, pt, side, idx, shielded) {
     // If the target's deflector screen is still up and the shot isn't piercing,
     // it reads as a shield flash; otherwise it's a hull explosion.
     var B=this.state.battle;
     var tgt = side==="e" ? (B&&B.eShips[idx||0]) : (B&&B.pShips[idx||0]&&B.pShips[idx||0].ship);
-    var onShield = tgt && tgt.shield>0 && !c.pierce;
+    var onShield = shielded!=null ? shielded : (tgt && tgt.shield>0 && !c.pierce);
     if (onShield) {
       this.spawnFlash(pt, side==="e"?FX.shieldHitEnemy:FX.shieldHitPlayer, 150);
-      sfx("small_explosion", .5);
+      this.spawnShieldRipple(pt,side,this.isHeavyImpact(c));
+      sfx("small_explosion", .5, this.audioPanForPoint(pt));
     } else {
       this.spawnExplosion(pt, side==="e"?"orange":"red", 150);
       this.spawnFlash(pt, side==="e"?FX.impactEnemy:FX.impactPlayer, 130);
-      sfx(this.impactSound(c), .75);
+      sfx(this.impactSound(c), .75, this.audioPanForPoint(pt));
     }
+    if (this.isHeavyImpact(c)) this.hitStop(82);
+  };
+  Game.prototype.isHeavyImpact = function (c) {
+    return !!(c&&(c.cost>=3||c.dmg>=15||["railgun","torpedo","kinetic-ram","execution-beam","point-blank","graviton"].indexOf(c.key)>=0));
+  };
+  Game.prototype.spawnShieldRipple = function (pt, side, heavy) {
+    var item={kind:"ripple",x:pt.x,y:pt.y,side:side,size:heavy?190:145,dur:heavy?520:390};
+    var id=this.addFx(item),self=this;
+    setTimeout(function(){self.removeFx(id);},item.dur+40);
+  };
+  Game.prototype.hitStop = function (ms) {
+    var self=this; this._hitStop=true; this.forceUpdate();
+    if (this._hitStopTimer) clearTimeout(this._hitStopTimer);
+    this._hitStopTimer=setTimeout(function(){self._hitStop=false;self.forceUpdate();},ms||72);
   };
   Game.prototype.spawnExplosion = function (pt, which, size) {
     var cfg=EXPL[which]||EXPL.orange;
@@ -1329,6 +1730,7 @@
     if (e.preventDefault) e.preventDefault();
     var z=this.view.zoom * (e.deltaY<0 ? 1.12 : 0.893);
     this.view.zoom=this.cl(z, 0.55, 3.6);
+    this.syncEngineAudio(true);
     this.forceUpdate();
   };
   Game.prototype.onViewDown = function (e) {
@@ -1345,7 +1747,7 @@
     var self=this; if (this._panRaf) return;
     this._panRaf=requestAnimationFrame(function(){ self._panRaf=0; self.forceUpdate(); });
   };
-  Game.prototype.resetView = function () { this.view={ zoom:1, panX:0, panY:0 }; this.forceUpdate(); };
+  Game.prototype.resetView = function () { this.view={ zoom:1, panX:0, panY:0 }; this.syncEngineAudio(true); this.forceUpdate(); };
 
   // ---- dwell-to-inspect: hover a card ~2s to dock its detail on the right --
   Game.prototype.hoverEnter = function (card) {
@@ -1367,7 +1769,7 @@
     B.eShips.forEach(function(e,i){
       if (!e.alive||e.struck) return;
       if (e.hull<=0) { e.alive=false; e.intent=null; self.spawnExplosion(self.shipCenter("e",i), "capital", 260); sfx("enemy_destroyed", 1); self.log("#9fdcff",e.name+" breaks apart under your guns."); }
-      else if (e.crew<=0) { e.struck=true; e.intent=null; self.log("#9fdcff",e.name+" is struck — your prize crew holds her bridge."); }
+      else if (e.crew<=0) { e.struck=true; e.intent=null; self.log("#9fdcff",e.name+" is struck - your prize crew holds her bridge."); }
     });
     // sweep your escorts (the flagship decides the run below)
     B.pShips.forEach(function(pS,i){
@@ -1375,6 +1777,7 @@
       if (sh.hull<=0) { pS.lost=true; sh._lost=true; self.spawnExplosion(self.shipCenter("p",i), "red", 260); sfx("ship_destroyed", .9); self.log("#ff8aa0",sh.name+" is lost with all hands."); }
       else if (sh.crew<=0) { pS.lost=true; sh._lost=true; self.log("#ff8aa0",sh.name+" is overrun and struck from your line."); }
     });
+    this.syncEngineAudio(false);
     var flag=S.player;
     if (flag.hull<=0 || flag.crew<=0) {
       B.over=true;
@@ -1387,8 +1790,8 @@
       B.over=true;
       var struck=B.eShips.filter(function(e){ return e.struck; });
       var how = struck.length===B.eShips.length
-        ? "Your boarders hold every enemy bridge — the line is struck and taken."
-        : struck.length ? "The enemy line is broken — part gutted by your guns, part struck by your boarders."
+        ? "Your boarders hold every enemy bridge - the line is struck and taken."
+        : struck.length ? "The enemy line is broken - part gutted by your guns, part struck by your boarders."
         : (B.eShips.length>1 ? "The enemy line breaks apart under your guns." : B.eShips[0].name+" breaks apart under your guns.");
       this.forceUpdate(); setTimeout(function(){ self.victory(how); },700); return true;
     }
@@ -1399,21 +1802,21 @@
     var lo=20, hi=30;
     if (node.type==="elite") { lo=36; hi=46; }
     if (node.type==="bounty") { lo=40; hi=50; }
-    if (node.type==="boss") { lo=60; hi=80; how+=" The Verdict's escorts scatter — the Blackstar Gate is yours to take."; }
+    if (node.type==="boss") { lo=60; hi=80; how+=" The Verdict's escorts scatter - the Blackstar Gate is yours to take."; }
     var zm=(node.z&&ZBYK[node.z]&&ZBYK[node.z].mult)||1;
     var salv=Math.round(this.ri(lo,hi)*(node.type==="boss"?1:zm));
     // every extra capital in the enemy line pays its share
     if (B.eShips.length>1) salv=Math.round(salv*(1+.35*(B.eShips.length-1)));
     if (S.player.ups.rig) salv=Math.round(salv*1.15);
     S.salvage+=salv;
-    if (node.type==="station"||node.type==="shipyard"||node.type==="repair") how+=" "+node.label+" is liberated — its docks and services are yours now.";
+    if (node.type==="station"||node.type==="shipyard"||node.type==="repair") how+=" "+node.label+" is liberated - its docks and services are yours now.";
     if (node.key && !S.zoneKeys[node.key]) { S.zoneKeys[node.key]=true; how+=" Recovered from the wreck: "+KEY_NAMES[node.key]+"."; }
     // struck prizes: name what joins the line (resolved in finishBattle)
     var slots=FLEET_MAX-S.fleet.filter(function(sh){ return !sh._lost; }).length;
     B.eShips.forEach(function(e){
       if (!e.struck||e.ai==="dread") return;
-      if (slots>0) { slots--; how+=" "+e.name+" is taken as a prize — she joins your line after repairs."; }
-      else how+=" "+e.name+" is stripped for parts — no berth in your line for a prize.";
+      if (slots>0) { slots--; how+=" "+e.name+" is taken as a prize - she joins your line after repairs."; }
+      else how+=" "+e.name+" is stripped for parts - no berth in your line for a prize.";
     });
     S.reward={ how:how, salv:salv, cards:this.sh(REWARDS.slice()).slice(0,3).map(this.mk.bind(this)) };
     S.overlay="reward";
@@ -1469,12 +1872,12 @@
   // Threat readout for the intel panel: zone multiplier x elite/bounty bump.
   Game.prototype.threatLabel = function (n) {
     var zm=(ZBYK[n.z]&&ZBYK[n.z].mult)||1;
-    // elites/bounties field a two-ship line — its real danger is above the raw
+    // elites/bounties field a two-ship line - its real danger is above the raw
     // stat bump, so the threat word weights the escort in.
     var lvl=zm*((n.type==="elite"||n.type==="bounty")?1.4:1);
     var word = lvl<1.15?"LOW": lvl<1.4?"MEDIUM": lvl<1.75?"HIGH":"SEVERE";
     var role = ENEMIES[n.enemy] ? ENEMIES[n.enemy].role : "UNKNOWN";
-    return { v: word+" — "+role, c: lvl<1.4?"#ffc266":"#ff8aa0" };
+    return { v: word+" - "+role, c: lvl<1.4?"#ffc266":"#ff8aa0" };
   };
   Game.prototype.zoneUnlocked = function (z) {
     var S=this.state; if (!z.req) return true;
@@ -1509,6 +1912,27 @@
     }
     return dist;
   };
+  Game.prototype.mapRouteTo = function (target) {
+    var S=this.state, self=this, unlocked={}, adj={};
+    if (!target||!NBYID[target]) return [S.current];
+    ZONES.forEach(function(z){ unlocked[z.k]=self.zoneUnlocked(z); });
+    EDGES.forEach(function(e){
+      if (!unlocked[NBYID[e[0]].z] || !unlocked[NBYID[e[1]].z]) return;
+      (adj[e[0]]=adj[e[0]]||[]).push(e[1]);
+      (adj[e[1]]=adj[e[1]]||[]).push(e[0]);
+    });
+    var prev={}, seen={}; seen[S.current]=true; var q=[S.current];
+    while (q.length) {
+      var cur=q.shift(); if (cur===target) break;
+      (adj[cur]||[]).forEach(function(nx){
+        if (!seen[nx]) { seen[nx]=true; prev[nx]=cur; q.push(nx); }
+      });
+    }
+    if (!seen[target]) return [S.current];
+    var route=[], at=target;
+    while (at!=null) { route.unshift(at); if (at===S.current) break; at=prev[at]; }
+    return route;
+  };
   Game.prototype.selectNode = function (id) {
     if (this._didPan) return;
     this.state.sel=id; this.forceUpdate();
@@ -1517,8 +1941,8 @@
     var S=this.state, P=S.player, self=this, n=NBYID[id];
     if (!n || S.gliding || id===S.current) return;
     var cost=this.mapDist()[id]; if (cost==null) return;
-    // Fuel: one cell per lane hop. Short on cells? Burn reserve mass instead —
-    // 5 hull per missing cell — but never onto a jump the hull can't survive.
+    // Fuel: one cell per lane hop. Short on cells? Burn reserve mass instead -
+    // 5 hull per missing cell - but never onto a jump the hull can't survive.
     var short=Math.max(0, cost-P.fuel);
     if (short>0 && P.hull<=short*5) return;
     P.fuel=Math.max(0, P.fuel-cost);
@@ -1530,7 +1954,7 @@
       var s=self.state; s.gliding=false;
       if (s.screen!=="map") { self.forceUpdate(); return; }
       if (!s.taken[n.id]) {
-        if (n.enemy!=null) { self.startBattle(n); return; }   // occupied — garrison defends, ports included
+        if (n.enemy!=null) { self.startBattle(n); return; }   // occupied - garrison defends, ports included
         if (n.type==="anomaly") { s.evNode=n; s.overlay="ev"; }
         else s.taken[n.id]=true;   // only the gate ring itself is unguarded
       }
@@ -1559,13 +1983,17 @@
     var S=this.state;
     if (S.current!=="gate" || !S.taken.verdict) return;
     S.end={ kick:"SECTOR BROKEN", title:"THE GATE IS OPEN",
-      body:"The Iron Verdict is ash and the Blackstar Gate spins up for the first time in a decade. The Verge is yours behind you — anchorages lit, lanes patrolled by crews flying your flag. The Resolute threads the ring and jumps: the first gate on the long road home. New charts are being surveyed — the next sector arrives with the coming update." };
+      body:"The Iron Verdict is ash and the Blackstar Gate spins up for the first time in a decade. The Verge is yours behind you - anchorages lit, lanes patrolled by crews flying your flag. The Resolute threads the ring and jumps: the first gate on the long road home. New charts are being surveyed - the next sector arrives with the coming update." };
     S.overlay="end"; this.forceUpdate();
   };
   Game.prototype.evResolve = function (mode) {
     var S=this.state, n=S.evNode; if (!n) return;
-    if (mode==="take") S.salvage+=18;
-    else S.player.crew=this.cl(S.player.crew+2,0,S.player.crewMax);
+    var choices=ANOMALY_CHOICES[n.id]||ANOMALY_CHOICES.hulk;
+    var outcome=choices.filter(function(o){return o.mode===mode;})[0]||choices[0];
+    if (outcome.salvage) S.salvage+=outcome.salvage;
+    if (outcome.crew) S.player.crew=this.cl(S.player.crew+outcome.crew,0,S.player.crewMax);
+    if (outcome.fuel) S.player.fuel=this.cl(S.player.fuel+outcome.fuel,0,S.player.fuelMax);
+    if (outcome.hull) S.player.hull=this.cl(S.player.hull+outcome.hull,1,S.player.hullMax);
     S.taken[n.id]=true;
     if (n.key) S.zoneKeys[n.key]=true;
     S.evNode=null; S.overlay=null; this.forceUpdate();
@@ -1597,17 +2025,17 @@
   // ---- station / shipyard -------------------------------------------------
   Game.prototype.openBase = function (n) {
     var S=this.state;
-    // Station shelves persist between visits — no shop-scumming by re-docking.
+    // Station shelves persist between visits - no shop-scumming by re-docking.
     if (!S.stationStock[n.id]) S.stationStock[n.id]=this.sh(SHOP.slice()).slice(0,4).map(function(k){ return { key:k, price:PRICE[k]||16 }; });
     S.base={ node:n, stock:S.stationStock[n.id] };
     S.screen="base"; this.forceUpdate();
   };
   // Cards are wired into the deck of the ship currently "in the outfitting
-  // cradle" (S.outfit) — cycle it from the deck manifest header.
+  // cradle" (S.outfit) - cycle it from the deck manifest header.
   Game.prototype.outfitShip = function () { var S=this.state; S.outfit=Math.min(S.outfit||0, S.fleet.length-1); return S.fleet[S.outfit]; };
   Game.prototype.cycleOutfit = function () { var S=this.state; S.outfit=((S.outfit||0)+1)%S.fleet.length; this.forceUpdate(); };
   Game.prototype.buyCard = function (i) { var S=this.state, o=S.base.stock[i]; if (!o||S.salvage<o.price) return; this.hideHover(); S.salvage-=o.price; this.outfitShip().deckKeys.push(o.key); S.base.stock.splice(i,1); this.forceUpdate(); };
-  // Escorts sold at shipyard dry docks — one hull of each class per run.
+  // Escorts sold at shipyard dry docks - one hull of each class per run.
   Game.prototype.buyEscort = function (k) {
     var S=this.state; if (S.fleet.length>=FLEET_MAX) return;
     var d=null; for (var i=0;i<ESCORTS.length;i++) if (ESCORTS[i].k===k) d=ESCORTS[i];
@@ -1665,7 +2093,7 @@
 
   // ---- dialogue engine (Phase 2) ------------------------------------------
   // A scene is a list of {who, line}. `after` (kept off state so it can be a
-  // function) fires when the scene is dismissed — used to gate battles behind
+  // function) fires when the scene is dismissed - used to gate battles behind
   // their pre-fight beat.
   Game.prototype.startDialogue = function (scene, after) {
     if (!scene || !scene.length) { if (after) after(); return; }
@@ -1699,6 +2127,7 @@
     // Fresh run seeded with the chosen config, then drop the player onto the
     // sector chart with the commission picker raised (deck chosen there),
     // followed by the tactical briefing and the opening dialogue.
+    this.setRunSeed(this.config.seed||this.makeSeed());
     var run = this.freshRun();
     run.screen = "map"; run.overlay = "commission";
     this.setState(run);
@@ -1801,13 +2230,18 @@
         <div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396;letter-spacing:.14em"}>${v.screenTag}</div>
         <div style="flex:1"></div>
         <div style=${"font-family:"+MONO+";font-size:14px;color:#ffc266;letter-spacing:.08em"}>${v.hudRight}</div>
+        <button onClick=${function(){ self.manualSave(); }} title="Save this run now"
+          style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.12em;color:"+(self._saveStatus?"#7cf0c0":"#8deaff")+";background:#0d1424;border:1px solid "+(self._saveStatus?"#2d7357":"#2c4066")+";border-radius:4px;padding:7px 10px;cursor:pointer;min-width:62px"}>${self._saveStatus||"SAVE"}</button>
         ${this.renderMusicBtn()}
+        <button aria-label="Audio and graphics settings" onClick=${function(){ self.state.overlay="settings"; self.forceUpdate(); }}
+          style=${"font-family:"+MONO+";font-size:13px;color:#8fa3c4;background:#0d1424;border:1px solid #2c4066;border-radius:4px;padding:6px 9px;cursor:pointer"}>⚙</button>
       </div>
 
       ${v.isBattle ? this.renderBattle(v) : null}
       ${v.isMap ? this.renderMap(v) : null}
       ${v.isBase ? this.renderBase(v) : null}
       ${v.isYard ? this.renderYard(v) : null}
+      ${S.tutorial && v.isBattle ? this.renderCombatTutorial() : null}
 
       ${this.config.scanlines ? html`<div style="position:absolute;inset:0;pointer-events:none;z-index:60;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000022 2px 3px);opacity:.5"></div>` : null}
 
@@ -1822,6 +2256,8 @@
       ${S.overlay==="shipview" ? this.renderShipView() : null}
       ${S.overlay==="codex" ? this.renderCodex() : null}
       ${S.overlay==="commission" ? this.renderCommission() : null}
+      ${S.overlay==="settings" ? this.renderSettings() : null}
+      ${S.overlay==="combatHistory" ? this.renderCombatHistory() : null}
       ${this.hoverCard ? this.renderHoverPanel(this.hoverCard) : null}
       ${S.cardDetail ? this.renderCardDetail(S.cardDetail) : null}
       ${S.dialogue ? this.renderDialogue() : null}
@@ -1842,30 +2278,40 @@
     var self=this;
     var diff = DIFFS[this.config.difficulty] || DIFFS.standard;
     var musicOn = this.music.on;
+    var hasSave=!!this.autosaveMeta;
     return html`
     <div class="hf-starfield bv-title">
-      <img class="bv-ship" src=${shipImg(PLAYER_SHIP,false)} alt="ISV Resolute" />
       <div class="bv-fade"></div>
       <div class="bv-wrap">
-        <div class="bv-kicker">A ROGUELIKE DECK-BUILDER OF VOID COMBAT</div>
+        <div class="bv-kicker">AFTERMATH OF THE NINTH FLEET</div>
         <h1 class="bv-h1">BLACKSTAR VERGE</h1>
-        <div class="bv-sub">The last battleship still flying the flag. Take back the dark, sector by sector.</div>
+        <div class="bv-sub">The fleet is gone. The gate is sealed. The Resolute is still moving.</div>
         <div class="bv-menu">
-          <button class="bv-primary" onClick=${function(){ self.beginRun(); }}>Begin Sortie ▸</button>
+          ${hasSave?html`<button class="bv-primary" onClick=${function(){ self.resumeAutosave(); }}>Continue Autosave ▸</button>`:null}
+          <button class="bv-primary" onClick=${function(){ self.beginRun(); }}>Take Command ▸</button>
           <button class="bv-ghost" onClick=${function(){ self.cycleDifficulty(); }}>
             <span>Difficulty</span><span class="val">‹ ${diff.name.toUpperCase()} ›</span>
           </button>
           <button class="bv-ghost" onClick=${function(){ self.showHowTo(); }}>
             <span>Briefing</span><span class="val dim">HOW IT PLAYS ▸</span>
           </button>
+          <div class="bv-seed">
+            <span>RUN SEED</span>
+            <input value=${this.config.seed} maxlength="18" onInput=${function(e){ self.setSeedText(e.target.value); }} aria-label="Run seed" />
+            <button onClick=${function(){ self.randomizeSeed(); }} title="Generate a new run seed">↻</button>
+          </div>
           <button class="bv-ghost" onClick=${function(){ self.toggleMusic(); }}
-            title=${musicOn?"Music on — click to mute":"Music muted — click to play"}>
+            title=${musicOn?"Music on. Click to mute":"Music muted. Click to play"}>
             <span>♪ Music</span><span class=${"val"+(musicOn?"":" dim")}>${musicOn?"ON":"OFF"}</span>
+          </button>
+          <button class="bv-ghost" onClick=${function(){ self.state.overlay="settings"; self.forceUpdate(); }}>
+            <span>Settings</span><span class="val dim">AUDIO · GRAPHICS ▸</span>
           </button>
         </div>
       </div>
-      <div class="bv-footer">ISV RESOLUTE · BATTLESHIP · FLEET COMMAND — GOOD HUNTING, CAPTAIN</div>
+      <div class="bv-footer">ONE SHIP SURVIVED · THE VERGE DID NOT</div>
       ${this.state.overlay==="howto" ? this.renderTitleHowTo() : null}
+      ${this.state.overlay==="settings" ? this.renderSettings() : null}
     </div>`;
   };
 
@@ -1878,20 +2324,20 @@
         <h2 class="bv-modal-h2">Command the ISV Resolute</h2>
         <p class="hf-lore" style="text-align:left;max-width:none;margin:0">
           The war is over, and the navy that fought it is gone. You command the battleship${" "}
-          <b>ISV Resolute</b> — the last hull still flying its flag — holding one
+          <b>ISV Resolute</b> - the last hull still flying its flag - holding one
           anchorage in the <b>Blackstar Verge</b>, a sector the Corsair Pact now calls
           its own. Their enforcers tax every lane, and <b>Ironwall Command</b> keeps the
           jump gate sealed with the dreadnought <b>HMS Iron Verdict</b> anchored on it.
-          Beyond your anchorage, everything flies their colours — every picket, every
+          Beyond your anchorage, everything flies their colours - every picket, every
           station, every shipyard and dock is occupied territory. So take the Verge back:
           liberate ports to use their services, secure whole zones to loosen the Pact's
           grip, and when the <b>Blackstar Gate</b> unseals, the road home runs through
-          it — one sector down, the next one waiting.
+          it - one sector down, the next one waiting.
         </p>
         <div class="hf-primer" style="margin-top:22px">
           <div class="hf-primer-cell">
             <h3 style="color:#5fd8ff">① The Chart</h3>
-            <p>Travel freely along charted lanes — each jump burns a fuel cell. Take systems, secure zones, unseal the Gate.</p>
+            <p>Travel freely along charted lanes - each jump burns a fuel cell. Take systems, secure zones, unseal the Gate.</p>
           </div>
           <div class="hf-primer-cell">
             <h3 style="color:#ff8aa0">② The Battle</h3>
@@ -1899,7 +2345,7 @@
           </div>
           <div class="hf-primer-cell">
             <h3 style="color:#7cf0c0">③ The Refit</h3>
-            <p>Liberate occupied ports to use them: buy cards, patch hull, hire crew — and refuel free. Shipyards weld on permanent refits.</p>
+            <p>Liberate occupied ports to use them: buy cards, patch hull, hire crew - and refuel free. Shipyards weld on permanent refits.</p>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:24px">
@@ -1909,25 +2355,67 @@
     </div>`;
   };
 
+  Game.prototype.renderSettings = function () {
+    var self=this;
+    function slider(label,value,onInput) {
+      return html`<label class="hf-setting-row">
+        <span>${label}</span>
+        <input type="range" min="0" max="100" step="1" value=${Math.round(value*100)}
+          onInput=${function(e){ onInput(Number(e.target.value)/100); }} />
+        <b>${Math.round(value*100)}%</b>
+      </label>`;
+    }
+    return html`
+    <div class="bv-modal" onClick=${function(){ self.state.overlay=null; self.forceUpdate(); }}>
+      <div class="bv-modal-panel hf-overlay-panel" style="max-width:560px" onClick=${function(e){e.stopPropagation();}}>
+        <div class="bv-kicker" style="text-align:left">SYSTEM SETTINGS</div>
+        <h2 class="bv-modal-h2">Audio and graphics</h2>
+        <div style="display:flex;flex-direction:column;gap:13px;margin-top:22px">
+          ${slider("MUSIC",this.audio.musicVolume,function(v){self.setMusicVolume(v);})}
+          ${slider("SFX",this.audio.sfxVolume,function(v){self.setSfxVolume(v);})}
+          ${slider("ENGINES",this.audio.engineVolume,function(v){self.setEngineVolume(v);})}
+          <button class="hf-setting-toggle" onClick=${function(){self.toggleHDAssets();}}>
+            <span>HD SHIP ASSETS<small>Use lossless 2× battle renders. Disable on low-powered devices.</small></span>
+            <b>${this.config.hdAssets?"ON":"OFF"}</b>
+          </button>
+          <button class="hf-setting-toggle" onClick=${function(){self.toggleMusic();}}>
+            <span>MUSIC PLAYBACK<small>Music, weapon effects and engine ambience each have their own level.</small></span>
+            <b>${this.music.on?"ON":"MUTED"}</b>
+          </button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:24px">
+          <button class="bv-primary" style="padding:12px 30px" onClick=${function(){self.state.overlay=null;self.forceUpdate();}}>Done</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
   // ------------------------------ BATTLE -----------------------------------
   // A single capital, drawn free-floating in space with a deflector arc on the
-  // side facing the enemy line. No card chrome — just the ship, a thin hull
+  // side facing the enemy line. No card chrome - just the ship, a thin hull
   // bar, tiny subsystem readouts, and (for the enemy) its telegraphed intent.
   Game.prototype.shieldArc = function (pct, side, col) {
-    // arc hugs the ship on the gap-facing side: player = over the top, enemy =
-    // under the belly. pathLength normalises so the dash = shield %.
-    var sweep = side==="p" ? 0 : 1;         // 0 bulges up, 1 bulges down
-    var d = "M 26,75 A 124,54 0 0 "+sweep+" 274,75";
+    // The barrier sits outside the hull on the enemy-facing side: above player
+    // ships and below enemy ships, visibly occupying the space between lines.
+    var player=side==="p";
+    var d = player ? "M 18,66 Q 150,5 282,66" : "M 18,14 Q 150,75 282,14";
+    var band = player
+      ? "M 18,66 Q 150,5 282,66 Q 150,24 18,66 Z"
+      : "M 18,14 Q 150,75 282,14 Q 150,56 18,14 Z";
     var frac = Math.max(0, Math.min(100, pct));
-    return html`<svg viewBox="0 0 300 150" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none">
-      <path d=${d} fill="none" stroke=${col+"26"} stroke-width="2.5"></path>
+    var pos=player?"top:-32px":"bottom:-32px";
+    return html`<svg viewBox="0 0 300 80" style=${"position:absolute;left:0;"+pos+";width:300px;height:80px;overflow:visible;pointer-events:none;z-index:3"}>
+      <path d=${band} fill=${col+"14"} stroke="none"></path>
+      <path d=${d} fill="none" stroke=${col+"30"} stroke-width="5"></path>
       <path d=${d} pathLength="100" fill="none" stroke=${col} stroke-width="3.2" stroke-linecap="round"
         stroke-dasharray=${frac.toFixed(1)+" 100"} style=${"transition:stroke-dasharray .35s;filter:drop-shadow(0 0 5px "+col+"cc)"}></path>
+      <circle cx="18" cy=${player?"66":"14"} r="3.2" fill=${col} opacity=${frac?0.9:0.25}></circle>
+      <circle cx="282" cy=${player?"66":"14"} r="3.2" fill=${col} opacity=${frac?0.9:0.25}></circle>
     </svg>`;
   };
   Game.prototype.renderSubMini = function (s) {
     return html`
-    <div onClick=${s.click} title=${s.focusable?(s.focused?"Focused — click to release":"Click to focus gunnery on "+s.lab):undefined}
+    <div onClick=${s.click} title=${s.focusable?(s.focused?"Focused - click to release":"Click to focus gunnery on "+s.lab):undefined}
       style=${"flex:1;text-align:center;cursor:"+(s.focusable?"pointer":"default")}>
       <div style=${"font-family:"+MONO+";font-size:8px;letter-spacing:.06em;color:"+(s.focused?"#ffd24a":s.col)+";margin-bottom:2px"}>${(s.focused?"◎":"")+s.lab}</div>
       <div style="height:3px;border-radius:2px;background:#00000099;overflow:hidden"><div style=${"height:100%;width:"+s.val+"%;background:"+(s.focused?"#ffd24a":s.col)+";transition:width .3s"}></div></div>
@@ -1941,9 +2429,9 @@
     var imgOp = cell.dead?.32:cell.struck?.6:1;
     var stat = isE ? ("CREW "+cell.crewTxt)
       : ("CREW "+cell.crewTxt+" · PWR "+cell.powTxt+(cell.hangarTxt?" · BAY "+cell.hangarTxt.replace(" BAYS",""):""));
-    // compact nameplate — a faint smoked panel so text stays legible over stars
+    // compact nameplate - a faint smoked panel so text stays legible over stars
     var nameplate = html`
-      <div style="display:flex;flex-direction:column;gap:4px;padding:6px 9px;border-radius:7px;background:linear-gradient(180deg,#070b1466,#070b14b0);backdrop-filter:blur(2px);border:1px solid #ffffff10">
+      <div class="hf-tactical-label" style=${"display:flex;flex-direction:column;gap:4px;padding:6px 9px;border-radius:7px;background:linear-gradient(180deg,#070b1466,#070b14b0);backdrop-filter:blur(2px);border:1px solid #ffffff10;transform:scale("+cell.labelScale+");transform-origin:center center"}>
         <div style="display:flex;align-items:center;justify-content:center;gap:6px;min-width:0">
           <span style=${"width:6px;height:6px;border-radius:50%;background:"+accent+";box-shadow:0 0 6px "+accent+";flex:0 0 auto"}></span>
           <span style="font-weight:600;font-size:13px;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cell.name}</span>
@@ -1957,26 +2445,27 @@
         <div style=${"font-family:"+MONO+";font-size:8.5px;letter-spacing:.06em;color:#7d92b5;text-align:center"}>${stat}</div>
       </div>`;
     var shipBlock = html`
-      <div style=${"position:relative;width:300px;height:146px;animation:"+cell.anim}>
+      <div class=${cell.tutorialShip?"hf-tutorial-focus":""} style=${"position:relative;width:300px;height:146px;animation:"+cell.anim}>
         ${this.shieldArc(cell.shPct, side, "#7ce7ff")}
         <div style="position:absolute;inset:0;display:flex;justify-content:center;align-items:center">
           <img src=${cell.img} alt=${isE?"Hostile ship":cell.name}
+            class="hf-capital-img"
             ref=${function(el){ var arr=isE?self.enemyImgEls:self.playerImgEls; if (arr) arr[cell.refIdx]=el; }}
-            style=${"height:116px;object-fit:contain;display:block;filter:"+shipGlow+" "+imgFilter+";opacity:"+imgOp} />
+            style=${"filter:"+shipGlow+" "+imgFilter+";opacity:"+imgOp} />
         </div>
         ${cell.dead ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:12px;letter-spacing:.22em;color:#ff5470;text-shadow:0 0 8px #000"}>DESTROYED</div>` : null}
         ${cell.struck ? html`<div style=${"position:absolute;inset:0;display:grid;place-items:center;font-family:"+MONO+";font-size:10px;letter-spacing:.16em;color:#7cf0c0;text-align:center;text-shadow:0 0 8px #000"}>STRUCK ·<br/>PRIZE CREW</div>` : null}
-        ${cell.screened ? html`<div style=${"position:absolute;left:50%;"+(isE?"bottom":"top")+":0;transform:translateX(-50%);font-family:"+MONO+";font-size:9.5px;letter-spacing:.16em;color:#a9bcda;background:#070b14cc;border:1px solid #33465f;border-radius:3px;padding:1px 7px;white-space:nowrap"}>SCREENED</div>` : null}
+        ${cell.screened ? html`<div class="hf-tactical-label" style=${"position:absolute;left:50%;"+(isE?"bottom":"top")+":0;transform:translateX(-50%) scale("+cell.labelScale+");font-family:"+MONO+";font-size:9.5px;letter-spacing:.16em;color:#a9bcda;background:#070b14cc;border:1px solid #33465f;border-radius:3px;padding:1px 7px;white-space:nowrap"}>SCREENED</div>` : null}
       </div>`;
     var intentTag = (isE&&cell.intent) ? html`
-      <div style="display:flex;justify-content:center">
+      <div class=${"hf-tactical-label"+(cell.tutorialIntent?" hf-tutorial-focus":"")} style=${"display:flex;justify-content:center;transform:scale("+cell.labelScale+");transform-origin:center bottom"}>
         <div style=${"border:1px solid "+cell.intent.bd+"66;border-radius:14px;background:#070b14e0;padding:3px 12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 0 16px "+cell.intent.bd+"44"}>
           <span style=${"font-size:12px;color:"+cell.intent.bd}>${cell.intent.ico}</span>
           <span style=${"font-family:"+MONO+";font-size:10.5px;letter-spacing:.04em;color:#eaf2ff;white-space:nowrap"}>${cell.intent.txt}</span>
         </div>
       </div>` : (isE ? html`<div style="height:24px"></div>` : null);
     var swapRow = (!isE && !cell.dead) ? html`
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <div class="hf-tactical-label" style=${"display:flex;align-items:center;justify-content:center;gap:8px;transform:scale("+cell.labelScale+");transform-origin:center top"}>
         ${cell.swapL ? html`<button onClick=${cell.swapL} title="Trade lanes left (once per turn)" style=${"font-family:"+MONO+";font-size:11px;color:#8deaff;background:#0a101ccc;border:1px solid #2c4066;border-radius:4px;padding:0 7px;cursor:pointer;line-height:1.5"}>◄</button>` : null}
         <span style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.1em;color:"+(cell.active?"#5fd8ff":"#4d6288")}>${cell.active?"COMMANDING":"CLICK TO COMMAND"}</span>
         ${cell.swapR ? html`<button onClick=${cell.swapR} title="Trade lanes right (once per turn)" style=${"font-family:"+MONO+";font-size:11px;color:#8deaff;background:#0a101ccc;border:1px solid #2c4066;border-radius:4px;padding:0 7px;cursor:pointer;line-height:1.5"}>►</button>` : null}
@@ -1994,12 +2483,35 @@
   Game.prototype.renderCraft = function (t, i) {
     var isP=t.side==="p", rot=isP?"rotate(-90deg)":"rotate(90deg)";
     return html`
-    <div key=${t.side+i} title=${t.kind+" "+t.stat} style="display:flex;flex-direction:column;align-items:center;gap:1px">
-      <div style="width:52px;height:52px;display:grid;place-items:center">
+    <div key=${t.id} class=${"hf-craft "+(t.launched?(isP?"hf-craft-launch-p":"hf-craft-launch-e"):"")}
+      title=${t.kind+" "+t.stat} style="display:flex;flex-direction:column;align-items:center;gap:1px">
+      <div style="width:52px;height:52px;display:grid;place-items:center;position:relative">
+        <span class=${"hf-craft-trail "+(isP?"player":"enemy")}></span>
         <img src=${t.img} alt=${t.kind} style=${"width:58px;height:auto;object-fit:contain;transform:"+rot+";filter:drop-shadow(0 0 7px "+t.col+"cc) drop-shadow(0 2px 4px #000)"} />
       </div>
-      <span style=${"font-family:"+MONO+";font-size:8.5px;letter-spacing:.04em;color:"+t.col}>${t.raw==="bomber"?"◆":"▸"} ${t.stat}</span>
+      <span class="hf-tactical-label" style=${"font-family:"+MONO+";font-size:8.5px;letter-spacing:.04em;color:"+t.col+";transform:scale("+t.labelScale+")"}>${t.status||((t.raw==="bomber"?"◆":"▸")+" "+t.stat)}</span>
     </div>`;
+  };
+
+  Game.prototype.renderCombatTutorial = function () {
+    var self=this, step=this.state.tutorial.step;
+    var pages=[
+      {k:"1 / 4 · READ INTENT",title:"Know what fires next",body:"Enemy intent is shown above each hostile ship. Red fire hurts hull. Orange charge means a heavy salvo is coming. Shields and repairs are also declared here."},
+      {k:"2 / 4 · SPEND POWER",title:"Play cards from the hand",body:"Each card costs reactor power. Weapon cards need a target. Shield, repair and tactic cards resolve immediately. Click a subsystem under an enemy to focus it."},
+      {k:"3 / 4 · SURVIVE THE HIT",title:"Keep the barrier up",body:"Shields catch normal fire before it reaches hull. Piercing weapons ignore the barrier. Disabled systems reduce weapons, power and shield regeneration."},
+      {k:"4 / 4 · COMMIT",title:"End the turn when ready",body:"End Turn discards the remaining hand, resolves strike craft, then lets every enemy act on its shown intent. A fresh hand and power follow."}
+    ];
+    var p=pages[step]||pages[0];
+    return html`
+      <div class="hf-combat-tutorial">
+        <div class="hf-tutorial-kicker">${p.k}</div>
+        <div class="hf-tutorial-title">${p.title}</div>
+        <p>${p.body}</p>
+        <div class="hf-tutorial-actions">
+          <button onClick=${function(){self.skipCombatTutorial();}}>SKIP</button>
+          <button class="next" onClick=${function(){self.advanceCombatTutorial();}}>${step===3?"START FIGHT":"NEXT"}</button>
+        </div>
+      </div>`;
   };
 
   Game.prototype.renderBattle = function (v) {
@@ -2018,7 +2530,8 @@
       </div>` : null}
       <!-- central battle line (mouse-wheel zoom · middle-drag pan) -->
       <div style=${"position:absolute;left:50%;top:0;bottom:190px;width:"+v.colW+"px;margin-left:-"+(v.colW/2)+"px"}>
-      <div style=${"position:absolute;left:0;top:50%;width:"+v.colW+"px;display:flex;flex-direction:column;gap:18px;transform:"+v.combatTransform+";transform-origin:center center;will-change:transform"}>
+      <div class=${"hf-combat-world"+(v.hitStop?" hf-hitstop":"")}
+        style=${"position:absolute;left:0;top:50%;width:"+v.colW+"px;display:flex;flex-direction:column;gap:10px;transform:"+v.combatTransform+";transform-origin:center center"}>
 
         <div style="position:absolute;inset:0;pointer-events:none;z-index:3">
           ${v.beams.map(function(b){
@@ -2027,12 +2540,12 @@
         </div>
 
         <!-- ENEMY LINE (free-floating in space) -->
-        <div style="display:flex;justify-content:center;gap:26px">
+        <div style="display:flex;justify-content:center;gap:18px">
           ${v.eCells.map(function(cell){ return self.renderShipUnit(cell, "e"); })}
         </div>
 
-        <!-- NO MAN'S LAND — strike craft launch here, nose toward the enemy -->
-        <div style="position:relative;min-height:132px;display:flex;align-items:center;justify-content:center">
+        <!-- NO MAN'S LAND - strike craft launch here, nose toward the enemy -->
+        <div style="position:relative;min-height:104px;display:flex;align-items:center;justify-content:center">
           <div style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.34em;color:#2c3d58"}>· · ·</div>
           <div style="position:absolute;top:2px;left:0;right:0;display:flex;justify-content:center;gap:22px">
             ${v.eTokens.map(function(t,i){ return self.renderCraft(t,i); })}
@@ -2043,7 +2556,7 @@
         </div>
 
         <!-- YOUR LINE (click a ship to command it) -->
-        <div style="display:flex;justify-content:center;gap:26px">
+        <div style="display:flex;justify-content:center;gap:18px">
           ${v.pCells.map(function(cell){ return self.renderShipUnit(cell, "p"); })}
         </div>
 
@@ -2062,7 +2575,11 @@
 
       <!-- combat log -->
       <div style=${"position:absolute;left:16px;top:16px;width:"+v.panelW+";display:"+v.sideBlock+";border:1px solid #1b2a45;border-radius:5px;background:#070b14cc;padding:12px 14px;backdrop-filter:blur(2px);z-index:1"}>
-        <div style="letter-spacing:.2em;font-size:11px;font-weight:600;color:#5f7396;text-transform:uppercase;margin-bottom:7px">Combat Log</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <span style="letter-spacing:.2em;font-size:11px;font-weight:600;color:#5f7396;text-transform:uppercase">Combat Log</span>
+          <button onClick=${function(){self.state.overlay="combatHistory";self.forceUpdate();}}
+            style=${"font-family:"+MONO+";font-size:9px;letter-spacing:.1em;color:#8deaff;background:#0a101c;border:1px solid #2c4066;border-radius:3px;padding:4px 7px;cursor:pointer"}>FULL HISTORY</button>
+        </div>
         <div>
           ${v.logs.map(function(l){
             return html`<div key=${l.k} style=${"font-family:"+MONO+";font-size:12.5px;line-height:1.5;color:"+l.color+";border-top:"+l.bt+";padding-top:"+l.pt+";margin-top:"+l.mt}>${l.text}</div>`;
@@ -2072,7 +2589,7 @@
       </div>
 
       <!-- HAND BAR (shows the active ship's hand; click a ship above to switch) -->
-      <div style="position:absolute;left:0;right:0;bottom:0;height:190px;border-top:1px solid #1b2a45;background:linear-gradient(180deg,#0b101df0,#04070ff8);display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr) minmax(150px,200px);grid-template-rows:minmax(0,100%);align-items:center;z-index:10">
+      <div class=${v.tutorialStep===1?"hf-tutorial-focus":""} style="position:absolute;left:0;right:0;bottom:0;height:190px;border-top:1px solid #1b2a45;background:linear-gradient(180deg,#0b101df0,#04070ff8);display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr) minmax(150px,200px);grid-template-rows:minmax(0,100%);align-items:center;z-index:10">
         <div style="padding:0 20px">
           <div style="letter-spacing:.14em;font-size:11px;font-weight:600;color:#5fd8ff;text-transform:uppercase;margin-bottom:2px">Commanding</div>
           <div style=${"font-family:"+MONO+";font-size:12.5px;color:#eaf2ff;letter-spacing:.04em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>${v.activeName||""}</div>
@@ -2088,7 +2605,7 @@
           <div style=${"font-family:"+MONO+";font-size:12px;color:#7d92b5;letter-spacing:.06em;margin-top:10px"}>DRAW ${v.drawTxt} · DISCARD ${v.discTxt}</div>
         </div>
         <div style="align-self:stretch;height:100%;display:flex;justify-content:center;align-items:flex-end;padding-bottom:14px;min-width:0;overflow:visible">
-          ${v.handEmpty ? html`<div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396;align-self:center"}>— no cards in hand —</div>` : null}
+          ${v.handEmpty ? html`<div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396;align-self:center"}>- no cards in hand -</div>` : null}
           <div style="display:flex;justify-content:center;align-items:flex-end;min-width:0">
             ${v.hand.map(function(c){
               return html`
@@ -2100,13 +2617,42 @@
             })}
           </div>
         </div>
-        <div style="padding:0 20px;display:flex;justify-content:flex-end">
-          <button class="hf-btn" onClick=${v.endClick} disabled=${v.endDisabled}
+        <div style="padding:0 20px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:9px">
+          ${v.recallVisible?html`<button onClick=${v.recallClick} disabled=${!v.canRecall}
+            style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.1em;color:"+(v.canRecall?"#8deaff":"#5f7396")+";background:#08101dcc;border:1px solid "+(v.canRecall?"#2c5872":"#22345a")+";border-radius:4px;padding:7px 10px;cursor:"+(v.canRecall?"pointer":"default")+";white-space:nowrap"}>↶ RECALL / REARM${v.rearmingCount?" · "+v.rearmingCount+" IN BAY":""}</button>`:null}
+          <button class=${"hf-btn"+(v.tutorialStep===3?" hf-tutorial-focus":"")} onClick=${v.endClick} disabled=${v.endDisabled}
             style=${"font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:15px;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:13px 26px;cursor:"+v.endCur+";text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 0 #14506b,0 8px 18px #0008;opacity:"+v.endOp}>End Turn ▸</button>
         </div>
       </div>
 
       ${v.aiming ? this.renderAimOverlay(v) : null}
+    </div>`;
+  };
+
+  Game.prototype.renderCombatHistory = function () {
+    var self=this, B=this.state.battle, rows=B&&B.history?B.history.slice().reverse():[];
+    return html`
+    <div onClick=${function(){self.state.overlay=null;self.forceUpdate();}}
+      style="position:absolute;inset:0;z-index:82;background:#000000d9;backdrop-filter:blur(4px);display:grid;place-items:center;padding:24px">
+      <div onClick=${function(e){e.stopPropagation();}}
+        style="width:min(760px,94vw);max-height:82vh;display:flex;flex-direction:column;border:1px solid #334b70;border-radius:10px;background:linear-gradient(180deg,#111a2b,#070b14);box-shadow:0 28px 90px #000;overflow:hidden">
+        <div style="padding:18px 20px;border-bottom:1px solid #1b2a45;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style=${"font-family:"+MONO+";font-size:10px;letter-spacing:.22em;color:#5f7396"}>COMBAT EVENT HISTORY · SEED ${this.config.seed}</div>
+            <div style="font-size:24px;font-weight:700;color:#fff;margin-top:4px">${B&&B.node?B.node.label:"ENGAGEMENT"}</div>
+          </div>
+          <button class="hf-ghost-btn" onClick=${function(){self.state.overlay=null;self.forceUpdate();}}
+            style=${"font-family:"+MONO+";font-size:11px;color:#8deaff;background:#0a101c;border:1px solid #2c4066;border-radius:4px;padding:8px 11px;cursor:pointer"}>CLOSE</button>
+        </div>
+        <div style="overflow:auto;padding:8px 20px 18px">
+          ${rows.length?rows.map(function(l){
+            return html`<div key=${l.k} style="display:grid;grid-template-columns:64px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #14203a">
+              <span style=${"font-family:"+MONO+";font-size:10px;color:#5f7396;letter-spacing:.08em"}>TURN ${l.turn}</span>
+              <span style=${"font-family:"+MONO+";font-size:12px;line-height:1.45;color:"+l.color}>${l.text}</span>
+            </div>`;
+          }):html`<div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396;padding:20px 0"}>NO EVENTS RECORDED</div>`}
+        </div>
+      </div>
     </div>`;
   };
 
@@ -2143,7 +2689,7 @@
           ${self.crosshairSvg()}
         </div>` : null}
       <div style=${"position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:33;background:#070b14ee;border:1px solid #ff5470;border-radius:5px;padding:9px 16px;font-family:"+MONO+";font-size:12.5px;letter-spacing:.12em;color:#ff8aa0;white-space:nowrap;box-shadow:0 0 26px #ff547040"}>
-        ✜ SELECT TARGET — <span style="color:#eaf2ff">${v.aiming.card.name}</span> · CLICK A HOSTILE CAPITAL · <span style="color:#7d92b5">SCREENED SHIPS ARE LOCKED · ESC TO CANCEL</span>
+        ✜ SELECT TARGET - <span style="color:#eaf2ff">${v.aiming.card.name}</span> · CLICK A HOSTILE CAPITAL · <span style="color:#7d92b5">SCREENED SHIPS ARE LOCKED · ESC TO CANCEL</span>
       </div>
     </div>`;
   };
@@ -2176,6 +2722,10 @@
     if (it.kind==="flash") {
       return html`<img key=${it.id} src=${it.img} alt=""
         style=${"position:fixed;left:"+it.x+"px;top:"+it.y+"px;width:"+it.size+"px;height:"+it.size+"px;transform:translate(-50%,-50%);animation:fxflash "+it.dur+"ms ease-out forwards"} />`;
+    }
+    if (it.kind==="ripple") {
+      return html`<div key=${it.id} class=${"hf-shield-ripple "+(it.side==="e"?"enemy":"player")}
+        style=${"left:"+it.x+"px;top:"+it.y+"px;width:"+it.size+"px;height:"+Math.round(it.size*.36)+"px;animation-duration:"+it.dur+"ms"}></div>`;
     }
     if (it.kind==="explosion") {
       return html`<div key=${it.id} ref=${function(el){ self.runExplosion(el,it); }}
@@ -2228,7 +2778,7 @@
   Game.prototype.renderSub = function (s) {
     var bd = s.focused ? "#ffd24a" : s.bd;
     return html`
-    <div onClick=${s.click} title=${s.focusable?(s.focused?"Focused — click to stop focusing "+s.lab:"Click to focus gunnery on "+s.lab):undefined}
+    <div onClick=${s.click} title=${s.focusable?(s.focused?"Focused - click to stop focusing "+s.lab:"Click to focus gunnery on "+s.lab):undefined}
       style=${"flex:1;border:1px solid "+bd+";border-radius:4px;background:"+(s.focused?"#1a1607e6":"#0a101ce6")+";padding:8px 11px;cursor:"+(s.focusable?"pointer":"default")+";box-shadow:"+(s.focused?"0 0 14px #ffd24a55":"none")+";position:relative"}>
       <div style=${"display:flex;justify-content:space-between;font-size:11px;letter-spacing:.12em;font-weight:600;text-transform:uppercase;color:"+(s.focused?"#ffd24a":s.col)}><span>${(s.focused?"◎ ":"")+s.lab}</span><span style=${"font-family:"+MONO+";font-weight:400"}>${s.val}</span></div>
       <div style="height:5px;background:#000000;border-radius:2px;margin-top:5px;overflow:hidden"><div style=${"height:100%;width:"+s.val+"%;background:"+s.bar+";transition:width .3s"}></div></div>
@@ -2260,7 +2810,7 @@
 
   // ------------------------------- MAP -------------------------------------
   // Zone-based free-travel sector chart (from the sector-map design handoff),
-  // scaled up 3x onto a 2400x1400 scrollable field: drag to pan, wheel to
+  // expanded onto a 3400x2100 scrollable field: drag to pan, wheel to
   // scroll, click a system for intel, double-click (or SET COURSE) to travel.
   Game.prototype.renderMap = function (v) {
     var self=this, m=v.map;
@@ -2272,7 +2822,7 @@
         onMouseDown=${function(e){ self.mapDown(e); }}
         onMouseMove=${function(e){ self.mapMove(e); }}
         style=${"position:absolute;inset:18px 380px 84px 258px;overflow:auto;cursor:"+(this._mdrag&&this._didPan?"grabbing":"grab")}>
-        <div style=${"position:relative;width:"+WORLD.w+"px;height:"+WORLD.h+"px"}>
+        <div class="hf-mapfield" style=${"position:relative;width:"+WORLD.w+"px;height:"+WORLD.h+"px"}>
           <div style=${"position:absolute;inset:0;background:"+WASH_BG}></div>
           ${m.zones.map(function(z){
             return html`
@@ -2286,7 +2836,7 @@
           </div>
           <svg viewBox=${"0 0 "+WORLD.w+" "+WORLD.h} style="position:absolute;inset:0;width:100%;height:100%;overflow:visible">
             ${m.edges.map(function(e,i){
-              return html`<line key=${i} x1=${e.x1} y1=${e.y1} x2=${e.x2} y2=${e.y2} style=${"stroke:"+e.col+";stroke-width:1.4;stroke-dasharray:7 7;opacity:"+e.op}></line>`;
+              return html`<line key=${i} x1=${e.x1} y1=${e.y1} x2=${e.x2} y2=${e.y2} style=${"stroke:"+e.col+";stroke-width:"+e.width+";stroke-dasharray:"+e.dash+";opacity:"+e.op}></line>`;
             })}
           </svg>
           <div style="position:absolute;inset:0">
@@ -2295,9 +2845,12 @@
               <div key=${n.id} class="hf-planet" onClick=${n.click} onDblClick=${n.dbl}
                 style=${"position:absolute;left:"+n.x+"%;top:"+n.y+"%;transform:translate(-50%,-50%);text-align:center;opacity:"+n.op+";cursor:pointer;z-index:2;width:160px"}>
                 <div style=${"position:relative;width:"+n.sz+"px;height:"+n.sz+"px;margin:0 auto"}>
-                  <div style=${"position:absolute;inset:-9px;border:1px dashed #4fd8ff;border-radius:50%;opacity:"+n.selOp}></div>
+                  <div class="hf-target-ring" style=${"display:"+n.targetDisp}></div>
                   <div style=${"position:absolute;inset:-6px;border:1px solid "+n.pulseC+";border-radius:50%;animation:ringpulseO 1.7s infinite;display:"+n.pulseDisp}></div>
-                  <div style=${"position:absolute;inset:0;border-radius:50%;border:2px solid "+n.ringCol+";background:"+n.disc+";box-shadow:"+n.glow}></div>
+                  <div style=${"position:absolute;inset:0;border-radius:50%;border:2px solid "+n.ringCol+";background:#03060b;box-shadow:"+n.glow+";overflow:hidden"}>
+                    <img src=${n.artSrc} alt="" style="width:100%;height:100%;object-fit:cover;display:block" />
+                    <div style="position:absolute;inset:0;background:linear-gradient(135deg,#ffffff24 0 13%,transparent 35%,#000000a8 100%)"></div>
+                  </div>
                   <div style=${"position:absolute;right:-7px;bottom:-5px;width:20px;height:20px;border-radius:50%;background:#070b14;border:1px solid "+n.ringCol+";display:grid;place-items:center;font-size:11px;color:"+n.gc}>${n.glyph}</div>
                   <div style=${"display:"+n.lockDisp+";position:absolute;inset:0;z-index:3;flex-direction:column;align-items:center;justify-content:center;filter:drop-shadow(0 3px 8px #000000e0)"}>
                     <div style="width:14px;height:12px;border:3px solid #ffc266;border-bottom:none;border-radius:8px 8px 0 0"></div>
@@ -2345,8 +2898,9 @@
 
       <!-- intel panel -->
       <div style="position:absolute;right:20px;top:18px;bottom:20px;width:340px;border:1px solid #334b70;border-radius:8px;background:linear-gradient(180deg,#111a2bee,#070b14ee);padding:18px 20px;display:flex;flex-direction:column;z-index:5;box-shadow:0 18px 60px #000000aa;overflow:hidden">
-        <div style="height:120px;flex:none;border-radius:5px;border:1px solid #1b2a45;background:repeating-linear-gradient(45deg,#0d1424 0 10px,#111a2c 10px 20px);display:grid;place-items:center;margin-bottom:14px">
-          <span style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.2em;color:#5f7396"}>· ${m.d.art} ·</span>
+        <div class="hf-system-art">
+          <img src=${m.d.artSrc} alt=${m.d.name} />
+          <span>${m.d.art}</span>
         </div>
         <div style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.22em;color:#7d92b5;text-transform:uppercase"}>${m.d.kicker}</div>
         <div style="font-weight:700;font-size:24px;letter-spacing:.04em;color:#ffffff;margin-top:7px;line-height:1.15">${m.d.name}</div>
@@ -2371,9 +2925,15 @@
         </div>
       </div>
 
+      ${m.nav.visible ? html`
+      <div class="hf-nav-arrow">
+        <span class="arrow" style=${"transform:rotate("+m.nav.angle+"deg)"}>➤</span>
+        <span class="copy">TARGET VECTOR<b>${m.nav.target}</b><em>${m.nav.cost}</em></span>
+      </div>` : null}
+
       <!-- bottom bar -->
       <div style="position:absolute;left:258px;right:380px;bottom:20px;display:flex;justify-content:center;gap:12px;z-index:5">
-        ${[["◈ DECK","deckview"],["⚙ SHIP","shipview"],["▤ CODEX","codex"]].map(function(b){
+        ${[["◈ DECK","deckview"],["⚙ SHIP","shipview"]].map(function(b){
           return html`<button key=${b[1]} class="hf-ghost-btn" onClick=${function(){ self.state.overlay=b[1]; self.forceUpdate(); }}
             style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:12px;text-transform:uppercase;color:#d6e2f5;background:#0a101ccc;border:1px solid #2c4066;border-radius:4px;padding:11px 22px;cursor:pointer">${b[0]}</button>`;
         })}
@@ -2382,7 +2942,7 @@
   };
 
   // --------------------------- SHIPYARD (yard) ------------------------------
-  // Forge Tether Shipyard model from the handoff — the template for every
+  // Forge Tether Shipyard model from the handoff - the template for every
   // docked shipyard: dry dock, yard services, permanent refits, thin armory.
   Game.prototype.renderYard = function (v) {
     var self=this, y=v.yd;
@@ -2410,7 +2970,7 @@
                 })}
               </div>
               <div style="letter-spacing:.18em;font-size:11px;font-weight:600;color:#8deaff;text-transform:uppercase;margin:16px 0 4px">Escorts for Commission</div>
-              <div style="font-size:12px;color:#8fa3c4;margin-bottom:10px">Up to ${FLEET_MAX} capitals fly in your line. Escorts screen your flagship's lane — and bring their own decks.</div>
+              <div style="font-size:12px;color:#8fa3c4;margin-bottom:10px">Up to ${FLEET_MAX} capitals fly in your line. Escorts screen your flagship's lane - and bring their own decks.</div>
               <div style="display:flex;flex-direction:column;gap:10px">
                 ${y.escorts.map(function(esc){
                   return html`
@@ -2437,7 +2997,7 @@
             </div>
           </div>
           <div style="border:1px solid #1b2a45;border-radius:6px;background:#0a0f1ad9;padding:16px 18px">
-            <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#ffffff;text-transform:uppercase">Shipyard — Permanent Refits</div>
+            <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#ffffff;text-transform:uppercase">Shipyard - Permanent Refits</div>
             <div style="font-size:13.5px;color:#8fa3c4;margin:3px 0 14px">Welded to the frame. Yours for the rest of the run.</div>
             <div style="display:flex;flex-direction:column;gap:10px">
               ${y.refits.map(function(r){
@@ -2454,7 +3014,7 @@
           </div>
           <div style="border:1px solid #1b2a45;border-radius:6px;background:#0a0f1ad9;padding:16px 18px">
             <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#ffffff;text-transform:uppercase">Yard Armory</div>
-            <div style="font-size:13.5px;color:#8fa3c4;margin:3px 0 14px">Thin stock — full card shops stay at waystations.</div>
+            <div style="font-size:13.5px;color:#8fa3c4;margin:3px 0 14px">Thin stock - full card shops stay at waystations.</div>
             <div style="display:flex;flex-direction:column;gap:10px">
               ${y.stock.map(function(s){
                 return html`
@@ -2498,15 +3058,15 @@
     return this.mapOverlayShell("REPAIR DEPOT · DOCKED", n?n.label:"REPAIR DOCK", html`
       <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#8fa3c4">Tenders swarm the hull the moment the clamps bite, and the fuel racks are already topped off. Hull ${Math.round(p.hull)}/${p.hullMax} · Crew ${p.crew}/${p.crewMax} · Fuel ${p.fuel}/${p.fuelMax} · ${S.salvage} ◈</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <button onClick=${rOk?function(){ self.repair(); }:undefined} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+(rOk?"pointer":"default")+";opacity:"+(rOk?1:.45)+";letter-spacing:.06em"}>PATCH HULL +15 — 10 ◈</button>
-        <button onClick=${cOk?function(){ self.hire(); }:undefined} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+(cOk?"pointer":"default")+";opacity:"+(cOk?1:.45)+";letter-spacing:.06em"}>HIRE CREW +1 — 8 ◈</button>
+        <button onClick=${rOk?function(){ self.repair(); }:undefined} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+(rOk?"pointer":"default")+";opacity:"+(rOk?1:.45)+";letter-spacing:.06em"}>PATCH HULL +15 - 10 ◈</button>
+        <button onClick=${cOk?function(){ self.hire(); }:undefined} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+(cOk?"pointer":"default")+";opacity:"+(cOk?1:.45)+";letter-spacing:.06em"}>HIRE CREW +1 - 8 ◈</button>
         <button class="hf-ghost-btn" onClick=${function(){ S.overlay=null; self.forceUpdate(); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.12em;font-size:12px;text-transform:uppercase;color:#d6e2f5;background:#0a101c;border:1px solid #2c4066;border-radius:4px;padding:10px 18px;cursor:pointer">Cast Off ▸</button>
       </div>`);
   };
   Game.prototype.renderDeckView = function () {
     var S=this.state;
     var total=S.fleet.reduce(function(s,sh){ return s+sh.deckKeys.length; },0);
-    return this.mapOverlayShell("FLEET MANIFEST", "Decks — "+total+" Cards / "+S.fleet.length+" Ship"+(S.fleet.length>1?"s":""), html`
+    return this.mapOverlayShell("FLEET MANIFEST", "Decks - "+total+" Cards / "+S.fleet.length+" Ship"+(S.fleet.length>1?"s":""), html`
       ${S.fleet.map(function(sh,si){
         return html`
         <div key=${si} style=${si>0?"margin-top:16px":""}>
@@ -2521,11 +3081,11 @@
           </div>
         </div>`;
       })}
-      <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:14px;letter-spacing:.08em"}>SCRAP AND RESTOCK AT ANY STATION ARMORY — PICK THE SHIP IN THE DECK MANIFEST.</div>`);
+      <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:14px;letter-spacing:.08em"}>SCRAP AND RESTOCK AT ANY STATION ARMORY - PICK THE SHIP IN THE DECK MANIFEST.</div>`);
   };
   Game.prototype.renderShipView = function () {
     var S=this.state, p=S.player;
-    return this.mapOverlayShell("FLEET STATUS", "Your Line — "+S.fleet.length+"/"+FLEET_MAX+" Capitals", html`
+    return this.mapOverlayShell("FLEET STATUS", "Your Line - "+S.fleet.length+"/"+FLEET_MAX+" Capitals", html`
       ${S.fleet.map(function(sh,si){
         var rows=[["HULL",Math.round(sh.hull)+"/"+sh.hullMax],["SHIELD CAP",String(sh.shieldCap)],["REACTOR",sh.powerBase+" / TURN"],["CREW",sh.crew+"/"+sh.crewMax],
           sh.flagship?["FUEL",sh.fuel+"/"+sh.fuelMax+" CELLS"]:["HANGAR",sh.hangarCap?sh.hangarCap+" BAYS":"NONE"],
@@ -2548,18 +3108,18 @@
       ${YARD_REFITS.filter(function(r){ return p.ups[r.k]; }).map(function(r){
         return html`<div key=${r.k} style="display:flex;justify-content:space-between;border:1px solid #1e4a38;border-radius:4px;background:#07140f;padding:8px 12px;margin-bottom:6px"><span style="font-size:13.5px;font-weight:600;color:#eaf2ff">${r.name}</span><span style=${"font-family:"+MONO+";font-size:11px;color:#7cf0c0;letter-spacing:.08em"}>INSTALLED</span></div>`;
       })}
-      ${Object.keys(p.ups).length===0?html`<div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396"}>— none. Shipyards sell permanent refits. —</div>`:null}`);
+      ${Object.keys(p.ups).length===0?html`<div style=${"font-family:"+MONO+";font-size:12px;color:#5f7396"}>- none. Shipyards sell permanent refits. -</div>`:null}`);
   };
   Game.prototype.renderCodex = function () {
     var self=this, S=this.state;
     var zsec=this.zonesSecured();
     return this.mapOverlayShell("SECTOR CODEX", "The Blackstar Verge", html`
-      <p style="margin:0 0 14px;font-size:14.5px;line-height:1.55;color:#8fa3c4">Ten zones, one way out — and every system beyond Haven Anchorage began this run under Pact occupation. Liberate every system in a zone to secure it — <b style="color:#eaf2ff">${zsec} secured</b>, ${GATE_ZONES_REQ} needed to unseal the Blackstar Gate.</p>
+      <p style="margin:0 0 14px;font-size:14.5px;line-height:1.55;color:#8fa3c4">Ten zones, one way out - and every system beyond Haven Anchorage began this run under Pact occupation. Liberate every system in a zone to secure it - <b style="color:#eaf2ff">${zsec} secured</b>, ${GATE_ZONES_REQ} needed to unseal the Blackstar Gate.</p>
       ${ZONES.map(function(z){
         var secured=self.zoneSecured(z), unlocked=self.zoneUnlocked(z);
         var tot=0, tk=0;
         NODES.forEach(function(n){ if (n.z===z.k){ tot++; if (S.taken[n.id]) tk++; } });
-        var st=secured?"SECURED":!unlocked?"SEALED — "+z.req.txt:(z.req?"UNLOCKED":"OPEN");
+        var st=secured?"SECURED":!unlocked?"SEALED - "+z.req.txt:(z.req?"UNLOCKED":"OPEN");
         var stC=secured?"#7cf0c0":!unlocked?"#ff8aa0":"#8deaff";
         return html`<div key=${z.k} style="display:flex;justify-content:space-between;gap:14px;border:1px solid #1b2a45;border-radius:4px;background:#0a0f1a;padding:9px 13px;margin-bottom:7px">
           <span style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.14em;color:"+z.c}>${z.name} <span style="color:#5f7396">${tk}/${tot}</span></span>
@@ -2614,21 +3174,21 @@
               <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#ffffff;text-transform:uppercase">Refit Bay</div>
               <div style="font-size:14px;color:#8fa3c4;margin:3px 0 14px">Hull ${v.pHullTxt} · Crew ${v.pCrewTxt}</div>
               <div style="display:flex;gap:12px;flex-wrap:wrap">
-                <button onClick=${v.repClick} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+v.repCur+";opacity:"+v.repOp+";letter-spacing:.06em"}>PATCH HULL +15 — 10 ◈</button>
-                <button onClick=${v.crClick} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+v.crCur+";opacity:"+v.crOp+";letter-spacing:.06em"}>HIRE CREW +1 — 8 ◈</button>
+                <button onClick=${v.repClick} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+v.repCur+";opacity:"+v.repOp+";letter-spacing:.06em"}>PATCH HULL +15 - 10 ◈</button>
+                <button onClick=${v.crClick} style=${"font-family:"+MONO+";font-size:13px;color:#d6e2f5;background:#0d1424;border:1px solid #3a5580;border-radius:3px;padding:10px 15px;cursor:"+v.crCur+";opacity:"+v.crOp+";letter-spacing:.06em"}>HIRE CREW +1 - 8 ◈</button>
               </div>
-              <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:12px;letter-spacing:.06em"}>PERMANENT REFITS — SEE A SHIPYARD (FORGE TETHER · HOLLOW YARD)</div>
+              <div style=${"font-family:"+MONO+";font-size:11px;color:#5f7396;margin-top:12px;letter-spacing:.06em"}>PERMANENT REFITS - SEE A SHIPYARD (FORGE TETHER · HOLLOW YARD)</div>
             </div>
           </div>
         </div>
 
-        <!-- deck manifest (per ship — purchases and scrapping target this hull) -->
+        <!-- deck manifest (per ship - purchases and scrapping target this hull) -->
         <div style="border:1px solid #1b2a45;border-radius:6px;background:#0a0f1ad9;padding:16px 18px;margin-top:20px">
           <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
             <div style="letter-spacing:.2em;font-size:13px;font-weight:600;color:#8fa3c4;text-transform:uppercase">Deck Manifest</div>
             <div style=${"font-family:"+MONO+";font-size:12px;color:#8deaff;letter-spacing:.06em"}>OUTFITTING: ${v.outfitName}</div>
             ${v.outfitMany ? html`<button onClick=${v.outfitClick} style=${"font-family:"+MONO+";font-size:11px;letter-spacing:.1em;color:#d6e2f5;background:#0a101c;border:1px solid #2c4066;border-radius:3px;padding:5px 12px;cursor:pointer"}>NEXT SHIP ▸</button>` : null}
-            <div style=${"font-family:"+MONO+";font-size:11.5px;color:#5f7396"}>CLICK ✕ TO SCRAP A CARD — 12 ◈ (MIN ${v.deckMin} CARDS)</div>
+            <div style=${"font-family:"+MONO+";font-size:11.5px;color:#5f7396"}>CLICK ✕ TO SCRAP A CARD - 12 ◈ (MIN ${v.deckMin} CARDS)</div>
           </div>
           <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:13px">
             ${v.deckCards.map(function(d,i){
@@ -2654,7 +3214,7 @@
         <span style=${"font-size:"+Math.round(s*0.4)+"px;color:"+sp.c+";text-shadow:0 0 16px "+sp.c}>✷</span>
       </div>`;
     }
-    // The source portraits carry a small number caption on the bottom edge — clip
+    // The source portraits carry a small number caption on the bottom edge - clip
     // it by giving the image its natural aspect and hiding the overflow.
     return html`<div style=${"width:"+s+"px;height:"+hgt+"px;flex:0 0 auto;border:2px solid "+sp.c+";border-radius:8px;box-shadow:0 0 22px "+sp.c+"44;background:#070b14;overflow:hidden"}>
       <img src=${"assets/crew/"+sp.img+".png"} alt=${sp.name}
@@ -2735,9 +3295,9 @@
           </div>
         </div>
         <div style="padding:22px 26px">
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> owns the Blackstar Verge — every station, shipyard and dock beyond your anchorage is occupied territory, and the jump gate is sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one flagship: the battleship <b style="color:#eaf2ff">ISV Resolute</b>. Build a line of up to three capitals around her — bought from dry docks or taken as prizes. Every system you liberate is yours. Liberate enough, and the sector follows.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> — <b style="color:#eaf2ff">liberated</b> docks refill them free; run dry and you burn hull to keep moving. Fight the garrison off a port and its armory, yard or repair bay works for you. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
-          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, up to <b style="color:#eaf2ff">three capitals a side</b> form a line — each of yours with its own deck and reactor; click a ship to command it. Guns are <b style="color:#eaf2ff">screened</b> to the lane opposite until that ship breaks. <b style="color:#eaf2ff">Fighters and bombers</b> launch from hangars onto the board, dogfight, and torpedo capitals; <b style="color:#eaf2ff">WEAPONS</b>, <b style="color:#eaf2ff">REACTOR</b> and <b style="color:#eaf2ff">ENGINES</b> can each be crippled. Win by gutting hulls — or board and take them <b style="color:#eaf2ff">as prizes for your line</b>.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">The fleet is scattered and the <b style="color:#eaf2ff">Corsair Pact</b> owns the Blackstar Verge - every station, shipyard and dock beyond your anchorage is occupied territory, and the jump gate is sealed behind <b style="color:#eaf2ff">Ironwall Command</b>. You hold one anchorage and one flagship: the battleship <b style="color:#eaf2ff">ISV Resolute</b>. Build a line of up to three capitals around her - bought from dry docks or taken as prizes. Every system you liberate is yours. Liberate enough, and the sector follows.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">Travel is free along the charted lanes, but every jump burns a <b style="color:#eaf2ff">fuel cell</b> - <b style="color:#eaf2ff">liberated</b> docks refill them free; run dry and you burn hull to keep moving. Fight the garrison off a port and its armory, yard or repair bay works for you. Secure whole zones to pry open the sealed reaches, win keys from bounties and derelicts, and secure <b style="color:#eaf2ff">four zones</b> to unseal the Blackstar Gate.</p>
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#8fa3c4">In battle, up to <b style="color:#eaf2ff">three capitals a side</b> form a line - each of yours with its own deck and reactor; click a ship to command it. Guns are <b style="color:#eaf2ff">screened</b> to the lane opposite until that ship breaks. <b style="color:#eaf2ff">Fighters and bombers</b> launch from hangars onto the board, dogfight, and torpedo capitals; <b style="color:#eaf2ff">WEAPONS</b>, <b style="color:#eaf2ff">REACTOR</b> and <b style="color:#eaf2ff">ENGINES</b> can each be crippled. Win by gutting hulls - or board and take them <b style="color:#eaf2ff">as prizes for your line</b>.</p>
           <div style=${"display:flex;gap:24px;flex-wrap:wrap;font-family:"+MONO+";font-size:13px;color:#8fa3c4;margin:6px 0 20px"}><span>HULL <b style="color:#ffffff;font-weight:500">80</b></span><span>CREW <b style="color:#ffffff;font-weight:500">10</b></span><span>SHIELD <b style="color:#ffffff;font-weight:500">24</b></span><span>REACTOR <b style="color:#ffffff;font-weight:500">3</b>/TURN</span><span>FUEL <b style="color:#ffffff;font-weight:500">5</b> CELLS</span><span>FLEET <b style="color:#ffffff;font-weight:500">UP TO 3</b> CAPITALS</span></div>
           <button class="hf-btn" onClick=${function(){ self.closeBrief(); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.14em;font-size:16px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:13px 30px;cursor:pointer;box-shadow:0 4px 0 #14506b">Plot the Course ▸</button>
         </div>
@@ -2768,7 +3328,7 @@
               </div>`;
             })}
           </div>
-          <button class="hf-ghost-btn" onClick=${function(){ self.skipReward(); }} style="display:block;margin:18px auto 0;background:none;border:1px solid #2c4066;color:#8fa3c4;font-family:'Space Grotesk',sans-serif;letter-spacing:.14em;font-size:13px;padding:9px 20px;border-radius:4px;cursor:pointer;text-transform:uppercase">Take nothing — press on</button>
+          <button class="hf-ghost-btn" onClick=${function(){ self.skipReward(); }} style="display:block;margin:18px auto 0;background:none;border:1px solid #2c4066;color:#8fa3c4;font-family:'Space Grotesk',sans-serif;letter-spacing:.14em;font-size:13px;padding:9px 20px;border-radius:4px;cursor:pointer;text-transform:uppercase">Take nothing - press on</button>
         </div>
       </div>
     </div>`;
@@ -2776,6 +3336,7 @@
 
   Game.prototype.renderAnomaly = function () {
     var self=this, n=this.state.evNode || {};
+    var choices=ANOMALY_CHOICES[n.id]||ANOMALY_CHOICES.hulk;
     return html`
     <div style="position:absolute;inset:0;background:#000000d8;backdrop-filter:blur(3px);display:grid;place-items:center;z-index:50;padding:20px">
       <div class="hf-overlay-panel" style="max-width:600px;width:100%;border:1px solid #2c4066;border-radius:10px;background:linear-gradient(180deg,#101828,#070b14);box-shadow:0 24px 70px #000c;overflow:hidden">
@@ -2789,7 +3350,13 @@
           <div style="border:1px solid #5c4a26;border-radius:5px;background:#0d0b06;padding:10px 14px;margin:0 0 18px">
             <span style=${"font-family:"+MONO+";font-size:12px;letter-spacing:.14em;color:#ffc266"}>◈ RECOVERED: ${KEY_NAMES[n.key]}</span>
           </div>` : null}
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="hf-anomaly-choices" style="display:flex;gap:12px;flex-wrap:wrap">
+            ${choices.map(function(c,i){
+              return html`<button key=${c.mode} class=${"hf-anomaly-choice "+(i===0?"hf-btn":"hf-ghost-btn")} onClick=${function(){ self.evResolve(c.mode); }}
+                style=${"font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.08em;font-size:13px;text-transform:uppercase;color:"+(i===0?"#03131c":"#d6e2f5")+";background:"+(i===0?"linear-gradient(180deg,#63e2ff,#2fbfe8)":"none")+";border:1px solid "+(i===0?"#8deaff":"#3a5580")+";border-radius:4px;padding:12px 18px;cursor:pointer;box-shadow:"+(i===0?"0 4px 0 #14506b":"none")}>
+                ${c.label}<span style=${"display:block;font-family:"+MONO+";font-size:10px;letter-spacing:.08em;margin-top:4px;color:"+(i===0?"#0a4050":"#8deaff")}>${c.detail}</span>
+              </button>`;
+            })}
             <button class="hf-btn" onClick=${function(){ self.evResolve("take"); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.1em;font-size:14px;text-transform:uppercase;color:#03131c;background:linear-gradient(180deg,#63e2ff,#2fbfe8);border:1px solid #8deaff;border-radius:4px;padding:12px 20px;cursor:pointer;box-shadow:0 4px 0 #14506b">Strip the wreck · +18 ◈</button>
             <button class="hf-ghost-btn" onClick=${function(){ self.evResolve("rescue"); }} style="font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:.1em;font-size:14px;text-transform:uppercase;color:#d6e2f5;background:none;border:1px solid #3a5580;border-radius:4px;padding:12px 20px;cursor:pointer">Search for survivors · +2 crew</button>
           </div>
@@ -2827,7 +3394,7 @@
     var takenCount=Object.keys(S.taken).length;
     m.takenCount=takenCount; m.totalCount=NODES.length;
     m.ctrlPct=Math.round(takenCount/NODES.length*100);
-    m.ctrlNote = zsec>=GATE_ZONES_REQ ? "THE BLACKSTAR GATE IS UNSEALED — GOOD HUNTING"
+    m.ctrlNote = zsec>=GATE_ZONES_REQ ? "THE BLACKSTAR GATE IS UNSEALED - GOOD HUNTING"
       : "SECURE "+GATE_ZONES_REQ+" ZONES TO UNSEAL THE BLACKSTAR GATE ("+zsec+"/"+GATE_ZONES_REQ+")";
     m.hullTxt=Math.round(P.hull)+"/"+P.hullMax; m.hullPct=this.cl(P.hull/P.hullMax*100,0,100);
     m.crewTxt=P.crew+"/"+P.crewMax; m.deckTxt=S.fleet.reduce(function(s,sh){return s+sh.deckKeys.length;},0); m.salv=S.salvage;
@@ -2854,17 +3421,18 @@
       });
       var hostile=isEnemy(n)&&!taken;
       return {
-        id:n.id, x:n.x, y:n.y, sz:n.sz, glyph:t.g, label:n.label,
+        id:n.id, x:n.x, y:n.y, sz:Math.round(n.sz*1.18+4), glyph:t.g, label:n.label,
+        artSrc:systemArt(n),
         disc:DISC[n.disc||n.type],
         ringCol: cur?"#ffffff": taken?"#7cf0c0": locked?"#243350": hostile?"#ff8aa0":"#4fd8ff",
         gc: locked?"#6e5560": t.c,
         lc: locked?"#6e5560":"#d6e2f5",
         glow: cur?"0 0 24px #4fd8ff55": taken?"0 0 16px #7cf0c044": locked?"none": hostile?"0 0 18px #ff547044":"0 0 18px #4fd8ff40",
         op: (locked&&!frontier)?0.75:1,
-        // pulse gating uses display, not opacity — the keyframes animate opacity
+        // pulse gating uses display, not opacity - the keyframes animate opacity
         pulseDisp: accessible && (isAllied(n)||hostile) ? "block" : "none",
         pulseC: hostile?"#ff5470":"#ffffff",
-        selOp: isSel?1:0,
+        targetDisp: isSel&&!cur ? "block" : "none",
         lockDisp: frontier?"flex":"none",
         tag: cur?"YOU ARE HERE": locked?"SEALED": taken?"": n.type==="shipyard"?"OCCUPIED SHIPYARD": n.type==="station"?"OCCUPIED STATION": n.type==="repair"?"OCCUPIED DOCK": n.type==="bounty"?"HIGH REWARD": n.type==="anomaly"?"ANOMALY":"",
         tagC: cur?"#4fd8ff": locked?"#ff5470aa": taken?"#7cf0c0":"#a9bcda",
@@ -2873,14 +3441,23 @@
       };
     });
 
+    var shipN=NBYID[S.current];
+    var sn=NBYID[S.sel]||shipN;
+    var route=this.mapRouteTo(sn.id), routeEdges={};
+    for (var ri=1;ri<route.length;ri++) {
+      routeEdges[[route[ri-1],route[ri]].sort().join("|")]=true;
+    }
     m.edges=EDGES.map(function(e){
       var a=NBYID[e[0]], b=NBYID[e[1]];
       var aL=!unlocked[a.z], bL=!unlocked[b.z];
-      var col="#243350", op=.5;
+      var onRoute=!!routeEdges[[e[0],e[1]].sort().join("|")];
+      var col="#243350", op=.5, width=1.4, dash="7 7";
       if (aL&&bL) { col="#3a2430"; op=.5; }
       else if (aL||bL) { col="#5c4a26"; op=.6; }
+      else if (onRoute) { col="#f3c969"; op=1; width=3.4; dash="2 5"; }
       else if (e[0]===S.current||e[1]===S.current) { col="#4fd8ff"; op=.8; }
-      return { x1:a.x/100*WORLD.w, y1:a.y/100*WORLD.h, x2:b.x/100*WORLD.w, y2:b.y/100*WORLD.h, col:col, op:op };
+      return { x1:a.x/100*WORLD.w, y1:a.y/100*WORLD.h, x2:b.x/100*WORLD.w, y2:b.y/100*WORLD.h,
+        col:col, op:op, width:width, dash:dash };
     });
 
     var shipN=NBYID[S.current];
@@ -2888,15 +3465,25 @@
 
     // intel panel for the selected (or current) system
     var sn=NBYID[S.sel]||shipN;
+    var navDx=(sn.x-shipN.x)*WORLD.w/100, navDy=(sn.y-shipN.y)*WORLD.h/100;
+    m.nav={
+      visible:sn.id!==shipN.id,
+      angle:Math.round(Math.atan2(navDy,navDx)*180/Math.PI),
+      target:sn.label
+    };
     var z=ZBYK[sn.z];
     var cur=sn.id===S.current, taken=!!S.taken[sn.id], locked=!unlocked[sn.z];
     var hops=dist[sn.id], reachable=!cur&&hops!=null&&!locked;
     var hostile=isEnemy(sn)&&!taken;
     var fShort=reachable?Math.max(0,hops-P.fuel):0, fLethal=fShort>0&&P.hull<=fShort*5;
+    var fuelCost=reachable?Math.min(hops,P.fuel):0, hullCost=fShort*5;
+    m.nav.visible=m.nav.visible&&reachable;
+    m.nav.cost=fuelCost+" FUEL · "+hullCost+" HULL";
     var lines=[];
     if (reachable) {
       lines.push({k:"ROUTE", v:hops+(hops===1?" JUMP":" JUMPS"), c:"#8deaff"});
-      lines.push({k:"FUEL", v:hops+(hops===1?" CELL":" CELLS")+(fShort>0?" — SHORT "+fShort+" (−"+(fShort*5)+" HULL)":""), c:fShort>0?"#ff8aa0":"#ffc266"});
+      lines.push({k:"HULL COST", v:hullCost+(hullCost===1?" POINT":" POINTS"), c:hullCost>0?"#ff8aa0":"#7cf0c0"});
+      lines.push({k:"FUEL", v:hops+(hops===1?" CELL":" CELLS")+(fShort>0?" - SHORT "+fShort+" (−"+(fShort*5)+" HULL)":""), c:fShort>0?"#ff8aa0":"#ffc266"});
     }
     if (sn.type==="home") lines.push({k:"SERVICES", v:"REPAIR · ARMORY · CREW", c:"#7cf0c0"});
     if (sn.type==="station") lines.push({k:"SERVICES", v:"ARMORY · REPAIR · CREW", c:"#7cf0c0"});
@@ -2912,7 +3499,7 @@
       lines.push({k:"THREAT", v:taken?"NONE":t.v, c:taken?"#7d92b5":t.c});
     }
     if (sn.type==="anomaly") lines.push({k:"RISK", v:taken?"NONE":"UNKNOWN", c:taken?"#7d92b5":"#b48aff"});
-    if (sn.type==="boss") lines.push({k:"THREAT", v:taken?"NONE":"FLAGSHIP — "+ENEMIES[sn.enemy].role, c:taken?"#7d92b5":"#ff5470"});
+    if (sn.type==="boss") lines.push({k:"THREAT", v:taken?"NONE":"FLAGSHIP - "+ENEMIES[sn.enemy].role, c:taken?"#7d92b5":"#ff5470"});
     if (sn.type==="gate") lines.push({k:"CONTROL", v:S.taken.verdict?"YOURS":"IRONWALL COMMAND", c:S.taken.verdict?"#7cf0c0":"#ff8aa0"});
     if (!taken) {
       var pay=function(lo,hi){ return Math.round(lo*zm)+"–"+Math.round(hi*zm)+" ◈"; };
@@ -2925,7 +3512,7 @@
     var isPort=(sn.type==="station"||sn.type==="shipyard"||sn.type==="repair");
     var desc=sn.desc;
     if (taken && sn.id!=="haven") {
-      if (isPort) desc="Liberated and flying your flag — docks, services and shops are open to the Resolute.";
+      if (isPort) desc="Liberated and flying your flag - docks, services and shops are open to the Resolute.";
       else if (sn.type==="anomaly") desc="Swept and salvaged. Whatever moved in the dark here is quiet now.";
       else if (sn.enemy!=null) desc="Cleared and held. The wrecks are picked over and the lane runs quiet under your flag.";
     }
@@ -2935,7 +3522,7 @@
     else if (locked) { status="SEALED"; statusCol="#ff5470"; }
     else if (taken) { status="UNDER YOUR CONTROL"; statusCol="#7cf0c0"; }
     else if (sn.type==="anomaly") { status="UNKNOWN SIGNATURE"; statusCol="#b48aff"; }
-    else if (hostile && (sn.type==="station"||sn.type==="shipyard"||sn.type==="repair")) { status="OCCUPIED — LIBERATE TO DOCK"; statusCol="#ff8aa0"; }
+    else if (hostile && (sn.type==="station"||sn.type==="shipyard"||sn.type==="repair")) { status="OCCUPIED - LIBERATE TO DOCK"; statusCol="#ff8aa0"; }
     else if (hostile) { status=sn.type==="bounty"?"TARGET TRACKED":"HOSTILE CONTACT"; statusCol=sn.type==="bounty"?"#ffc266":"#ff8aa0"; }
     else { status="DOCK AVAILABLE"; statusCol="#7cf0c0"; }
 
@@ -2959,7 +3546,8 @@
     }
 
     m.d={
-      kicker:TYPE_LABEL[sn.type]+" · "+z.name, name:sn.label, art:sn.label+" ART",
+      kicker:TYPE_LABEL[sn.type]+" · "+z.name, name:sn.label,
+      art:"LONG-RANGE SYSTEM SURVEY", artSrc:systemArt(sn),
       status:status, statusCol:statusCol, desc:desc, lines:lines,
       req:(locked&&z.req) ? (z.req.zones ? z.req.txt+" ("+zsec+"/"+z.req.zones+")" : z.req.txt)
         : (cur&&sn.type==="gate"&&!S.taken.verdict) ? "DESTROY THE IRON VERDICT" : null,
@@ -3052,14 +3640,16 @@
 
     var vw=window.innerWidth||1280, vh=window.innerHeight||800;
     if (B) {
+      v.tutorialStep=S.tutorial?S.tutorial.step:null;
       // Fit the whole battle line (up to 3 lanes a side + the token strip) to
       // the space between the top bar and the hand bar. User zoom/pan rides on
       // top of the base fit.
       var lanes=Math.max(B.pShips.length, B.eShips.length);
-      var colW=Math.max(760, lanes*350+40), colH=940;
+      var colW=Math.max(740, lanes*330+40), colH=880;
       var baseFit=this.cl(Math.min((vw-40)/colW,(vh-292)/colH),0.40,1.15);
       var zoom=baseFit*this.view.zoom;
       v.colW=colW;
+      v.labelScale=(1/this.view.zoom).toFixed(3);
       v.combatTransform="translate("+Math.round(this.view.panX)+"px, calc(-50% + "+Math.round(this.view.panY)+"px)) scale("+zoom.toFixed(3)+")";
       // Parallax backdrop: drifts a fraction of the camera pan and a touch of zoom.
       v.bgSrc=B.bg;
@@ -3097,7 +3687,8 @@
           crewTxt:en.crew+"/"+en.crewMax, intent:iv,
           aimable:!!B.aiming && validAim.indexOf(i)>=0,
           screened:!!B.aiming && en.alive && !en.struck && validAim.indexOf(i)<0,
-          refIdx:i
+          refIdx:i, labelScale:v.labelScale,
+          tutorialIntent:v.tutorialStep===0&&i===0
         };
       });
       // ---- player line cells ----
@@ -3113,7 +3704,8 @@
           crewTxt:sh.crew+"/"+sh.crewMax,
           powTxt:sh.power+"/"+self.rp(sh), handN:pS.hand.length,
           hangarTxt:sh.hangarCap?(self.hangarUsed(sh)+"/"+sh.hangarCap+" BAYS"):null,
-          refIdx:i,
+          refIdx:i, labelScale:v.labelScale,
+          tutorialShip:v.tutorialStep===2&&i===0,
           swapL: (canManoeuvre&&self.pAlive(i)&&self.pAlive(i-1)) ? function(e){ if(e&&e.stopPropagation)e.stopPropagation(); self.swapLane(i,-1); } : null,
           swapR: (canManoeuvre&&self.pAlive(i)&&self.pAlive(i+1)) ? function(e){ if(e&&e.stopPropagation)e.stopPropagation(); self.swapLane(i,1); } : null,
           click:function(){ self.setActiveShip(i); }
@@ -3121,12 +3713,18 @@
       });
       v.swapUsed=B.swapUsed; v.canManoeuvre=canManoeuvre&&B.pShips.length>1;
       // ---- strike craft (drawn as small sprites in the gap) ----
-      v.tokens=B.tokens.map(function(t){
-        return { raw:t.kind, side:t.side, stat:t.atk+"/"+t.hp, kind:t.kind.toUpperCase(),
+      v.rearmingCount=B.tokens.filter(function(t){return t.side==="p"&&t.recalled&&t.hp>0;}).length;
+      v.tokens=B.tokens.filter(function(t){return !t.recalled&&t.hp>0;}).map(function(t){
+        return { id:t.id, raw:t.kind, side:t.side, stat:t.atk+"/"+t.hp, kind:t.kind.toUpperCase(),
+          status:t.rearm>0?"REARM "+t.rearm:null, recalled:!!t.recalled,
+          launched:Date.now()-(t.launchedAt||0)<1000, labelScale:v.labelScale,
           col:t.side==="p"?"#5fd8ff":"#ff5470", img:shipImg(CRAFT_SPRITE[t.kind]||"ship-09",false) };
       });
       v.pTokens=v.tokens.filter(function(t){return t.side==="p";});
       v.eTokens=v.tokens.filter(function(t){return t.side==="e";});
+      v.recallVisible=B.tokens.some(function(t){return t.side==="p"&&t.hp>0;});
+      v.canRecall=v.recallVisible&&!B.recallUsed&&!B.busy&&!B.over&&!B.aiming&&v.pTokens.length>0;
+      v.recallClick=v.canRecall?function(){self.recallStrikeCraft();}:undefined;
       v.aiming=B.aiming||null;
       v.hand=act.hand.map(function(c){
         var hangarBlocked=!!(c.strike&&(c.strike.kind==="fighter"||c.strike.kind==="bomber")&&(!actSh.hangarCap||self.hangarUsed(actSh)>=actSh.hangarCap));
@@ -3139,7 +3737,7 @@
       v.pips=pips; v.powTxt=actSh.power+"/"+this.rp(actSh); v.drawTxt=act.draw.length; v.discTxt=act.disc.length;
       v.fleetTabs=B.pShips.length>1;
       v.logs=B.logs.slice(-(vh<680?3:9)).map(function(l){ return { k:l.k, text:l.text, color:l.color, bt:l.mark?"1px dashed #1b2a45":"0 none transparent", pt:l.mark?"5px":"0", mt:l.mark?"5px":"0" }; });
-      v.floats=B.floats; v.beams=B.beams;
+      v.floats=B.floats; v.beams=B.beams; v.hitStop=!!this._hitStop;
       v.plShow=!!B.played; if (B.played) v.played=B.played;
       v.endClick=function(){ self.endTurn(); };
       var lock=B.busy||B.over||B.aiming;
